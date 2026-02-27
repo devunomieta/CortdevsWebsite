@@ -44,11 +44,14 @@ export function BrandLoader({ className = "", size = "md" }: BrandLoaderProps) {
                 <span className={`${textSizes[size]} font-light tracking-widest text-black`}>
                     CORT<span className="font-semibold text-black">DEVS</span>
                 </span>
+                <span className="text-[10px] tracking-[0.3em] uppercase text-neutral-400 mt-1 font-medium">
+                    Premium Web Solutions
+                </span>
                 <motion.div
                     initial={{ scaleX: 0 }}
                     animate={{ scaleX: 1 }}
                     transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                    className="h-[1px] bg-black/10 origin-left w-full mt-1"
+                    className="h-[1px] bg-black/10 origin-left w-full mt-2"
                 />
             </div>
         </div>
