@@ -1,9 +1,12 @@
-import { Link } from "react-router";
-import { motion } from "motion/react";
+import { Link, useOutletContext } from "react-router";
+import { motion } from "framer-motion";
 import { ArrowRight, CheckCircle2, Zap, Shield, TrendingUp } from "lucide-react";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
+import { Preloader } from "../components/Preloader";
 
 export function Home() {
+  const { setIsDialogOpen } = useOutletContext<{ setIsDialogOpen: (open: boolean) => void }>();
+
   const fadeInUp = {
     initial: { opacity: 0, y: 30 },
     animate: { opacity: 1, y: 0 },
@@ -34,10 +37,10 @@ export function Home() {
   ];
 
   const stats = [
-    { number: "150+", label: "Projects Delivered" },
-    { number: "98%", label: "Client Satisfaction" },
-    { number: "50+", label: "Enterprise Clients" },
-    { number: "24/7", label: "Support Available" }
+    { number: "100+", label: "Projects Delivered" },
+    { number: "99%", label: "Client Satisfaction" },
+    { number: "30+", label: "Enterprise Clients" },
+    { number: "24/7", label: "Support available" }
   ];
 
   const whyChoose = [
@@ -60,10 +63,11 @@ export function Home() {
 
   return (
     <div className="bg-white">
+      <Preloader />
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center pt-20 lg:pt-24">
         <div className="absolute inset-0 bg-gradient-to-b from-neutral-50 to-white" />
-        
+
         <div className="relative max-w-7xl mx-auto px-6 lg:px-8 py-20 lg:py-32 w-full">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center">
             <motion.div {...fadeInUp}>
@@ -75,26 +79,26 @@ export function Home() {
               >
                 PREMIUM WEB SOLUTIONS
               </motion.div>
-              
+
               <h1 className="text-5xl lg:text-7xl font-light tracking-tight mb-8 leading-[1.1]">
                 Elevate Your
                 <span className="block mt-2">Digital Presence</span>
               </h1>
-              
+
               <p className="text-lg lg:text-xl text-neutral-600 leading-relaxed mb-12 max-w-xl">
-                We craft exceptional digital experiences that drive results. 
-                From WordPress to custom full-stack solutions, we transform 
+                We craft exceptional digital experiences that drive results.
+                From WordPress to custom full-stack solutions, we transform
                 your vision into reality with precision and elegance.
               </p>
-              
+
               <div className="flex flex-col sm:flex-row gap-4">
-                <Link
-                  to="/contact"
+                <button
+                  onClick={() => setIsDialogOpen(true)}
                   className="inline-flex items-center justify-center gap-3 px-8 py-5 bg-black text-white tracking-wide hover:bg-neutral-800 transition-all group"
                 >
                   Start Your Project
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </Link>
+                </button>
                 <Link
                   to="/work"
                   className="inline-flex items-center justify-center gap-3 px-8 py-5 border border-neutral-300 text-black tracking-wide hover:border-black transition-colors"
@@ -118,7 +122,7 @@ export function Home() {
                 />
               </div>
               <div className="absolute -bottom-8 -left-8 bg-white p-8 shadow-2xl hidden lg:block">
-                <div className="text-4xl font-light mb-2">150+</div>
+                <div className="text-4xl font-light mb-2">100+</div>
                 <div className="text-sm text-neutral-600 tracking-wide">Projects Delivered</div>
               </div>
             </motion.div>
@@ -160,7 +164,7 @@ export function Home() {
               Our Expertise
             </h2>
             <p className="text-lg lg:text-xl text-neutral-600 max-w-3xl mx-auto leading-relaxed">
-              Comprehensive web development services tailored to your business needs. 
+              Comprehensive web development services tailored to your business needs.
               We combine technical excellence with strategic thinking.
             </p>
           </motion.div>
@@ -221,10 +225,10 @@ export function Home() {
             className="text-center mb-16 lg:mb-24"
           >
             <h2 className="text-4xl lg:text-6xl font-light tracking-tight mb-6">
-              The ApexDigital Difference
+              The CortDevs Difference
             </h2>
             <p className="text-lg lg:text-xl text-neutral-600 max-w-3xl mx-auto leading-relaxed">
-              We don't just build websites—we create digital assets that drive business growth 
+              We don't just build websites—we create digital assets that drive business growth
               and deliver measurable ROI.
             </p>
           </motion.div>
@@ -266,19 +270,19 @@ export function Home() {
               Ready to Get Started?
             </h2>
             <p className="text-lg lg:text-xl text-neutral-600 mb-12 leading-relaxed">
-              Let's discuss your project and explore how we can help you achieve your digital goals. 
+              Let's discuss your project and explore how we can help you achieve your digital goals.
               Schedule a consultation today—no obligations, just possibilities.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link
-                to="/contact"
+              <button
+                onClick={() => setIsDialogOpen(true)}
                 className="inline-flex items-center justify-center gap-3 px-10 py-5 bg-black text-white tracking-wide hover:bg-neutral-800 transition-all group"
               >
                 Schedule Consultation
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </Link>
+              </button>
               <Link
-                to="/services"
+                to="/contact#faq"
                 className="inline-flex items-center justify-center gap-3 px-10 py-5 border border-neutral-300 text-black tracking-wide hover:border-black transition-colors"
               >
                 Learn More

@@ -1,305 +1,313 @@
-import { motion } from "motion/react";
-import { Link } from "react-router";
-import { ArrowRight, ExternalLink } from "lucide-react";
-import { ImageWithFallback } from "../components/figma/ImageWithFallback";
+import { motion, AnimatePresence } from "framer-motion";
+import { Link, useOutletContext, useSearchParams } from "react-router";
+import {
+  ArrowRight,
+  ShieldCheck,
+  FileCheck,
+  Lock,
+  Users,
+  Star,
+  Copy,
+  Check,
+  Quote,
+  MessageSquarePlus
+} from "lucide-react";
+import { useEffect, useState } from "react";
+import { ReviewForm } from "../components/ReviewForm";
 
 export function Work() {
-  const projects = [
+  const { setIsDialogOpen } = useOutletContext<{ setIsDialogOpen: (open: boolean) => void }>();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [copied, setCopied] = useState(false);
+  const [showReviewForm, setShowReviewForm] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get("review") === "true") {
+      setShowReviewForm(true);
+      // Ensure we scroll to the form area
+      const element = document.getElementById("success-stories-section");
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth" });
+      }
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
+  const stats = [
+    { label: "Projects Delivered", value: "100+" },
+    { label: "Client Satisfaction", value: "99%" },
+    { label: "Enterprise Clients", value: "30+" },
+    { label: "Support available", value: "24/7" }
+  ];
+
+  const successStories = [
     {
-      title: "LuxeRetail E-commerce",
-      category: "Shopify Development",
-      description: "Custom Shopify store for a premium fashion brand. Achieved 65% increase in conversion rate through optimized checkout flow and personalized product recommendations.",
-      image: "https://images.unsplash.com/photo-1658297063569-162817482fb6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxlY29tbWVyY2UlMjBvbmxpbmUlMjBzaG9wcGluZ3xlbnwxfHx8fDE3NzIxOTE2Njh8MA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
-      results: [
-        "65% increase in conversion rate",
-        "$2.4M revenue in first 6 months",
-        "Average order value up 40%"
-      ],
-      tech: ["Shopify Plus", "Custom Theme", "Klaviyo", "Yotpo"]
+      industry: "Financial Services",
+      impact: "60% reduction in customer onboarding time through custom automation.",
+      quote: "The technical precision and commitment to our strict security requirements were exceptional.",
+      highlight: "Enterprise Integration"
     },
     {
-      title: "TechVentures Corporate Site",
-      category: "WordPress Development",
-      description: "Enterprise WordPress solution with custom CMS for a global technology consulting firm. Multi-language support across 12 countries with centralized content management.",
-      image: "https://images.unsplash.com/photo-1586202690666-e1f32e218afe?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjB3b3Jrc3BhY2UlMjB0ZWNoJTIwbWluaW1hbHxlbnwxfHx8fDE3NzIxOTE2NjV8MA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
-      results: [
-        "200% increase in organic traffic",
-        "Sub-2s page load times globally",
-        "50% reduction in content update time"
-      ],
-      tech: ["WordPress Multisite", "ACF Pro", "WPML", "AWS CloudFront"]
+      industry: "E-commerce Giant",
+      impact: "Built a scalable multi-vendor platform handling 10k+ daily transactions.",
+      quote: "Transformed our complex vision into a high-performing digital reality.",
+      highlight: "Scalable Architecture"
     },
     {
-      title: "HealthFirst Patient Portal",
-      category: "Custom Development",
-      description: "HIPAA-compliant patient portal built with React and Node.js. Secure appointment scheduling, medical records access, and telehealth integration serving 50,000+ patients.",
-      image: "https://images.unsplash.com/photo-1554306274-f23873d9a26c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjdXN0b20lMjBzb2Z0d2FyZSUyMGRldmVsb3BtZW50fGVufDF8fHx8MTc3MjE4OTQzMHww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
-      results: [
-        "50,000+ active users",
-        "99.97% uptime achieved",
-        "30% reduction in phone inquiries"
-      ],
-      tech: ["React", "Node.js", "PostgreSQL", "AWS", "HIPAA Compliance"]
+      industry: "Legal Tech",
+      impact: "Secure document management system with military-grade encryption.",
+      quote: "Absolute trust and professionalism. They handle our data with the highest care.",
+      highlight: "Security Focused"
     },
     {
-      title: "PropelAgency Automation",
-      category: "GoHighLevel",
-      description: "Complete marketing automation system for a digital agency managing 200+ clients. Automated lead nurturing, appointment booking, and client reporting.",
-      image: "https://images.unsplash.com/photo-1759884247144-53d52c31f859?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkaWdpdGFsJTIwY3JlYXRpdmUlMjB0ZWFtJTIwY29sbGFib3JhdGlvbnxlbnwxfHx8fDE3NzIxOTE2Njd8MA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
-      results: [
-        "85% time saved on client onboarding",
-        "300% increase in qualified leads",
-        "Client retention up to 94%"
-      ],
-      tech: ["GoHighLevel", "Zapier", "Stripe", "Twilio"]
+      industry: "Healthcare Platform",
+      impact: "HIPAA-compliant patient portal serving 50k+ active monthly users.",
+      quote: "CortDevs understood the life-and-death importance of our infrastructure stability.",
+      highlight: "Compliance Expert"
     },
     {
-      title: "GourmetDirect Marketplace",
-      category: "Custom Development",
-      description: "Multi-vendor marketplace connecting artisan food producers with consumers. Real-time inventory, vendor dashboards, and automated order fulfillment.",
-      image: "https://images.unsplash.com/photo-1637937459053-c788742455be?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx3ZWIlMjBkZXZlbG9wbWVudCUyMGNvZGluZyUyMHNjcmVlbnxlbnwxfHx8fDE3NzIxMTgzNjN8MA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
-      results: [
-        "150+ active vendors",
-        "$1.8M GMV in first year",
-        "Average 4.9/5 customer rating"
-      ],
-      tech: ["Next.js", "Python/Django", "Stripe Connect", "Redis"]
+      industry: "Logistics SaaS",
+      impact: "Real-time tracking system reducing delivery overhead by 22% annually.",
+      quote: "A true technical partner. They don't just write code; they solve business problems.",
+      highlight: "Technical Strategy"
     },
     {
-      title: "UrbanFit Membership Platform",
-      category: "WordPress + Custom",
-      description: "Hybrid WordPress and custom React application for boutique fitness studio chain. Integrated class booking, membership management, and e-commerce.",
-      image: "https://images.unsplash.com/photo-1764410481612-7544525b2991?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjBvZmZpY2UlMjBkZXNrJTIwZXhlY3V0aXZlfGVufDF8fHx8MTc3MjE5MTY2Nnww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
-      results: [
-        "10,000+ monthly bookings",
-        "40% increase in membership renewals",
-        "Automated 90% of admin tasks"
-      ],
-      tech: ["WordPress", "React", "WooCommerce", "Mindbody API"]
+      industry: "Fintech Startup",
+      impact: "MVP to Market in 12 weeks, leading to a successful $15M Series A round.",
+      quote: "Incredible speed without sacrificing the premium quality our investors expected.",
+      highlight: "Rapid Execution"
     }
   ];
 
-  const testimonials = [
-    {
-      quote: "ApexDigital transformed our vision into a world-class e-commerce platform that exceeded every expectation. The attention to detail and commitment to our success has been remarkable.",
-      author: "Sarah Chen",
-      role: "CEO, LuxeRetail",
-      company: "LuxeRetail"
-    },
-    {
-      quote: "Working with ApexDigital felt like having an extended in-house team. Their technical expertise and strategic insights helped us achieve results we didn't think were possible.",
-      author: "Michael Roberts",
-      role: "CTO, TechVentures",
-      company: "TechVentures"
-    },
-    {
-      quote: "The custom solution ApexDigital built has become the backbone of our patient care delivery. Reliable, secure, and exactly what we needed.",
-      author: "Dr. Jennifer Park",
-      role: "Chief Medical Officer, HealthFirst",
-      company: "HealthFirst"
-    }
-  ];
+  const copyReviewLink = () => {
+    const link = `${window.location.origin}${window.location.pathname}?review=true`;
+    navigator.clipboard.writeText(link);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <div className="bg-white pt-20 lg:pt-24">
-      {/* Hero */}
-      <section className="py-20 lg:py-32 bg-neutral-50">
+      {/* Hero Section */}
+      <section className="py-20 lg:py-32 bg-neutral-50 border-b border-neutral-100">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-center max-w-4xl mx-auto"
+            className="max-w-4xl"
           >
-            <h1 className="text-5xl lg:text-7xl font-light tracking-tight mb-6 leading-[1.1]">
-              Work That Speaks
-              <span className="block mt-2">For Itself</span>
+            <h1 className="text-5xl lg:text-7xl font-light tracking-tight mb-8 leading-[1.1]">
+              Results That
+              <span className="block mt-2 font-normal">Matter Most</span>
             </h1>
-            <p className="text-lg lg:text-xl text-neutral-600 leading-relaxed">
-              Explore our portfolio of successful projects across industries and platforms. 
-              Each one represents a partnership, a challenge overcome, and measurable results delivered.
+            <p className="text-lg lg:text-xl text-neutral-600 leading-relaxed max-w-2xl">
+              We deliver high-impact digital solutions for industry leaders.
+              While we prioritize the confidentiality of our elite clientele,
+              our track record of excellence speaks for itself.
             </p>
           </motion.div>
         </div>
       </section>
 
-      {/* Projects */}
+      {/* NDA Section - Trust Builder */}
       <section className="py-20 lg:py-32">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="space-y-32">
-            {projects.map((project, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 40 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.6 }}
-                className={`grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center ${
-                  index % 2 === 1 ? 'lg:grid-flow-dense' : ''
-                }`}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+            >
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-neutral-100 text-xs tracking-widest mb-6">
+                <Lock className="w-3 h-3" /> CONFIDENTIALITY FIRST
+              </div>
+              <h2 className="text-4xl lg:text-5xl font-light tracking-tight mb-8">
+                Your Privacy is Our Priority
+              </h2>
+              <p className="text-neutral-600 leading-relaxed mb-8 text-lg">
+                Due to strict Non-Disclosure Agreements (NDAs) and the sensitive nature of
+                our high-enterprise projects, we do not publicly display a detailed portfolio.
+                This commitment to extreme privacy is why the world's most innovative
+                companies trust us with their core technology.
+              </p>
+              <div className="space-y-4">
+                {[
+                  { icon: <ShieldCheck className="w-5 h-5 text-neutral-400" />, text: "Strict adherence to legal & NDA requirements" },
+                  { icon: <FileCheck className="w-5 h-5 text-neutral-400" />, text: "Secure handling of proprietary intellectual property" },
+                  { icon: <Users className="w-5 h-5 text-neutral-400" />, text: "Vetted team members with security clearance" }
+                ].map((item, i) => (
+                  <div key={i} className="flex items-center gap-4 text-neutral-800">
+                    {item.icon}
+                    <span className="text-sm tracking-wide">{item.text}</span>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              className="bg-neutral-900 text-white p-12 border border-neutral-800"
+            >
+              <h3 className="text-2xl font-light mb-6">Request a Private Demo</h3>
+              <p className="text-neutral-400 mb-8 leading-relaxed">
+                We are happy to showcase relevant case studies and redacted project samples
+                during a private consultation, provided we verify the alignment of interests
+                and respect all legal boundaries.
+              </p>
+              <button
+                onClick={() => setIsDialogOpen(true)}
+                className="w-full py-4 bg-white text-black text-sm tracking-wide hover:bg-neutral-100 transition-all flex items-center justify-center gap-3 group"
               >
-                <div className={index % 2 === 1 ? 'lg:col-start-2' : ''}>
-                  <div className="inline-block px-3 py-1 bg-neutral-100 text-xs tracking-wider mb-4">
-                    {project.category.toUpperCase()}
-                  </div>
-                  <h2 className="text-3xl lg:text-4xl font-light tracking-tight mb-4">
-                    {project.title}
-                  </h2>
-                  <p className="text-neutral-600 leading-relaxed mb-8">
-                    {project.description}
-                  </p>
-
-                  <div className="mb-8">
-                    <h3 className="text-sm tracking-wider text-neutral-400 mb-4">KEY RESULTS</h3>
-                    <ul className="space-y-3">
-                      {project.results.map((result, idx) => (
-                        <li key={idx} className="flex items-center gap-3 text-sm">
-                          <div className="w-1.5 h-1.5 bg-black rounded-full flex-shrink-0" />
-                          {result}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <div className="mb-8">
-                    <h3 className="text-sm tracking-wider text-neutral-400 mb-4">TECHNOLOGIES</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {project.tech.map((tech, idx) => (
-                        <span
-                          key={idx}
-                          className="px-3 py-1 border border-neutral-300 text-xs"
-                        >
-                          {tech}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  <Link
-                    to="/contact"
-                    className="inline-flex items-center gap-2 text-sm tracking-wide hover:gap-4 transition-all group"
-                  >
-                    Start Similar Project <ArrowRight className="w-4 h-4" />
-                  </Link>
-                </div>
-
-                <div className={index % 2 === 1 ? 'lg:col-start-1 lg:row-start-1' : ''}>
-                  <div className="aspect-[4/3] relative overflow-hidden group">
-                    <ImageWithFallback
-                      src={project.image}
-                      alt={project.title}
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    />
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300" />
-                  </div>
-                </div>
-              </motion.div>
-            ))}
+                Schedule Private Portfolio Review
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </button>
+            </motion.div>
           </div>
         </div>
       </section>
 
-      {/* Testimonials */}
-      <section className="py-20 lg:py-32 bg-black text-white">
+      {/* Stats Grid */}
+      <section className="py-20 bg-black text-white">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-16"
-          >
-            <h2 className="text-4xl lg:text-5xl font-light tracking-tight mb-6">
-              Client Success Stories
-            </h2>
-            <p className="text-lg text-neutral-400 max-w-3xl mx-auto">
-              Don't just take our word for it—hear from the businesses we've helped transform.
-            </p>
-          </motion.div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {testimonials.map((testimonial, index) => (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
+            {stats.map((stat, i) => (
               <motion.div
-                key={index}
+                key={i}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
-                className="border border-neutral-800 p-8"
-              >
-                <p className="text-neutral-300 leading-relaxed mb-6 italic">
-                  "{testimonial.quote}"
-                </p>
-                <div>
-                  <div className="font-light">{testimonial.author}</div>
-                  <div className="text-sm text-neutral-500">{testimonial.role}</div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Stats */}
-      <section className="py-20 lg:py-32">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-16"
-          >
-            <h2 className="text-4xl lg:text-5xl font-light tracking-tight mb-6">
-              Results That Matter
-            </h2>
-            <p className="text-lg text-neutral-600 max-w-3xl mx-auto">
-              Numbers that demonstrate our commitment to delivering exceptional outcomes.
-            </p>
-          </motion.div>
-
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
-            {[
-              { number: "150+", label: "Projects Completed" },
-              { number: "98%", label: "Client Satisfaction" },
-              { number: "$50M+", label: "Revenue Generated" },
-              { number: "45", label: "Countries Served" }
-            ].map((stat, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
+                transition={{ delay: i * 0.1 }}
                 className="text-center"
               >
-                <div className="text-4xl lg:text-5xl font-light mb-3">{stat.number}</div>
-                <div className="text-sm text-neutral-600 tracking-wide">{stat.label}</div>
+                <div className="text-4xl lg:text-5xl font-light mb-2">{stat.value}</div>
+                <div className="text-xs text-neutral-500 tracking-widest uppercase">{stat.label}</div>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="py-20 lg:py-32 bg-neutral-50">
-        <div className="max-w-4xl mx-auto px-6 lg:px-8 text-center">
+      {/* Success Stories */}
+      <section id="success-stories-section" className="py-20 lg:py-32 scroll-mt-24">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-16">
+            <div>
+              <h2 className="text-4xl lg:text-5xl font-light tracking-tight mb-6 text-black">Success Stories</h2>
+              <p className="text-neutral-600 max-w-2xl text-lg">Real impact delivered for complex organizational challenges.</p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-4">
+              <button
+                onClick={() => setShowReviewForm(!showReviewForm)}
+                className={`inline-flex items-center gap-2 px-6 py-3 transition-all text-sm tracking-wide ${showReviewForm
+                  ? "bg-neutral-100 text-black border border-neutral-200"
+                  : "bg-black text-white hover:bg-neutral-800 shadow-xl shadow-black/10"
+                  }`}
+              >
+                {showReviewForm ? "Close Form" : <><Star className="w-4 h-4" /> Leave a Review</>}
+              </button>
+              <button
+                onClick={copyReviewLink}
+                className="inline-flex items-center gap-2 px-6 py-3 border border-neutral-200 text-black text-sm tracking-wide hover:border-black transition-all"
+              >
+                {copied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                {copied ? "Link Copied" : "Share Review Link"}
+              </button>
+            </div>
+          </div>
+
+          <AnimatePresence>
+            {showReviewForm && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                className="overflow-hidden mb-16"
+              >
+                <ReviewForm onComplete={() => setShowReviewForm(false)} />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {successStories.map((story, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                className="p-8 border border-neutral-100 bg-neutral-50/50 hover:bg-white hover:border-neutral-900 transition-all group relative overflow-hidden"
+              >
+                <Quote className="absolute -right-4 -top-4 w-24 h-24 text-black/[0.03] rotate-12" />
+
+                <div className="relative z-10">
+                  <div className="text-[10px] tracking-[0.2em] text-neutral-400 mb-6 uppercase flex items-center gap-2">
+                    <span className="w-4 h-[1px] bg-neutral-300" /> {story.highlight}
+                  </div>
+
+                  <h3 className="text-xl font-normal mb-4 text-black">{story.industry}</h3>
+
+                  <blockquote className="text-sm text-neutral-800 leading-relaxed mb-8 italic">
+                    "{story.quote}"
+                  </blockquote>
+
+                  <div className="pt-6 border-t border-neutral-200">
+                    <p className="text-xs uppercase tracking-widest text-neutral-400 mb-2">Primary Impact</p>
+                    <p className="text-sm text-black font-medium leading-relaxed">
+                      {story.impact}
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Final CTA - Revamped for visual separation from footer */}
+      <section className="relative py-20 lg:py-40 bg-neutral-50 overflow-hidden border-t border-neutral-100">
+        <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white to-transparent opacity-60 pointer-events-none" />
+
+        <div className="relative max-w-4xl mx-auto px-6 text-center">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <h2 className="text-4xl lg:text-6xl font-light tracking-tight mb-6">
-              Your Project Could Be Next
+            <div className="inline-block px-4 py-1 bg-black text-white text-[10px] tracking-[0.3em] uppercase mb-8">
+              Future Focused
+            </div>
+
+            <h2 className="text-4xl lg:text-7xl font-light tracking-tight mb-8 text-black leading-tight">
+              Your Project is Our <br />
+              <span className="font-normal italic">Next Priority</span>
             </h2>
-            <p className="text-lg text-neutral-600 mb-12 leading-relaxed">
-              Whether you need a WordPress site, Shopify store, GHL automation, or custom development—
-              we're ready to deliver results that exceed your expectations.
+
+            <p className="text-lg text-neutral-600 mb-12 max-w-2xl mx-auto leading-relaxed">
+              We are ready to build something exceptional under the highest standards
+              of technical excellence and confidentiality.
             </p>
-            <Link
-              to="/contact"
-              className="inline-flex items-center gap-3 px-10 py-5 bg-black text-white tracking-wide hover:bg-neutral-800 transition-all group"
-            >
-              Let's Create Something Amazing
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </Link>
+
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
+              <button
+                onClick={() => setIsDialogOpen(true)}
+                className="inline-flex items-center gap-3 px-12 py-5 bg-black text-white tracking-widest text-sm uppercase hover:bg-neutral-800 transition-all group shadow-xl shadow-black/10"
+              >
+                Start Your Journey
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </button>
+
+              <Link
+                to="/contact"
+                className="text-sm tracking-widest uppercase text-neutral-400 hover:text-black transition-colors"
+              >
+                Inquire via Email
+              </Link>
+            </div>
           </motion.div>
         </div>
       </section>

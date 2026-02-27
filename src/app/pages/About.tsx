@@ -1,10 +1,10 @@
-import { motion } from "motion/react";
+import { motion } from "framer-motion";
 import { Link } from "react-router";
-import { 
-  ArrowRight, 
-  Award, 
-  Users, 
-  Target, 
+import {
+  ArrowRight,
+  Award,
+  Users,
+  Target,
   Heart,
   Clock,
   Shield,
@@ -41,17 +41,17 @@ export function About() {
     {
       title: "Deep Technical Expertise",
       description: "Our team comprises senior developers with 10+ years average experience across multiple stacks and industries.",
-      stats: ["10+ years experience", "50+ technologies mastered", "1000+ projects delivered"]
+      stats: ["10+ years experience", "50+ technologies mastered", "100+ Projects Delivered"]
     },
     {
-      title: "Industry Recognition",
-      description: "Award-winning work that's been featured in leading design and development publications worldwide.",
-      stats: ["15+ industry awards", "Top 5% on major platforms", "Featured in 20+ publications"]
+      title: "Strategic Technical Execution",
+      description: "We don't just build features; we engineer business solutions with a focus on long-term scalability and performance.",
+      stats: ["Agile-driven delivery", "Cloud-native architecture", "Zero technical debt"]
     },
     {
       title: "Enterprise-Grade Quality",
       description: "We bring Fortune 500-level standards to businesses of all sizes, ensuring quality you can trust.",
-      stats: ["99.9% uptime guarantee", "Enterprise security", "ISO compliance ready"]
+      stats: ["24/7 Support available", "Enterprise security", "ISO compliance ready"]
     }
   ];
 
@@ -108,46 +108,49 @@ export function About() {
   return (
     <div className="bg-white pt-20 lg:pt-24">
       {/* Hero */}
-      <section className="py-20 lg:py-32">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+      <section className="relative py-20 lg:py-32 bg-neutral-50 border-b border-neutral-100 overflow-hidden">
+        {/* Subtle decorative background element */}
+        <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-neutral-100/50 to-transparent pointer-events-none" />
+
+        <div className="relative max-w-7xl mx-auto px-6 lg:px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="max-w-4xl"
+          >
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.2 }}
+              className="inline-block px-4 py-2 bg-black text-white text-xs tracking-widest mb-8"
             >
-              <h1 className="text-5xl lg:text-7xl font-light tracking-tight mb-6 leading-[1.1]">
-                Where Craft Meets
-                <span className="block mt-2">Commerce</span>
-              </h1>
-              <p className="text-lg lg:text-xl text-neutral-600 leading-relaxed mb-8">
-                ApexDigital was founded on a simple belief: exceptional web development 
-                should be accessible to businesses of all sizes. We combine the artistry 
-                of premium design with the science of conversion optimization to create 
-                digital experiences that don't just look good—they perform.
-              </p>
-              <p className="text-neutral-600 leading-relaxed">
-                Since our inception, we've partnered with startups, scale-ups, and 
-                established enterprises across the globe, delivering solutions that drive 
-                measurable growth. From sleek WordPress sites to complex custom applications, 
-                our commitment to excellence remains unwavering.
-              </p>
+              OUR STORY
             </motion.div>
 
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.2 }}
-              className="relative"
-            >
-              <div className="aspect-[4/3] relative overflow-hidden">
-                <ImageWithFallback
-                  src="https://images.unsplash.com/photo-1764410481612-7544525b2991?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjBvZmZpY2UlMjBkZXNrJTIwZXhlY3V0aXZlfGVufDF8fHx8MTc3MjE5MTY2Nnww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral"
-                  alt="Our workspace"
-                  className="w-full h-full object-cover"
-                />
-              </div>
-            </motion.div>
-          </div>
+            <h1 className="text-5xl lg:text-7xl font-light tracking-tight mb-8 leading-[1.1] text-black">
+              Where Craft Meets
+              <span className="block mt-2 font-normal">Execution</span>
+            </h1>
+            <p className="text-lg lg:text-xl text-neutral-600 leading-relaxed mb-12">
+              CortDevs was founded on a simple belief: exceptional web development
+              should be accessible to businesses of all sizes. We combine the artistry
+              of premium design with the science of human-centric engineering to create
+              digital experiences that don't just look good—they perform.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-neutral-600 text-sm leading-relaxed">
+              <p>
+                Since our inception, we've partnered with startups, scale-ups, and
+                established enterprises across the globe, delivering solutions that drive
+                measurable growth. From sleek WordPress sites to complex custom applications,
+                our commitment to excellence remains unwavering.
+              </p>
+              <p>
+                Every project we undertake is a fusion of strategic foresight and technical
+                precision. We don't just build sites; we craft the digital foundations upon
+                which our clients build their future legacies.
+              </p>
+            </div>
+          </motion.div>
         </div>
       </section>
 
@@ -245,8 +248,8 @@ export function About() {
               The Team Behind Your Success
             </h2>
             <p className="text-lg text-neutral-600 max-w-3xl mx-auto leading-relaxed">
-              A carefully assembled team of specialists, each a master of their craft. 
-              When you work with ApexDigital, you get the collective expertise of industry veterans.
+              A carefully assembled team of specialists, each a master of their craft.
+              When you work with CortDevs, you get the collective expertise of industry veterans.
             </p>
           </motion.div>
 
@@ -298,7 +301,7 @@ export function About() {
               Why Start Now?
             </h2>
             <p className="text-lg text-neutral-600 max-w-3xl mx-auto">
-              The digital landscape waits for no one. Here's why leading businesses 
+              The digital landscape waits for no one. Here's why leading businesses
               are investing in premium web solutions today.
             </p>
           </motion.div>
@@ -328,41 +331,20 @@ export function About() {
         </div>
       </section>
 
-      {/* Image Section */}
-      <section className="py-20 lg:py-32 bg-neutral-50">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true }}
-              className="aspect-[4/3] relative overflow-hidden"
-            >
-              <ImageWithFallback
-                src="https://images.unsplash.com/photo-1758518732175-5d608ba3abdf?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBidXNpbmVzcyUyMG1lZXRpbmd8ZW58MXx8fHwxNzcyMTA3NzkzfDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral"
-                alt="Team collaboration"
-                className="w-full h-full object-cover"
-              />
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.2 }}
-              className="aspect-[4/3] relative overflow-hidden"
-            >
-              <ImageWithFallback
-                src="https://images.unsplash.com/photo-1649843787749-cc725db53675?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBhcmNoaXRlY3R1cmUlMjB3aGl0ZSUyMG1pbmltYWx8ZW58MXx8fHwxNzcyMTkxNjY3fDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral"
-                alt="Modern office"
-                className="w-full h-full object-cover"
-              />
-            </motion.div>
-          </div>
+      {/* Parent Company Section */}
+      <section className="py-20 lg:py-32 bg-neutral-50 border-y border-neutral-100">
+        <div className="max-w-4xl mx-auto px-6 lg:px-8 text-center text-sm text-neutral-500">
+          <p className="leading-relaxed">
+            CortDevs proudly operates as the dedicated technical and development subsidiary of
+            <strong className="text-black font-medium ml-1">HachStacks Technologies</strong>.
+            This strategic partnership allows us to leverage deep enterprise insights while
+            delivering specialized, high-performance digital crafting.
+          </p>
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="py-20 lg:py-32">
+      {/* CTA Section */}
+      <section className="py-20 lg:py-32 bg-white">
         <div className="max-w-4xl mx-auto px-6 lg:px-8 text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -373,8 +355,8 @@ export function About() {
               Ready to Experience the Difference?
             </h2>
             <p className="text-lg text-neutral-600 mb-12 leading-relaxed">
-              Join the hundreds of businesses that have transformed their digital presence 
-              with ApexDigital. Let's start your success story today.
+              Join the hundreds of businesses that have transformed their digital presence
+              with CortDevs. Let's start your success story today.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
