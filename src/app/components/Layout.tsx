@@ -1,4 +1,4 @@
-import { Outlet, Link, useLocation } from "react-router";
+import { useNavigate, Outlet, Link, useLocation } from "react-router";
 import { useState, useEffect } from "react";
 import { ArrowRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -7,8 +7,10 @@ import {
   DialogContent,
 } from "./ui/dialog";
 import { ContactForm } from "./ContactForm";
+import { useConfig } from "../context/ConfigContext";
 
 export function Layout() {
+  const { config } = useConfig();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -50,9 +52,8 @@ export function Layout() {
           }`}
       >
         <div className="max-w-7xl mx-auto px-6 lg:px-8 flex items-center justify-between">
-          <Link to="/" className="text-2xl font-light tracking-tighter flex items-center gap-2 group">
-            <span className="w-8 h-8 bg-black text-white flex items-center justify-center font-bold text-lg group-hover:rotate-12 transition-transform shadow-lg shadow-black/20">C</span>
-            <span className="text-black group-hover:opacity-75 transition-opacity">Cort<span className="font-semibold">Devs</span></span>
+          <Link to="/" className="text-2xl font-light tracking-tighter flex items-center gap-2 group underline-offset-8">
+            <img src={config.headerLogo} alt="CortDevs" className="h-10 w-auto object-contain transition-transform group-hover:scale-105" />
           </Link>
 
           {/* Desktop Nav */}
@@ -156,8 +157,8 @@ export function Layout() {
       </AnimatePresence>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0 border-none bg-transparent">
-          <ContactForm onSuccess={() => setIsDialogOpen(false)} />
+        <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto p-10 lg:p-16 border-none bg-white shadow-[0_35px_60px_-15px_rgba(0,0,0,0.3)]">
+          <ContactForm isPopup onSuccess={() => setIsDialogOpen(false)} />
         </DialogContent>
       </Dialog>
 
@@ -172,9 +173,8 @@ export function Layout() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 lg:gap-16">
             {/* Brand */}
             <div className="lg:col-span-2">
-              <div className="text-3xl font-light tracking-tighter mb-6 flex items-center gap-2">
-                <span className="w-10 h-10 bg-white text-black flex items-center justify-center font-bold text-xl">C</span>
-                <span className="text-white">Cort<span className="font-semibold text-white">Devs</span></span>
+              <div className="mb-8">
+                <img src={config.footerLogo} alt="CortDevs" className="h-12 w-auto object-contain" />
               </div>
               <p className="text-neutral-400 text-sm leading-relaxed max-w-md mb-8">
                 Crafting digital excellence through innovative web solutions.

@@ -228,7 +228,7 @@ export function Services() {
                   <h3 className="text-2xl lg:text-3xl font-light mb-2">{phase.title}</h3>
                   <div className="text-neutral-600 max-w-xl">{phase.desc}</div>
                 </div>
-                <ArrowRight className="w-8 h-8 text-neutral-300 hidden md:block" />
+                <CheckCircle2 className="w-8 h-8 text-neutral-200 group-hover:text-black transition-colors hidden md:block" />
               </motion.div>
             ))}
           </div>

@@ -8,6 +8,7 @@ import { BrandLoader } from "./BrandLoader";
 
 interface ContactFormProps {
   onSuccess?: () => void;
+  isPopup?: boolean;
 }
 
 interface FileData {
@@ -17,7 +18,7 @@ interface FileData {
   file: File;
 }
 
-export function ContactForm({ onSuccess }: ContactFormProps) {
+export function ContactForm({ onSuccess, isPopup = false }: ContactFormProps) {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const ndaInputRef = useRef<HTMLInputElement>(null);
@@ -40,6 +41,55 @@ export function ContactForm({ onSuccess }: ContactFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchParams] = useSearchParams();
   const [error, setError] = useState<string | null>(null);
+  const [currency, setCurrency] = useState({ symbol: "$", code: "USD", rate: 1 });
+
+  useEffect(() => {
+    const fetchCurrencyAndRate = async () => {
+      try {
+        // 1. Detect Location & Currency Code
+        const ipResponse = await fetch("https://ipapi.co/json/");
+        const ipData = await ipResponse.json();
+        const code = ipData.currency || "USD";
+
+        // 2. Fetch Exchange Rate if not USD
+        let rate = 1;
+        if (code !== "USD") {
+          try {
+            const rateResponse = await fetch(`https://api.frankfurter.app/latest?from=USD&to=${code}`);
+            const rateData = await rateResponse.json();
+            if (rateData.rates && rateData.rates[code]) {
+              rate = rateData.rates[code];
+            }
+          } catch (rateErr) {
+            console.error("Exchange rate fetch failed:", rateErr);
+          }
+        }
+
+        // 3. Get clean symbol
+        const symbolMap: Record<string, string> = {
+          "NGN": "₦",
+          "USD": "$",
+          "GBP": "£",
+          "EUR": "€",
+          "CAD": "$",
+          "AUD": "$",
+          "INR": "₹",
+          "JPY": "¥",
+          "CNY": "¥"
+        };
+
+        const symbol = symbolMap[code] || new Intl.NumberFormat(undefined, {
+          style: 'currency',
+          currency: code,
+        }).format(0).replace(/[0-9.,]/g, '').trim() || "$";
+
+        setCurrency({ symbol, code, rate });
+      } catch (err) {
+        console.error("Currency detection failed:", err);
+      }
+    };
+    fetchCurrencyAndRate();
+  }, []);
 
   useEffect(() => {
     if (searchParams.get("review") === "true") {
@@ -173,12 +223,24 @@ export function ContactForm({ onSuccess }: ContactFormProps) {
     "Other"
   ];
 
+  const formatBudget = (usdValue: number) => {
+    const converted = usdValue * currency.rate;
+    let rounded;
+    if (converted >= 10000) {
+      rounded = Math.round(converted / 1000) * 1000;
+    } else if (converted >= 1000) {
+      rounded = Math.round(converted / 100) * 100;
+    } else {
+      rounded = Math.round(converted / 10) * 10;
+    }
+    return rounded.toLocaleString();
+  };
+
   const budgets = [
-    "Under $10,000",
-    "$10,000 - $25,000",
-    "$25,000 - $50,000",
-    "$50,000 - $100,000",
-    "$100,000+"
+    `Under ${currency.symbol}${formatBudget(1000)}`,
+    `${currency.symbol}${formatBudget(1000)} - ${currency.symbol}${formatBudget(5000)}`,
+    `${currency.symbol}${formatBudget(5000)} - ${currency.symbol}${formatBudget(20000)}`,
+    `Above ${currency.symbol}${formatBudget(20000)}`
   ];
 
   const timelines = [
@@ -290,14 +352,19 @@ export function ContactForm({ onSuccess }: ContactFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-10">
+      <div className="mb-12">
+        <h2 className="text-4xl font-light tracking-tight mb-4 italic">Project Inquiry</h2>
+        <p className="text-sm text-neutral-500 uppercase tracking-[0.2em] font-bold">Secure Briefing Portal</p>
+      </div>
+
       {error && (
         <div className="bg-red-50 border border-red-200 p-4 text-red-600 text-sm">
           {error}
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+      <div className={isPopup ? "space-y-6" : "grid grid-cols-1 sm:grid-cols-2 gap-6"}>
         <div>
           <label htmlFor="name" className="block text-sm tracking-wide mb-2">
             Your Name *
@@ -331,7 +398,7 @@ export function ContactForm({ onSuccess }: ContactFormProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+      <div className={isPopup ? "space-y-6" : "grid grid-cols-1 sm:grid-cols-2 gap-6"}>
         <div>
           <label htmlFor="company" className="block text-sm tracking-wide mb-2">
             Company Name
@@ -379,7 +446,7 @@ export function ContactForm({ onSuccess }: ContactFormProps) {
         </select>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+      <div className={isPopup ? "space-y-6" : "grid grid-cols-1 sm:grid-cols-2 gap-6"}>
         <div>
           <label htmlFor="budget" className="block text-sm tracking-wide mb-2">
             Estimated Budget
