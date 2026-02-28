@@ -15,6 +15,10 @@ import { Clients } from "./pages/admin/Clients";
 import { Communications as AdminComms } from "./pages/admin/Communications";
 import { UserManagement as AdminUsers } from "./pages/admin/UserManagement";
 import { Settings as AdminSettings } from "./pages/admin/Settings";
+import { Transactions } from "./pages/admin/Transactions";
+import { Analytics } from "./pages/admin/Analytics";
+import { Notifications } from "./pages/admin/Notifications";
+import { PopulateData } from "./pages/admin/PopulateData";
 import { Profile as AdminProfile } from "./pages/admin/Profile";
 import { AdminLogin } from "./pages/admin/Login";
 
@@ -76,6 +80,22 @@ export const router = createBrowserRouter([
       {
         path: "comms",
         element: <AdminComms />,
+      },
+      {
+        path: "transactions",
+        element: <Transactions />,
+      },
+      {
+        path: "analytics",
+        element: <Analytics />,
+      },
+      {
+        path: "notifications",
+        element: <Notifications />,
+      },
+      {
+        path: "populate",
+        element: <PopulateData />,
       },
       {
         path: "users",

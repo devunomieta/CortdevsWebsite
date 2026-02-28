@@ -6,15 +6,50 @@ import {
     Image as ImageIcon,
     Save,
     CheckCircle2,
-    AlertCircle
+    AlertCircle,
+    Loader2
 } from "lucide-react";
-import { useConfig } from "../../context/ConfigContext";
+import { useConfig, BrandingConfig } from "@/app/context/ConfigContext";
+import { supabase } from "@/lib/supabase";
+import { useRef } from "react";
 
 export function Settings() {
     const { config, updateConfig } = useConfig();
     const [formData, setFormData] = useState(config);
     const [isSaving, setIsSaving] = useState(false);
     const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">("idle");
+    const headerLogoRef = useRef<HTMLInputElement>(null);
+    const footerLogoRef = useRef<HTMLInputElement>(null);
+    const faviconRef = useRef<HTMLInputElement>(null);
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: "headerLogo" | "footerLogo" | "favicon") => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setIsSaving(true);
+        try {
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${field}-${Math.random()}.${fileExt}`;
+            const filePath = `branding/${fileName}`;
+
+            const { error: uploadError, data } = await supabase.storage
+                .from('assets')
+                .upload(filePath, file);
+
+            if (uploadError) throw uploadError;
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('assets')
+                .getPublicUrl(filePath);
+
+            setFormData((prev: BrandingConfig) => ({ ...prev, [field]: publicUrl }));
+        } catch (error: any) {
+            console.error(`Error uploading ${field}:`, error);
+            alert(`Upload failed: ${error.message}`);
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -34,7 +69,7 @@ export function Settings() {
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
+        setFormData((prev: BrandingConfig) => ({ ...prev, [name]: value }));
     };
 
     return (
@@ -71,18 +106,28 @@ export function Settings() {
                         <div className="space-y-4">
                             <label className="text-[10px] tracking-widest uppercase text-neutral-400 font-bold">Header Logo (Dark Theme)</label>
                             <div className="flex flex-col gap-4">
-                                <div className="h-32 w-full bg-neutral-100 border border-neutral-200 flex items-center justify-center relative group">
+                                <div
+                                    onClick={() => headerLogoRef.current?.click()}
+                                    className="h-32 w-full bg-neutral-100 border border-neutral-200 flex items-center justify-center relative group overflow-hidden"
+                                >
                                     <img src={formData.headerLogo} alt="Header Logo" className="max-h-16 object-contain" />
                                     <div className="absolute inset-0 bg-neutral-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
-                                        <Upload size={24} className="text-white" />
+                                        {isSaving ? <Loader2 className="w-6 h-6 text-white animate-spin" /> : <Upload size={24} className="text-white" />}
                                     </div>
+                                    <input
+                                        type="file"
+                                        ref={headerLogoRef}
+                                        className="hidden"
+                                        accept="image/*"
+                                        onChange={(e) => handleFileUpload(e, "headerLogo")}
+                                    />
                                 </div>
                                 <input
                                     type="text"
                                     name="headerLogo"
                                     value={formData.headerLogo}
                                     onChange={handleChange}
-                                    className="w-full text-xs font-mono p-3 border border-neutral-200 focus:border-black outline-none transition-all"
+                                    className="w-full text-[10px] font-mono p-3 border border-neutral-200 focus:border-black outline-none transition-all text-neutral-400"
                                     placeholder="/logo-dark.svg"
                                 />
                             </div>
@@ -91,18 +136,28 @@ export function Settings() {
                         <div className="space-y-4">
                             <label className="text-[10px] tracking-widest uppercase text-neutral-400 font-bold">Footer Logo (Light Theme)</label>
                             <div className="flex flex-col gap-4">
-                                <div className="h-32 w-full bg-neutral-900 flex items-center justify-center relative group">
+                                <div
+                                    onClick={() => footerLogoRef.current?.click()}
+                                    className="h-32 w-full bg-neutral-900 flex items-center justify-center relative group overflow-hidden"
+                                >
                                     <img src={formData.footerLogo} alt="Footer Logo" className="max-h-16 object-contain" />
                                     <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
-                                        <Upload size={24} className="text-white" />
+                                        {isSaving ? <Loader2 className="w-6 h-6 text-white animate-spin" /> : <Upload size={24} className="text-white" />}
                                     </div>
+                                    <input
+                                        type="file"
+                                        ref={footerLogoRef}
+                                        className="hidden"
+                                        accept="image/*"
+                                        onChange={(e) => handleFileUpload(e, "footerLogo")}
+                                    />
                                 </div>
                                 <input
                                     type="text"
                                     name="footerLogo"
                                     value={formData.footerLogo}
                                     onChange={handleChange}
-                                    className="w-full text-xs font-mono p-3 border border-neutral-200 focus:border-black outline-none transition-all"
+                                    className="w-full text-[10px] font-mono p-3 border border-neutral-200 focus:border-black outline-none transition-all text-neutral-400"
                                     placeholder="/logo-light.svg"
                                 />
                             </div>
@@ -131,14 +186,31 @@ export function Settings() {
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                             <div className="space-y-2">
-                                <label className="text-[10px] tracking-widest uppercase text-neutral-400 font-bold">Favicon Path</label>
-                                <input
-                                    type="text"
-                                    name="favicon"
-                                    value={formData.favicon}
-                                    onChange={handleChange}
-                                    className="w-full text-xs font-mono p-4 border border-neutral-200 focus:border-black outline-none transition-all"
-                                />
+                                <div className="flex flex-col gap-4">
+                                    <div
+                                        onClick={() => faviconRef.current?.click()}
+                                        className="h-16 w-16 bg-neutral-50 border border-neutral-200 flex items-center justify-center relative group overflow-hidden cursor-pointer"
+                                    >
+                                        <img src={formData.favicon} alt="Favicon" className="w-8 h-8 object-contain" />
+                                        <div className="absolute inset-0 bg-neutral-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                            <Upload size={16} className="text-white" />
+                                        </div>
+                                        <input
+                                            type="file"
+                                            ref={faviconRef}
+                                            className="hidden"
+                                            accept="image/x-icon,image/png,image/svg+xml"
+                                            onChange={(e) => handleFileUpload(e, "favicon")}
+                                        />
+                                    </div>
+                                    <input
+                                        type="text"
+                                        name="favicon"
+                                        value={formData.favicon}
+                                        onChange={handleChange}
+                                        className="w-full text-[10px] font-mono p-4 border border-neutral-200 focus:border-black outline-none transition-all text-neutral-400"
+                                    />
+                                </div>
                             </div>
                         </div>
 

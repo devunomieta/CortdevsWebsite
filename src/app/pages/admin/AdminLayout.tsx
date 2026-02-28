@@ -13,18 +13,48 @@ import {
     X,
     ChevronRight,
     Monitor,
-    Database
+    Database,
+    DollarSign,
+    BarChart3,
+    Bell
 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 export function AdminLayout() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [unreadCount, setUnreadCount] = useState(0);
     const location = useLocation();
     const navigate = useNavigate();
+
+    const fetchUnreadCount = async () => {
+        const { count, error } = await supabase
+            .from('notifications')
+            .select('*', { count: 'exact', head: true })
+            .eq('read', false);
+
+        if (!error && count !== null) setUnreadCount(count);
+    };
 
     useEffect(() => {
         const isAuth = localStorage.getItem("admin_auth");
         if (!isAuth && location.pathname !== "/admin/login") {
             navigate("/admin/login");
+        }
+
+        if (isAuth) {
+            fetchUnreadCount();
+
+            // Real-time listener for badge
+            const channel = supabase
+                .channel('admin_notifications_badge')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, () => {
+                    fetchUnreadCount();
+                })
+                .subscribe();
+
+            return () => {
+                supabase.removeChannel(channel);
+            };
         }
     }, [location, navigate]);
 
@@ -32,6 +62,8 @@ export function AdminLayout() {
         { icon: <LayoutDashboard size={20} />, label: "Dashboard", path: "/admin" },
         { icon: <MessageSquare size={20} />, label: "Leads & Projects", path: "/admin/leads" },
         { icon: <Users size={20} />, label: "Clients", path: "/admin/clients" },
+        { icon: <DollarSign size={20} />, label: "Transactions", path: "/admin/transactions" },
+        { icon: <BarChart3 size={20} />, label: "Analytics Hub", path: "/admin/analytics" },
         { icon: <Mail size={20} />, label: "Communications", path: "/admin/comms" },
         { icon: <ShieldCheck size={20} />, label: "Team & Roles", path: "/admin/users" },
         { icon: <Settings size={20} />, label: "Site Settings", path: "/admin/settings" },
@@ -126,6 +158,19 @@ export function AdminLayout() {
                             <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
                             <span className="text-neutral-500 font-medium uppercase tracking-widest text-[10px]">System Online</span>
                         </div>
+
+                        <Link
+                            to="/admin/notifications"
+                            className="relative w-10 h-10 border border-neutral-200 flex items-center justify-center hover:bg-neutral-50 transition-all group"
+                        >
+                            <Bell size={18} className="text-neutral-400 group-hover:text-black transition-colors" />
+                            {unreadCount > 0 && (
+                                <span className="absolute -top-1 -right-1 w-5 h-5 bg-black text-white text-[10px] flex items-center justify-center font-bold">
+                                    {unreadCount > 9 ? "9+" : unreadCount}
+                                </span>
+                            )}
+                        </Link>
+
                         <Link
                             to="/admin/profile"
                             className="w-10 h-10 bg-neutral-100 border border-neutral-200 flex items-center justify-center rounded-full hover:bg-neutral-900 hover:text-white transition-all group"

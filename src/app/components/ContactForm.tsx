@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router";
+import { supabase } from "@/lib/supabase";
 import { motion } from "framer-motion";
 import { Send, Upload, X, Eye, Edit, FileText, CheckCircle2 } from "lucide-react";
 import { InternationalPhoneInput } from "./InternationalPhoneInput";
@@ -127,18 +128,48 @@ export function ContactForm({ onSuccess, isPopup = false }: ContactFormProps) {
     };
 
     try {
-      const response = await fetch('/api/contact', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(submissionData),
-      });
+      // 1. Save to Supabase
+      const { error: supabaseError } = await supabase
+        .from('leads')
+        .insert([{
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          service: formData.service,
+          budget: formData.budget,
+          details: formData.message,
+          status: 'New'
+        }]);
 
-      const result = await response.json();
+      if (supabaseError) throw supabaseError;
 
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to send inquiry');
+      // 2. Add System Notification for Admin
+      await supabase.from('notifications').insert([{
+        type: 'Lead',
+        message: `New Lead Inquiry: ${formData.name} (${formData.service})`,
+        link: '/admin/leads'
+      }]);
+
+      // 3. Also send the notification email (existing logic)
+      try {
+        const response = await fetch('/api/contact', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(submissionData),
+        });
+
+        if (response.ok) {
+          const contentType = response.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            await response.json();
+          }
+        } else {
+          console.warn("Email notification failed, but lead was saved to DB.");
+        }
+      } catch (emailErr) {
+        console.error("Email service error:", emailErr);
       }
 
       if (onSuccess) {

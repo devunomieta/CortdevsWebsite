@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
 
 interface BrandingConfig {
     headerLogo: string;
@@ -28,16 +29,28 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     const [config, setConfig] = useState<BrandingConfig>(defaultConfig);
     const [isLoading, setIsLoading] = useState(true);
 
-    // In a real implementation, we would fetch this from Supabase
     useEffect(() => {
         const fetchConfig = async () => {
             try {
-                // Simulating fetch for now
-                // const { data } = await supabase.from('site_config').select('*').single();
-                // if (data) setConfig(data);
+                const { data, error } = await supabase
+                    .from('site_config')
+                    .select('*')
+                    .eq('id', 'main')
+                    .single();
+
+                if (error) throw error;
+                if (data) {
+                    setConfig({
+                        headerLogo: data.header_logo,
+                        footerLogo: data.footer_logo,
+                        favicon: data.favicon,
+                        siteTitle: data.site_title,
+                        metaDescription: data.meta_description,
+                    });
+                }
                 setIsLoading(false);
             } catch (error) {
-                console.error('Failed to fetch config:', error);
+                console.error('Failed to fetch config from Supabase:', error);
                 setIsLoading(false);
             }
         };
@@ -46,8 +59,27 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     const updateConfig = async (newConfig: Partial<BrandingConfig>) => {
-        setConfig(prev => ({ ...prev, ...newConfig }));
-        // Logic to persist to Supabase would go here
+        const updated = { ...config, ...newConfig };
+        setConfig(updated);
+
+        try {
+            const { error } = await supabase
+                .from('site_config')
+                .update({
+                    header_logo: updated.headerLogo,
+                    footer_logo: updated.footerLogo,
+                    favicon: updated.favicon,
+                    site_title: updated.siteTitle,
+                    meta_description: updated.metaDescription,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', 'main');
+
+            if (error) throw error;
+        } catch (error) {
+            console.error('Failed to persist config to Supabase:', error);
+            throw error;
+        }
     };
 
     return (

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router";
+import { supabase } from "@/lib/supabase";
 import { motion } from "framer-motion";
 import { Lock, Mail, ArrowRight, ShieldCheck } from "lucide-react";
 import { BrandLoader } from "../../components/BrandLoader";
@@ -16,17 +17,24 @@ export function AdminLogin() {
         setIsLoading(true);
         setError("");
 
-        // Simulate authentication
-        setTimeout(() => {
-            if (email === "projects@cortdevs.com" && password === "@project$@cortdev$@") {
-                // In a real app, we'd set a session/cookie here
+        try {
+            const { data, error: authError } = await supabase.auth.signInWithPassword({
+                email,
+                password,
+            });
+
+            if (authError) throw authError;
+
+            if (data.user) {
                 localStorage.setItem("admin_auth", "true");
                 navigate("/admin");
-            } else {
-                setError("Invalid credentials. Please verify and try again.");
             }
+        } catch (err: any) {
+            console.error("Login error:", err);
+            setError(err.message || "Invalid credentials. Please verify and try again.");
+        } finally {
             setIsLoading(false);
-        }, 1500);
+        }
     };
 
     return (

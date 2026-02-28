@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { supabase } from "@/lib/supabase";
 import {
     Shield,
     UserPlus,
@@ -11,7 +12,8 @@ import {
     AlertCircle,
     Clock,
     Trash2,
-    Mail
+    Mail,
+    RefreshCw
 } from "lucide-react";
 
 interface AdminUser {
@@ -23,36 +25,42 @@ interface AdminUser {
     status: "Active" | "Pending";
 }
 
-const mockUsers: AdminUser[] = [
-    {
-        id: "1",
-        name: "HachStack CEO",
-        email: "admin@cortdevs.com",
-        role: "Super Admin",
-        permissions: ["Full Access"],
-        status: "Active"
-    },
-    {
-        id: "2",
-        name: "Damilola Ade",
-        email: "pm@cortdevs.com",
-        role: "Project Manager",
-        permissions: ["Leads", "Clients", "Comms"],
-        status: "Active"
-    },
-    {
-        id: "3",
-        name: "External Editor",
-        email: "editor@partner.co",
-        role: "Editor",
-        permissions: ["Settings", "Templates"],
-        status: "Pending"
-    }
-];
-
 export function UserManagement() {
-    const [users] = useState<AdminUser[]>(mockUsers);
+    const [users, setUsers] = useState<AdminUser[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+
+    const fetchUsers = async () => {
+        setIsLoading(true);
+        try {
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .order('full_name', { ascending: true });
+
+            if (error) throw error;
+
+            if (data) {
+                const mappedUsers: AdminUser[] = data.map(u => ({
+                    id: u.id,
+                    name: u.full_name || "New User",
+                    email: u.email,
+                    role: (u.role as AdminUser["role"]) || "Editor",
+                    permissions: u.permissions || [],
+                    status: u.status as AdminUser["status"]
+                }));
+                setUsers(mappedUsers);
+            }
+        } catch (err) {
+            console.error("Error fetching users:", err);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchUsers();
+    }, []);
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -61,70 +69,93 @@ export function UserManagement() {
                     <h2 className="text-2xl font-light tracking-tight italic">Administrative Intelligence</h2>
                     <p className="text-sm text-neutral-500">Manage access levels and operational permissions for your squad.</p>
                 </div>
-                <button
-                    onClick={() => setIsInviteModalOpen(true)}
-                    className="bg-black text-white px-6 py-3 text-[10px] font-bold uppercase tracking-[0.2em] flex items-center gap-2 hover:bg-neutral-800 transition-all shadow-xl shadow-black/10"
-                >
-                    Provision User <UserPlus size={14} />
-                </button>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={fetchUsers}
+                        disabled={isLoading}
+                        className="p-3 border border-neutral-200 hover:bg-neutral-50 transition-colors disabled:opacity-50"
+                        title="Refresh Users"
+                    >
+                        <RefreshCw size={18} className={`text-neutral-500 ${isLoading ? "animate-spin" : ""}`} />
+                    </button>
+                    <button
+                        onClick={() => setIsInviteModalOpen(true)}
+                        className="bg-black text-white px-6 py-3 text-[10px] font-bold uppercase tracking-[0.2em] flex items-center gap-2 hover:bg-neutral-800 transition-all shadow-xl shadow-black/10"
+                    >
+                        Provision User <UserPlus size={14} />
+                    </button>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
                 <div className="lg:col-span-2 space-y-6">
-                    <div className="bg-white border border-neutral-200">
+                    <div className="bg-white border border-neutral-200 min-h-[400px]">
                         <div className="p-6 border-b border-neutral-100 flex items-center gap-3">
                             <Shield size={18} className="text-neutral-400" />
                             <h3 className="text-[10px] font-bold uppercase tracking-[0.2em]">Active Permissions Matrix</h3>
                         </div>
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left">
-                                <thead>
-                                    <tr className="bg-neutral-50 text-[10px] uppercase tracking-widest text-neutral-400 font-bold">
-                                        <th className="p-4">User</th>
-                                        <th className="p-4">Authorization</th>
-                                        <th className="p-4">Status</th>
-                                        <th className="p-4 text-right">Settings</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="text-xs">
-                                    {users.map((user) => (
-                                        <tr key={user.id} className="border-b border-neutral-50 hover:bg-neutral-50 transition-colors group">
-                                            <td className="p-4">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-8 h-8 bg-black text-white flex items-center justify-center font-bold text-[10px] rounded-sm">
-                                                        {user.name.charAt(0)}
-                                                    </div>
-                                                    <div>
-                                                        <p className="font-semibold text-neutral-900">{user.name}</p>
-                                                        <p className="text-[10px] text-neutral-400 font-mono">{user.email}</p>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td className="p-4">
-                                                <div className="flex flex-col gap-1">
-                                                    <span className="font-medium text-black">{user.role}</span>
-                                                    <div className="flex gap-1 flex-wrap">
-                                                        {user.permissions.map(p => (
-                                                            <span key={p} className="text-[8px] bg-neutral-100 text-neutral-500 px-1 border border-neutral-200 uppercase font-bold">{p}</span>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td className="p-4">
-                                                <span className={`px-2 py-0.5 text-[9px] font-bold uppercase tracking-tighter ${user.status === 'Active' ? 'text-green-600' : 'text-orange-500'}`}>
-                                                    {user.status}
-                                                </span>
-                                            </td>
-                                            <td className="p-4 text-right">
-                                                <button className="p-2 text-neutral-300 hover:text-black transition-colors">
-                                                    <MoreVertical size={16} />
-                                                </button>
-                                            </td>
+
+                        {isLoading ? (
+                            <div className="flex flex-col items-center justify-center py-32">
+                                <RefreshCw className="w-8 h-8 text-neutral-200 animate-spin mb-4" />
+                                <p className="text-sm text-neutral-400 italic font-light">Decrypting user matrix...</p>
+                            </div>
+                        ) : users.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-32 text-neutral-400">
+                                <Shield size={40} className="mb-4 opacity-20" />
+                                <p className="text-sm italic">No administrators found in the system registry.</p>
+                            </div>
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left">
+                                    <thead>
+                                        <tr className="bg-neutral-50 text-[10px] uppercase tracking-widest text-neutral-400 font-bold">
+                                            <th className="p-4">User</th>
+                                            <th className="p-4">Authorization</th>
+                                            <th className="p-4">Status</th>
+                                            <th className="p-4 text-right">Settings</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                                    </thead>
+                                    <tbody className="text-xs">
+                                        {users.map((user) => (
+                                            <tr key={user.id} className="border-b border-neutral-50 hover:bg-neutral-50 transition-colors group">
+                                                <td className="p-4">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-8 h-8 bg-black text-white flex items-center justify-center font-bold text-[10px] rounded-sm">
+                                                            {user.name.charAt(0)}
+                                                        </div>
+                                                        <div>
+                                                            <p className="font-semibold text-neutral-900">{user.name}</p>
+                                                            <p className="text-[10px] text-neutral-400 font-mono">{user.email}</p>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="p-4">
+                                                    <div className="flex flex-col gap-1">
+                                                        <span className="font-medium text-black">{user.role}</span>
+                                                        <div className="flex gap-1 flex-wrap">
+                                                            {user.permissions.map(p => (
+                                                                <span key={p} className="text-[8px] bg-neutral-100 text-neutral-500 px-1 border border-neutral-200 uppercase font-bold">{p}</span>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="p-4">
+                                                    <span className={`px-2 py-0.5 text-[9px] font-bold uppercase tracking-tighter ${user.status === 'Active' ? 'text-green-600' : 'text-orange-500'}`}>
+                                                        {user.status}
+                                                    </span>
+                                                </td>
+                                                <td className="p-4 text-right">
+                                                    <button className="p-2 text-neutral-300 hover:text-black transition-colors">
+                                                        <MoreVertical size={16} />
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
                     </div>
                 </div>
 
