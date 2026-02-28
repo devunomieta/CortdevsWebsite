@@ -11,9 +11,11 @@ import {
 } from "lucide-react";
 import { useConfig, BrandingConfig } from "@/app/context/ConfigContext";
 import { supabase } from "@/lib/supabase";
+import { useToast } from "../../components/Toast";
 import { useRef } from "react";
 
 export function Settings() {
+    const { showToast } = useToast();
     const { config, updateConfig } = useConfig();
     const [formData, setFormData] = useState(config);
     const [isSaving, setIsSaving] = useState(false);
@@ -45,7 +47,7 @@ export function Settings() {
             setFormData((prev: BrandingConfig) => ({ ...prev, [field]: publicUrl }));
         } catch (error: any) {
             console.error(`Error uploading ${field}:`, error);
-            alert(`Upload failed: ${error.message}`);
+            showToast(`Upload failed: ${error.message}`, "error");
         } finally {
             setIsSaving(false);
         }
@@ -59,9 +61,11 @@ export function Settings() {
         try {
             await updateConfig(formData);
             setSaveStatus("success");
+            showToast("System configuration synchronized.", "success");
             setTimeout(() => setSaveStatus("idle"), 3000);
-        } catch (error) {
+        } catch (error: any) {
             setSaveStatus("error");
+            showToast("Serialization failed: " + (error.message || "Unknown error"), "error");
         } finally {
             setIsSaving(false);
         }

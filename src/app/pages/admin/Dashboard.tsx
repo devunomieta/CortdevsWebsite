@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { supabase } from "@/lib/supabase";
 import {
     Users,
@@ -25,6 +25,7 @@ interface Stat {
 }
 
 export function Dashboard() {
+    const navigate = useNavigate();
     const [stats, setStats] = useState<Stat[]>([
         { label: "Active Project Leads", value: "0", icon: <MessageSquare />, trend: "---", color: "bg-blue-500", path: "/admin/leads" },
         { label: "Total Clients", value: "0", icon: <Users />, trend: "---", color: "bg-green-500", path: "/admin/clients" },
@@ -94,6 +95,7 @@ export function Dashboard() {
 
             if (leadsData) {
                 setRecentLeads(leadsData.map((l: any) => ({
+                    id: l.id,
                     name: l.name,
                     company: l.email.split('@')[0], // Mock company from email if not present
                     service: l.service,
@@ -196,18 +198,22 @@ export function Dashboard() {
                             </thead>
                             <tbody className="text-sm">
                                 {recentLeads.map((lead, i) => (
-                                    <tr key={i} className="border-b border-neutral-50 hover:bg-neutral-50 transition-colors group">
-                                        <td className="p-6">
+                                    <tr
+                                        key={lead.id || i}
+                                        onClick={() => lead.id && navigate(`/admin/leads?id=${lead.id}`)}
+                                        className="border-b border-neutral-50 hover:bg-neutral-50 transition-colors group cursor-pointer"
+                                    >
+                                        <td className="p-4 md:p-6 text-sm">
                                             <p className="font-medium text-black">{lead.name}</p>
-                                            <p className="text-xs text-neutral-500">{lead.company}</p>
+                                            <p className="text-[10px] md:text-xs text-neutral-500">{lead.company}</p>
                                         </td>
-                                        <td className="p-6 text-neutral-600 font-light">{lead.service}</td>
-                                        <td className="p-6">
-                                            <span className="px-3 py-1 bg-neutral-900 text-white text-[10px] font-bold uppercase tracking-tighter rounded-full">
+                                        <td className="p-4 md:p-6 text-neutral-600 font-light text-xs md:text-sm">{lead.service}</td>
+                                        <td className="p-4 md:p-6">
+                                            <span className="px-2 md:px-3 py-1 bg-neutral-900 text-white text-[9px] md:text-[10px] font-bold uppercase tracking-tighter rounded-full">
                                                 {lead.status}
                                             </span>
                                         </td>
-                                        <td className="p-6 text-right text-xs text-neutral-400">{lead.time}</td>
+                                        <td className="p-4 md:p-6 text-right text-[10px] md:text-xs text-neutral-400 whitespace-nowrap">{lead.time}</td>
                                     </tr>
                                 ))}
                             </tbody>

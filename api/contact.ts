@@ -1,29 +1,40 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import nodemailer from 'nodemailer';
+import { supabase } from './_lib/supabase';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-    if (req.method !== 'POST') {
-        return res.status(405).json({ error: 'Method not allowed' });
-    }
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
 
-    const { name, email, company, phone, service, budget, timeline, message, issueNDA } = req.body;
+  const { name, email, company, phone, service, budget, timeline, message, issueNDA } = req.body;
 
-    // Manual SMTP configuration from user
-    const transporter = nodemailer.createTransport({
-        host: 'mail.cortdevs.com',
-        port: 465,
-        secure: true, // Use SSL
-        auth: {
-            user: 'projects@cortdevs.com',
-            pass: '@project$@cortdev$@',
-        },
-    });
+  // Fetch SMTP settings from Supabase
+  const { data: smtpData, error: smtpError } = await supabase
+    .from('smtp_settings')
+    .select('*')
+    .single();
 
-    const mailOptions = {
-        from: '"CortDevs Web Form" <projects@cortdevs.com>',
-        to: 'projects@cortdevs.com, cortdevs@gmail.com',
-        subject: `New Project Inquiry: ${service} from ${name}`,
-        html: `
+  if (smtpError || !smtpData) {
+    console.error('SMTP Config Error:', smtpError);
+    return res.status(500).json({ error: 'System configuration error. Please try again later.' });
+  }
+
+  const transporter = nodemailer.createTransport({
+    host: smtpData.host,
+    port: smtpData.port,
+    secure: smtpData.port === 465,
+    auth: {
+      user: smtpData.user,
+      pass: smtpData.password,
+    },
+  });
+
+  const mailOptions = {
+    from: '"CortDevs Web Form" <projects@cortdevs.com>',
+    to: 'projects@cortdevs.com, cortdevs@gmail.com',
+    subject: `New Project Inquiry: ${service} from ${name}`,
+    html: `
       <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px;">
         <h2 style="color: #000; border-bottom: 2px solid #000; padding-bottom: 10px;">New Project Inquiry</h2>
         <p><strong>Name:</strong> ${name}</p>
@@ -42,13 +53,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         </p>
       </div>
     `,
-    };
+  };
 
-    try {
-        await transporter.sendMail(mailOptions);
-        return res.status(200).json({ success: true, message: 'Email sent successfully' });
-    } catch (error) {
-        console.error('SMTP Error:', error);
-        return res.status(500).json({ error: 'Failed to send email. Please try again later.' });
-    }
+  try {
+    await transporter.sendMail(mailOptions);
+    return res.status(200).json({ success: true, message: 'Email sent successfully' });
+  } catch (error) {
+    console.error('SMTP Error:', error);
+    return res.status(500).json({ error: 'Failed to send email. Please try again later.' });
+  }
 }

@@ -166,23 +166,24 @@ CREATE TRIGGER on_auth_user_created
 
 -- 8. Storage Instructions
 -- NOTE: Supabase Storage buckets cannot be fully managed via SQL in all environments.
--- Please perform the following steps in the Supabase Dashboard:
 -- 1. Go to "Storage" in the sidebar.
 -- 2. Create a new bucket named "assets".
--- 3. Set the bucket to "Public" (or define specific RLS policies for the "assets" bucket).
--- 4. Create a folder named "branding" inside the "assets" bucket.
+-- 3. Set the bucket to "Public" (or define specific RLS policies).
 
-/*
--- Optional: SQL to create bucket if your environment supports it
+-- SQL to create bucket and policies
 INSERT INTO storage.buckets (id, name, public) 
 VALUES ('assets', 'assets', true)
 ON CONFLICT (id) DO NOTHING;
 
 -- Policies for storage
+DROP POLICY IF EXISTS "Public Access" ON storage.objects;
 CREATE POLICY "Public Access" ON storage.objects FOR SELECT USING (bucket_id = 'assets');
+
+DROP POLICY IF EXISTS "Admin Upload" ON storage.objects;
 CREATE POLICY "Admin Upload" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'assets' AND auth.role() = 'authenticated');
+
+DROP POLICY IF EXISTS "Admin Delete" ON storage.objects;
 CREATE POLICY "Admin Delete" ON storage.objects FOR DELETE USING (bucket_id = 'assets' AND auth.role() = 'authenticated');
-*/
 
 -- 9. Notifications Table
 CREATE TABLE IF NOT EXISTS notifications (

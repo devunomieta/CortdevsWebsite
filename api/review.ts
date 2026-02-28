@@ -1,32 +1,44 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import nodemailer from 'nodemailer';
+import { supabase } from './_lib/supabase';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-    if (req.method !== 'POST') {
-        return res.status(405).json({ error: 'Method not allowed' });
-    }
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
 
-    const { name, email, industry, highlight, type, rating, message, impact, isAnonymous } = req.body;
+  const { name, email, industry, highlight, type, rating, message, impact, isAnonymous } = req.body;
 
-    const transporter = nodemailer.createTransport({
-        host: 'mail.cortdevs.com',
-        port: 465,
-        secure: true,
-        auth: {
-            user: 'projects@cortdevs.com',
-            pass: '@project$@cortdev$@',
-        },
-    });
+  // Fetch SMTP settings from Supabase
+  const { data: smtpData, error: smtpError } = await supabase
+    .from('smtp_settings')
+    .select('*')
+    .single();
 
-    const subject = type === 'complaint'
-        ? `🚨 URGENT: New Complaint from ${isAnonymous ? 'Anonymous' : name}`
-        : `⭐ New Review: ${rating} Stars from ${isAnonymous ? 'Anonymous' : name}`;
+  if (smtpError || !smtpData) {
+    console.error('SMTP Config Error:', smtpError);
+    return res.status(500).json({ error: 'System configuration error. Please try again later.' });
+  }
 
-    const mailOptions = {
-        from: '"CortDevs Feedback" <projects@cortdevs.com>',
-        to: 'projects@cortdevs.com, cortdevs@gmail.com',
-        subject: subject,
-        html: `
+  const transporter = nodemailer.createTransport({
+    host: smtpData.host,
+    port: smtpData.port,
+    secure: smtpData.port === 465,
+    auth: {
+      user: smtpData.user,
+      pass: smtpData.password,
+    },
+  });
+
+  const subject = type === 'complaint'
+    ? `🚨 URGENT: New Complaint from ${isAnonymous ? 'Anonymous' : name}`
+    : `⭐ New Review: ${rating} Stars from ${isAnonymous ? 'Anonymous' : name}`;
+
+  const mailOptions = {
+    from: '"CortDevs Feedback" <projects@cortdevs.com>',
+    to: 'projects@cortdevs.com, cortdevs@gmail.com',
+    subject: subject,
+    html: `
       <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px;">
         <h2 style="color: #000; border-bottom: 2px solid #000; padding-bottom: 10px;">
           ${type.toUpperCase()} SUBMISSION
@@ -46,13 +58,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         </p>
       </div>
     `,
-    };
+  };
 
-    try {
-        await transporter.sendMail(mailOptions);
-        return res.status(200).json({ success: true, message: 'Feedback transmitted successfully' });
-    } catch (error) {
-        console.error('SMTP Error:', error);
-        return res.status(500).json({ error: 'Transmission failed. Please try again later.' });
-    }
+  try {
+    await transporter.sendMail(mailOptions);
+    return res.status(200).json({ success: true, message: 'Feedback transmitted successfully' });
+  } catch (error) {
+    console.error('SMTP Error:', error);
+    return res.status(500).json({ error: 'Transmission failed. Please try again later.' });
+  }
 }

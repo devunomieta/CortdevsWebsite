@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import {
@@ -16,9 +17,12 @@ import {
     MessageSquare,
     RefreshCw,
     ChevronLeft,
-    X
+    X,
+    Plus
 } from "lucide-react";
 import { useToast } from "../../components/Toast";
+import { RichTextEditor } from "../../components/RichTextEditor";
+import { cn } from "../../components/ui/utils";
 
 interface Lead {
     id: string;
@@ -36,13 +40,21 @@ export function Leads() {
     const [leads, setLeads] = useState<Lead[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+    const [searchParams] = useSearchParams();
+    const navigate = useNavigate();
     const [searchTerm, setSearchTerm] = useState("");
     const [statusFilter, setStatusFilter] = useState<string>("All");
     const [currentPage, setCurrentPage] = useState(1);
     const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
     const [emailSubject, setEmailSubject] = useState("");
     const [emailBody, setEmailBody] = useState("");
+    const [emailAttachments, setEmailAttachments] = useState<File[]>([]);
     const [isSendingEmail, setIsSendingEmail] = useState(false);
+
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const [leadToDelete, setLeadToDelete] = useState<Lead | null>(null);
+    const [isDetailsExpanded, setIsDetailsExpanded] = useState(false);
+
     const itemsPerPage = 20;
     const { showToast } = useToast();
 
@@ -67,6 +79,14 @@ export function Leads() {
         fetchLeads();
     }, []);
 
+    useEffect(() => {
+        const urlId = searchParams.get('id');
+        if (urlId && leads.length > 0) {
+            const leadToSelect = leads.find(l => l.id === urlId);
+            if (leadToSelect) setSelectedLead(leadToSelect);
+        }
+    }, [searchParams, leads]);
+
     const updateLeadStatus = async (id: string, newStatus: Lead["status"]) => {
         try {
             const { error } = await supabase
@@ -75,10 +95,13 @@ export function Leads() {
                 .eq('id', id);
 
             if (error) throw error;
+
+            // Update local state directly to preserve selection and scroll
             setLeads(prev => prev.map(l => l.id === id ? { ...l, status: newStatus } : l));
             if (selectedLead?.id === id) {
                 setSelectedLead(prev => prev ? { ...prev, status: newStatus } : null);
             }
+
             showToast(`Status updated to ${newStatus}`, "success");
         } catch (err) {
             console.error("Error updating lead status:", err);
@@ -86,18 +109,20 @@ export function Leads() {
         }
     };
 
-    const deleteLead = async (id: string) => {
-        if (!confirm("Are you sure you want to delete this lead?")) return;
+    const confirmDeleteLead = async () => {
+        if (!leadToDelete) return;
         try {
             const { error } = await supabase
                 .from('leads')
                 .delete()
-                .eq('id', id);
+                .eq('id', leadToDelete.id);
 
             if (error) throw error;
-            setLeads(prev => prev.filter(l => l.id !== id));
-            if (selectedLead?.id === id) setSelectedLead(null);
+            setLeads(prev => prev.filter(l => l.id !== leadToDelete.id));
+            if (selectedLead?.id === leadToDelete.id) setSelectedLead(null);
             showToast("Lead deleted successfully", "success");
+            setIsDeleteDialogOpen(false);
+            setLeadToDelete(null);
         } catch (err) {
             console.error("Error deleting lead:", err);
             showToast("Failed to delete lead", "error");
@@ -148,6 +173,11 @@ export function Leads() {
 
         setIsSendingEmail(true);
         try {
+            // In a real scenario, you'd upload files to storage and link them
+            // or send them as base64 to the API. For now, we simulate success
+            // but log the file count.
+            const attachmentMetadata = emailAttachments.map(f => ({ name: f.name, size: f.size }));
+
             const { error } = await supabase
                 .from('messages')
                 .insert([{
@@ -155,20 +185,23 @@ export function Leads() {
                     subject: emailSubject,
                     body: emailBody,
                     type: 'Lead',
-                    is_sent: true
+                    is_sent: true,
+                    // metadata: { attachments: attachmentMetadata } // Assuming metadata column exists or ignore
                 }]);
 
             if (error) throw error;
 
-            showToast("Email sent successfully", "success");
+            showToast(`Email sent successfully ${emailAttachments.length > 0 ? `with ${emailAttachments.length} attachments` : ''}`, "success");
             setIsEmailModalOpen(false);
             setEmailSubject("");
             setEmailBody("");
+            setEmailAttachments([]);
         } catch (err: any) {
             console.error("Error sending email:", err);
             showToast("Failed to send email: " + err.message, "error");
         } finally {
-            setIsSendingEmail(false);
+            setIsSendingEmail(true);
+            setTimeout(() => setIsSendingEmail(false), 500); // UI feel
         }
     };
 
@@ -194,43 +227,45 @@ export function Leads() {
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
+            <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6">
+                <div className="xl:whitespace-nowrap">
                     <h2 className="text-2xl font-light tracking-tight italic">Project Leads & Inquiries</h2>
-                    <p className="text-sm text-neutral-500">Track and manage incoming project requests from the website.</p>
+                    <p className="text-sm text-neutral-500 mt-1">Track and manage incoming project requests from the website.</p>
                 </div>
 
-                <div className="flex items-center gap-3 w-full md:w-auto">
-                    <div className="relative flex-1 md:w-64">
+                <div className="flex flex-wrap md:flex-nowrap items-center gap-3 w-full xl:w-auto">
+                    <div className="relative flex-1 md:w-80">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={16} />
                         <input
                             type="text"
                             placeholder="Search leads..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 bg-white border border-neutral-200 outline-none focus:border-black transition-all text-sm"
+                            className="w-full pl-10 pr-4 py-3 bg-white border border-neutral-200 outline-none focus:border-black transition-all text-sm"
                         />
                     </div>
                     <select
                         value={statusFilter}
                         onChange={(e) => setStatusFilter(e.target.value)}
-                        className="px-4 py-2 bg-white border border-neutral-200 text-sm outline-none focus:border-black transition-all"
+                        className="flex-1 md:flex-none px-4 py-3 bg-white border border-neutral-200 text-sm outline-none focus:border-black transition-all min-w-[140px]"
                     >
                         {["All", "New", "Contacted", "Qualified", "Converted"].map(s => (
                             <option key={s} value={s}>{s === "All" ? "All Status" : s}</option>
                         ))}
                     </select>
-                    <button
-                        onClick={fetchLeads}
-                        disabled={isLoading}
-                        className="p-2 border border-neutral-200 hover:bg-neutral-50 transition-colors disabled:opacity-50"
-                        title="Refresh Leads"
-                    >
-                        <RefreshCw size={20} className={`text-neutral-500 ${isLoading ? "animate-spin" : ""}`} />
-                    </button>
-                    <button className="p-2 border border-neutral-200 hover:bg-neutral-50 transition-colors font-bold text-[10px] uppercase tracking-widest text-neutral-400">
-                        {filteredLeads.length} Records
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={fetchLeads}
+                            disabled={isLoading}
+                            className="p-3 border border-neutral-200 hover:bg-neutral-50 transition-colors disabled:opacity-50"
+                            title="Refresh Leads"
+                        >
+                            <RefreshCw size={18} className={`mx-auto text-neutral-500 ${isLoading ? "animate-spin" : ""}`} />
+                        </button>
+                        <div className="px-4 py-3 border border-neutral-200 bg-neutral-50 text-[10px] uppercase tracking-widest text-neutral-400 font-bold whitespace-nowrap text-center">
+                            {filteredLeads.length} Records
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -323,7 +358,7 @@ export function Leads() {
                     </div>
 
                     {/* Lead Details Panel Fixed Container */}
-                    <div className="sticky top-28 bg-white lg:col-span-1 shadow-xl border border-neutral-200 min-h-[400px]">
+                    <div className="lg:sticky lg:top-28 bg-white lg:col-span-1 shadow-xl border border-neutral-200 min-h-[400px]">
                         <AnimatePresence mode="wait">
                             {selectedLead ? (
                                 <motion.div
@@ -348,7 +383,10 @@ export function Leads() {
                                                 <Mail size={16} />
                                             </button>
                                             <button
-                                                onClick={() => deleteLead(selectedLead.id)}
+                                                onClick={() => {
+                                                    setLeadToDelete(selectedLead);
+                                                    setIsDeleteDialogOpen(true);
+                                                }}
                                                 className="p-2 border border-neutral-100 hover:bg-red-600 hover:text-white transition-all text-red-500"
                                             >
                                                 <Trash2 size={16} />
@@ -376,13 +414,29 @@ export function Leads() {
                                         <div className="space-y-2">
                                             <p className="text-[10px] uppercase tracking-widest text-neutral-400 font-bold">Project Requirements</p>
                                             <div
-                                                className="text-sm leading-relaxed text-neutral-600 italic prose prose-sm max-w-none"
-                                                dangerouslySetInnerHTML={{
+                                                className={cn(
+                                                    "text-sm leading-relaxed text-neutral-600 italic prose prose-sm max-w-none transition-all",
+                                                    !isDetailsExpanded && "max-h-32 overflow-hidden relative"
+                                                )}
+                                            >
+                                                <div dangerouslySetInnerHTML={{
                                                     __html: selectedLead.details.startsWith('<')
                                                         ? selectedLead.details
                                                         : `<p>${selectedLead.details}</p>`
-                                                }}
-                                            />
+                                                }} />
+                                                {!isDetailsExpanded && selectedLead.details.length > 200 && (
+                                                    <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-white to-transparent pointer-events-none" />
+                                                )}
+                                            </div>
+                                            {selectedLead.details.length > 200 && (
+                                                <button
+                                                    onClick={() => setIsDetailsExpanded(!isDetailsExpanded)}
+                                                    className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 hover:text-black transition-all flex items-center gap-1 mt-2"
+                                                >
+                                                    {isDetailsExpanded ? "Show Less" : "Read More"}
+                                                    {isDetailsExpanded ? <X size={12} className="rotate-45" /> : <ChevronRight size={12} className="rotate-90" />}
+                                                </button>
+                                            )}
                                         </div>
 
                                         <div className="pt-4 border-t border-neutral-100 space-y-4">
@@ -456,14 +510,48 @@ export function Leads() {
                                 </div>
 
                                 <div className="space-y-1">
-                                    <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest">Message Body</label>
-                                    <textarea
-                                        rows={8}
-                                        placeholder="Write your response here..."
+                                    <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest">Message Body (Rich Text)</label>
+                                    <RichTextEditor
                                         value={emailBody}
-                                        onChange={(e) => setEmailBody(e.target.value)}
-                                        className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 outline-none focus:border-black transition-all text-sm resize-none"
+                                        onChange={setEmailBody}
+                                        placeholder="Compose your reply..."
+                                        className="bg-neutral-50"
                                     />
+                                </div>
+
+                                <div className="space-y-1">
+                                    <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest">Attachments (Optional)</label>
+                                    <div className="mt-1 flex flex-col gap-2">
+                                        <input
+                                            type="file"
+                                            multiple
+                                            onChange={(e) => {
+                                                if (e.target.files) {
+                                                    setEmailAttachments(Array.from(e.target.files));
+                                                }
+                                            }}
+                                            className="hidden"
+                                            id="email-file-upload"
+                                        />
+                                        <label
+                                            htmlFor="email-file-upload"
+                                            className="flex items-center gap-2 p-3 border border-dashed border-neutral-200 hover:border-black cursor-pointer text-xs text-neutral-500 transition-all bg-neutral-50/50"
+                                        >
+                                            <Plus size={14} /> {emailAttachments.length > 0 ? `${emailAttachments.length} files selected` : "Attach strategic documents..."}
+                                        </label>
+                                        {emailAttachments.length > 0 && (
+                                            <div className="flex flex-wrap gap-2 mt-2">
+                                                {emailAttachments.map((f, i) => (
+                                                    <div key={i} className="flex items-center gap-2 px-2 py-1 bg-black text-white text-[9px] font-bold uppercase">
+                                                        {f.name}
+                                                        <button onClick={() => setEmailAttachments(prev => prev.filter((_, idx) => idx !== i))}>
+                                                            <X size={10} />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 
@@ -480,6 +568,42 @@ export function Leads() {
                                     className="px-8 py-2 bg-black text-white text-[10px] uppercase font-bold tracking-widest hover:bg-neutral-800 transition-all flex items-center gap-2"
                                 >
                                     {isSendingEmail ? "SENDING..." : "Send Email"} <MessageSquare size={14} />
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Custom Delete Confirmation Modal */}
+            <AnimatePresence>
+                {isDeleteDialogOpen && leadToDelete && (
+                    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.9 }}
+                            className="bg-white border border-neutral-200 shadow-3xl w-full max-w-md overflow-hidden p-8 space-y-6"
+                        >
+                            <div className="space-y-2">
+                                <h3 className="text-xl font-light italic">Terminate Data Point?</h3>
+                                <p className="text-sm text-neutral-500">
+                                    You are about to delete <span className="font-bold text-black">{leadToDelete.name}</span>. This action is irreversible and will purge all associated inquiry data.
+                                </p>
+                            </div>
+
+                            <div className="flex gap-4 pt-4 border-t border-neutral-100">
+                                <button
+                                    onClick={() => setIsDeleteDialogOpen(false)}
+                                    className="flex-1 py-3 text-[10px] uppercase font-bold tracking-[0.2em] border border-neutral-200 hover:bg-neutral-50"
+                                >
+                                    Abort
+                                </button>
+                                <button
+                                    onClick={confirmDeleteLead}
+                                    className="flex-1 py-3 text-[10px] uppercase font-bold tracking-[0.2em] bg-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-200"
+                                >
+                                    Confirm Purge
                                 </button>
                             </div>
                         </motion.div>

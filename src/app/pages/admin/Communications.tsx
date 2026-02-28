@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
+import { useToast } from "../../components/Toast";
 import {
     Mail,
     Send,
@@ -18,6 +19,7 @@ import {
 } from "lucide-react";
 
 export function Communications() {
+    const { showToast } = useToast();
     const [activeTab, setActiveTab] = useState<"smtp" | "newsletter" | "templates" | "mailbox">("mailbox");
     const [isSaving, setIsSaving] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
@@ -83,6 +85,8 @@ export function Communications() {
         fetchData();
     }, []);
 
+    const [isTesting, setIsTesting] = useState(false);
+
     const handleSaveSmtp = async () => {
         setIsSaving(true);
         try {
@@ -94,11 +98,32 @@ export function Communications() {
                     updated_at: new Date().toISOString()
                 });
             if (error) throw error;
-            alert("SMTP settings updated successfully.");
+            showToast("SMTP protocols updated successfully.", "success");
         } catch (err: any) {
-            alert("Failed to save SMTP settings: " + err.message);
+            showToast("SMTP sync failed: " + err.message, "error");
         } finally {
             setIsSaving(false);
+        }
+    };
+
+    const handleTestConnection = async () => {
+        setIsTesting(true);
+        try {
+            const response = await fetch('/api/test-smtp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(smtp)
+            });
+            const data = await response.json();
+            if (data.success) {
+                showToast("SMTP connectivity verified.", "success");
+            } else {
+                showToast(data.error || "Connection test failed.", "error");
+            }
+        } catch (err: any) {
+            showToast("Network error: Check console for logs.", "error");
+        } finally {
+            setIsTesting(false);
         }
     };
 
@@ -177,8 +202,12 @@ export function Communications() {
                                 </div>
                             </div>
                             <div className="pt-4 border-t border-neutral-50 flex justify-between items-center">
-                                <button className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-neutral-400 hover:text-black transition-all disabled:opacity-50">
-                                    Test Connection <Clock size={14} />
+                                <button
+                                    onClick={handleTestConnection}
+                                    disabled={isTesting}
+                                    className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-neutral-400 hover:text-black transition-all disabled:opacity-50"
+                                >
+                                    {isTesting ? "Validating..." : "Test Connection"} <Clock size={14} className={isTesting ? "animate-spin" : ""} />
                                 </button>
                                 <button
                                     onClick={handleSaveSmtp}
@@ -248,141 +277,161 @@ export function Communications() {
                         </div>
                     )}
 
-                </div>
+                    {activeTab === "templates" && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {templates.map((template, i) => (
+                                <div key={i} className="bg-white border border-neutral-200 p-6 hover:shadow-xl transition-all group cursor-pointer">
+                                    <div className="flex justify-between items-start mb-6">
+                                        <div className="p-2 bg-neutral-100 group-hover:bg-neutral-900 group-hover:text-white transition-colors">
+                                            <FileText size={20} />
+                                        </div>
+                                        <span className="text-[9px] font-bold uppercase bg-neutral-100 px-2 py-0.5">{template.type}</span>
+                                    </div>
+                                    <h4 className="font-medium text-sm mb-1">{template.name}</h4>
+                                    <p className="text-[10px] text-neutral-400 italic">
+                                        Modified {new Date(template.updated_at).toLocaleDateString()}
+                                    </p>
+                                </div>
+                            ))}
+                            <button className="border-2 border-dashed border-neutral-200 p-6 flex flex-col items-center justify-center gap-3 text-neutral-400 hover:border-black hover:text-black transition-all">
+                                <Plus size={24} />
+                                <span className="text-[10px] font-bold uppercase tracking-widest">New Template</span>
+                            </button>
+                        </div>
                     )}
 
-                {activeTab === "mailbox" && (
-                    <div className="space-y-6">
-                        <div className="bg-white border border-neutral-200">
-                            <div className="p-4 border-b border-neutral-100 flex justify-between items-center bg-neutral-50/50">
-                                <h3 className="text-[10px] font-bold uppercase tracking-widest">Communication Logs</h3>
-                                <div className="flex gap-4">
-                                    <span className="text-[9px] font-bold uppercase text-neutral-400">{messages.length} Messages Total</span>
+                    {activeTab === "mailbox" && (
+                        <div className="space-y-6 text-black">
+                            <div className="bg-white border border-neutral-200 overflow-hidden">
+                                <div className="p-4 border-b border-neutral-100 flex justify-between items-center bg-neutral-50/50">
+                                    <h3 className="text-[10px] font-bold uppercase tracking-widest">Communication Logs</h3>
+                                    <div className="flex gap-4">
+                                        <span className="text-[9px] font-bold uppercase text-neutral-400">{messages.length} Messages Total</span>
+                                    </div>
                                 </div>
-                            </div>
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-left">
-                                    <thead>
-                                        <tr className="border-b border-neutral-100 text-[9px] uppercase tracking-widest text-neutral-400 font-bold bg-white">
-                                            <th className="p-4">Recipient</th>
-                                            <th className="p-4">Subject</th>
-                                            <th className="p-4">Category</th>
-                                            <th className="p-4 text-right">Date Transmitted</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="text-xs">
-                                        {messages.length === 0 ? (
-                                            <tr>
-                                                <td colSpan={4} className="p-12 text-center text-neutral-400 italic">
-                                                    No message history recorded yet.
-                                                </td>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left">
+                                        <thead>
+                                            <tr className="border-b border-neutral-100 text-[9px] uppercase tracking-widest text-neutral-400 font-bold bg-white">
+                                                <th className="p-4">Recipient</th>
+                                                <th className="p-4">Subject</th>
+                                                <th className="p-4">Category</th>
+                                                <th className="p-4 text-right">Date Transmitted</th>
                                             </tr>
-                                        ) : (
-                                            messages.map((msg) => (
-                                                <tr
-                                                    key={msg.id}
-                                                    onClick={() => setSelectedMessage(msg)}
-                                                    className={`border-b border-neutral-50 hover:bg-neutral-50 transition-all cursor-pointer ${selectedMessage?.id === msg.id ? 'bg-neutral-50' : ''}`}
-                                                >
-                                                    <td className="p-4 font-medium">{msg.receiver_email}</td>
-                                                    <td className="p-4">
-                                                        <div className="max-w-[200px] truncate">{msg.subject || "(No Subject)"}</div>
-                                                    </td>
-                                                    <td className="p-4">
-                                                        <span className="px-2 py-0.5 bg-neutral-100 text-[9px] font-bold uppercase tracking-tight">
-                                                            {msg.type}
-                                                        </span>
-                                                    </td>
-                                                    <td className="p-4 text-right text-neutral-400 font-mono text-[10px]">
-                                                        {new Date(msg.created_at).toLocaleString()}
+                                        </thead>
+                                        <tbody className="text-xs">
+                                            {messages.length === 0 ? (
+                                                <tr>
+                                                    <td colSpan={4} className="p-12 text-center text-neutral-400 italic">
+                                                        No message history recorded yet.
                                                     </td>
                                                 </tr>
-                                            ))
-                                        )}
-                                    </tbody>
-                                </table>
+                                            ) : (
+                                                messages.map((msg) => (
+                                                    <tr
+                                                        key={msg.id}
+                                                        onClick={() => setSelectedMessage(msg)}
+                                                        className={`border-b border-neutral-50 hover:bg-neutral-50 transition-all cursor-pointer ${selectedMessage?.id === msg.id ? 'bg-neutral-50' : ''}`}
+                                                    >
+                                                        <td className="p-4 font-medium">{msg.receiver_email}</td>
+                                                        <td className="p-4">
+                                                            <div className="max-w-[200px] truncate">{msg.subject || "(No Subject)"}</div>
+                                                        </td>
+                                                        <td className="p-4">
+                                                            <span className="px-2 py-0.5 bg-neutral-100 text-[9px] font-bold uppercase tracking-tight">
+                                                                {msg.type}
+                                                            </span>
+                                                        </td>
+                                                        <td className="p-4 text-right text-neutral-400 font-mono text-[10px]">
+                                                            {new Date(msg.created_at).toLocaleString()}
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
+
+                            <AnimatePresence>
+                                {selectedMessage && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        className="bg-neutral-900 text-white p-8 space-y-6 relative"
+                                    >
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <p className="text-[10px] uppercase tracking-widest text-neutral-500 font-bold mb-1">Transmission Details</p>
+                                                <h4 className="text-lg font-light italic">{selectedMessage.subject || "No Subject"}</h4>
+                                            </div>
+                                            <button
+                                                onClick={() => setSelectedMessage(null)}
+                                                className="text-neutral-500 hover:text-white transition-colors"
+                                            >
+                                                <RefreshCw size={14} className="rotate-45" />
+                                            </button>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-8 text-[10px] uppercase tracking-widest font-bold border-y border-white/10 py-4">
+                                            <div>
+                                                <span className="text-neutral-500 block mb-1">To</span>
+                                                <span>{selectedMessage.receiver_email}</span>
+                                            </div>
+                                            <div className="text-right">
+                                                <span className="text-neutral-500 block mb-1">Status</span>
+                                                <span className="text-green-500">Delivered via SMTP</span>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-4">
+                                            <p className="text-[10px] uppercase tracking-widest text-neutral-500 font-bold">Message Payload</p>
+                                            <div className="text-sm font-light leading-relaxed text-neutral-300 whitespace-pre-wrap">
+                                                {selectedMessage.body}
+                                            </div>
+                                        </div>
+
+                                        <div className="pt-6 border-t border-white/5 flex justify-end">
+                                            <button className="px-6 py-2 border border-white/20 text-[10px] uppercase font-bold tracking-widest hover:bg-white hover:text-black transition-all">
+                                                Re-transmit Message
+                                            </button>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </div>
-
-                        <AnimatePresence>
-                            {selectedMessage && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    className="bg-neutral-900 text-white p-8 space-y-6 relative"
-                                >
-                                    <div className="flex justify-between items-start">
-                                        <div>
-                                            <p className="text-[10px] uppercase tracking-widest text-neutral-500 font-bold mb-1">Transmission Details</p>
-                                            <h4 className="text-lg font-light italic">{selectedMessage.subject || "No Subject"}</h4>
-                                        </div>
-                                        <button
-                                            onClick={() => setSelectedMessage(null)}
-                                            className="text-neutral-500 hover:text-white transition-colors"
-                                        >
-                                            <RefreshCw size={14} className="rotate-45" />
-                                        </button>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-8 text-[10px] uppercase tracking-widest font-bold border-y border-white/10 py-4">
-                                        <div>
-                                            <span className="text-neutral-500 block mb-1">To</span>
-                                            <span>{selectedMessage.receiver_email}</span>
-                                        </div>
-                                        <div className="text-right">
-                                            <span className="text-neutral-500 block mb-1">Status</span>
-                                            <span className="text-green-500">Delivered via SMTP</span>
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-4">
-                                        <p className="text-[10px] uppercase tracking-widest text-neutral-500 font-bold">Message Payload</p>
-                                        <div className="text-sm font-light leading-relaxed text-neutral-300 whitespace-pre-wrap">
-                                            {selectedMessage.body}
-                                        </div>
-                                    </div>
-
-                                    <div className="pt-6 border-t border-white/5 flex justify-end">
-                                        <button className="px-6 py-2 border border-white/20 text-[10px] uppercase font-bold tracking-widest hover:bg-white hover:text-black transition-all">
-                                            Re-transmit Message
-                                        </button>
-                                    </div>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-                    </div>
-                )}
-            </div>
-
-            {/* Sidebar Controls */}
-            <div className="space-y-8">
-                <div className="bg-neutral-900 text-white p-8 space-y-6 relative overflow-hidden">
-                    <h3 className="text-xl font-light italic leading-tight">Mass Outreach<br />Engine</h3>
-                    <p className="text-xs text-neutral-400 leading-relaxed uppercase tracking-widest">Broadcast dynamic communications to your entire intelligence network.</p>
-                    <button className="w-full py-4 bg-white text-black text-[10px] uppercase font-bold tracking-[0.3em] flex items-center justify-center gap-2 hover:bg-neutral-100 transition-all">
-                        Compose Broadcast <Send size={14} />
-                    </button>
-                    <div className="absolute -bottom-8 -left-8 w-32 h-32 bg-white/5 rounded-full blur-2xl"></div>
+                    )}
                 </div>
 
-                <div className="p-6 bg-white border border-neutral-200">
-                    <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] mb-4">Transmission Health</h3>
-                    <div className="space-y-4">
-                        <div className="flex justify-between items-center text-xs">
-                            <span className="text-neutral-500">SMTP Response</span>
-                            <span className="text-green-600 font-bold">24ms</span>
-                        </div>
-                        <div className="flex justify-between items-center text-xs">
-                            <span className="text-neutral-500">Mails Sent (MTD)</span>
-                            <span className="font-bold font-mono">1,204</span>
-                        </div>
-                        <div className="w-full h-1 bg-neutral-100">
-                            <div className="w-3/4 h-full bg-black"></div>
+                {/* Sidebar Controls */}
+                <div className="space-y-8">
+                    <div className="bg-neutral-900 text-white p-8 space-y-6 relative overflow-hidden">
+                        <h3 className="text-xl font-light italic leading-tight">Mass Outreach<br />Engine</h3>
+                        <p className="text-xs text-neutral-400 leading-relaxed uppercase tracking-widest">Broadcast dynamic communications to your entire intelligence network.</p>
+                        <button className="w-full py-4 bg-white text-black text-[10px] uppercase font-bold tracking-[0.3em] flex items-center justify-center gap-2 hover:bg-neutral-100 transition-all">
+                            Compose Broadcast <Send size={14} />
+                        </button>
+                        <div className="absolute -bottom-8 -left-8 w-32 h-32 bg-white/5 rounded-full blur-2xl"></div>
+                    </div>
+
+                    <div className="p-6 bg-white border border-neutral-200">
+                        <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] mb-4">Transmission Health</h3>
+                        <div className="space-y-4 text-black">
+                            <div className="flex justify-between items-center text-xs">
+                                <span className="text-neutral-500">SMTP Response</span>
+                                <span className="text-green-600 font-bold">24ms</span>
+                            </div>
+                            <div className="flex justify-between items-center text-xs">
+                                <span className="text-neutral-500">Mails Sent (MTD)</span>
+                                <span className="font-bold font-mono">1,204</span>
+                            </div>
+                            <div className="w-full h-1 bg-neutral-100">
+                                <div className="w-3/4 h-full bg-black"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        </div >
     );
 }
