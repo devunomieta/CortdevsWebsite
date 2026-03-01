@@ -26,15 +26,19 @@ export function ForgotPassword() {
                 body: JSON.stringify({ email })
             });
 
-            const rateData = await rateResponse.json();
-            if (!rateResponse.ok) throw new Error(rateData.error || "Rate limit exceeded.");
+            let rateData = { error: "Security subsystem oscillation." };
+            try {
+                if (rateResponse.headers.get("content-type")?.includes("application/json")) {
+                    rateData = await rateResponse.json();
+                }
+            } catch (pErr) {
+                console.error("JSON parse failed", pErr);
+            }
 
-            // 2. Trigger Supabase Reset
-            const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-                redirectTo: `${window.location.origin}/admin/reset-password`,
-            });
-
-            if (resetError) throw resetError;
+            if (!rateResponse.ok) {
+                const errorMsg = rateData.details ? `${rateData.error} (${rateData.details})` : (rateData.error || "Intelligence Link Failure (API Synchronization Error).");
+                throw new Error(errorMsg);
+            }
 
             setIsSent(true);
         } catch (err: any) {
@@ -97,7 +101,7 @@ export function ForgotPassword() {
                                             type="email"
                                             value={email}
                                             onChange={(e) => setEmail(e.target.value)}
-                                            placeholder="projects@cortdevs.com"
+                                            placeholder="Enter Key Combinations"
                                             className="w-full bg-neutral-50 border border-neutral-100 p-4 pl-12 text-sm outline-none focus:border-black transition-all"
                                             required
                                         />

@@ -37,7 +37,8 @@ export function ContactForm({ onSuccess, isPopup = false }: ContactFormProps) {
     timeline: "",
     message: "",
     issueNDA: false,
-    ndaUrl: ""
+    ndaUrl: "",
+    website: "" // Honeypot
   });
 
   const [files, setFiles] = useState<FileData[]>([]);
@@ -106,6 +107,21 @@ export function ContactForm({ onSuccess, isPopup = false }: ContactFormProps) {
     setIsSubmitting(true);
     setError(null);
 
+    // 1. Honeypot check
+    if ((formData as any).website) {
+      console.warn("Bot detected via honeypot.");
+      setTimeout(() => navigate("/success"), 1000); // Silent fail
+      return;
+    }
+
+    // 2. Strict Email Validation (TLD Required)
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(formData.email)) {
+      setError("Please provide a valid corporate email address (e.g., name@company.com).");
+      setIsSubmitting(false);
+      return;
+    }
+
     const uploadToSupabase = async (fileData: FileData, pathPrefix: string) => {
       const fileName = `${pathPrefix}/${Date.now()}-${fileData.name}`;
       const { data, error: uploadError } = await supabase.storage
@@ -163,13 +179,19 @@ export function ContactForm({ onSuccess, isPopup = false }: ContactFormProps) {
       }]);
 
       try {
-        await fetch('/api/contact', {
+        const response = await fetch('/api/contact', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(submissionData),
         });
-      } catch (emailErr) {
-        await errorService.logError(emailErr, "ContactForm.handleSubmit.APINotify");
+
+        if (!response.ok) {
+          const resData = await response.json();
+          throw new Error(resData.error || "Intelligence Transmission Failure. Secure relay path unavailable.");
+        }
+      } catch (emailErr: any) {
+        console.error("Transmission failed", emailErr);
+        throw emailErr; // Rethrow to show in the UI error box
       }
 
       if (onSuccess) onSuccess();
@@ -352,6 +374,18 @@ export function ContactForm({ onSuccess, isPopup = false }: ContactFormProps) {
             <InternationalPhoneInput value={formData.phone} onChange={(val) => handleManualChange("phone", val)} />
           </div>
         </div>
+        {/* Honeypot - Hidden from humans */}
+        <div className="hidden" aria-hidden="true">
+          <input
+            type="text"
+            name="website"
+            tabIndex={-1}
+            value={(formData as any).website}
+            onChange={handleChange}
+            autoComplete="off"
+          />
+        </div>
+
         <div>
           <label htmlFor="service" className="block text-sm tracking-wide mb-2">Service *</label>
           <select id="service" name="service" value={formData.service} onChange={handleChange} required className="w-full px-4 py-3 border border-neutral-300 focus:border-black focus:outline-none bg-white">

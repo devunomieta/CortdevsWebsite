@@ -17,7 +17,8 @@ export function ReviewForm({ onComplete }: ReviewFormProps) {
         rating: 5,
         message: "",
         impact: "",
-        isAnonymous: false
+        isAnonymous: false,
+        website: "" // Honeypot
     });
 
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -25,6 +26,20 @@ export function ReviewForm({ onComplete }: ReviewFormProps) {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        // 1. Honeypot check
+        if (formData.website) {
+            setIsSubmitted(true); // Silent discard
+            return;
+        }
+
+        // 2. Strict Email Validation
+        const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+        if (!emailRegex.test(formData.email)) {
+            alert("Please provide a valid corporate email address (e.g. name@company.com).");
+            return;
+        }
+
         setIsSubmitting(true);
 
         try {
@@ -142,6 +157,17 @@ export function ReviewForm({ onComplete }: ReviewFormProps) {
                             />
                         </div>
 
+                        {/* Honeypot - Hidden from humans */}
+                        <div className="hidden" aria-hidden="true">
+                            <input
+                                type="text"
+                                name="website"
+                                tabIndex={-1}
+                                value={formData.website}
+                                onChange={e => setFormData({ ...formData, website: e.target.value })}
+                                autoComplete="off"
+                            />
+                        </div>
                         <div className="md:col-span-2 flex items-start gap-3 bg-neutral-50 p-4 rounded-xl border border-neutral-100 mt-2">
                             <Shield className="w-4 h-4 text-neutral-400 shrink-0 mt-0.5" />
                             <p className="text-[11px] text-neutral-500 leading-relaxed">
@@ -265,6 +291,7 @@ export function ReviewForm({ onComplete }: ReviewFormProps) {
                             </>
                         )}
                     </button>
+                    {/* Security Tip: Use Port 587 if 465 times out */}
                 </form>
             </div>
         </div>

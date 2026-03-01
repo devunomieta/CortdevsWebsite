@@ -1,13 +1,22 @@
 import http from 'http';
 import path from 'path';
+import { pathToFileURL } from 'url';
 import fs from 'fs';
-import { parse as parseUrl } from 'url';
 import dotenv from 'dotenv';
 
 // Load .env
 dotenv.config();
 
 const PORT = 3000;
+
+// Prevent server crash on unhandled errors
+process.on('uncaughtException', (err) => {
+    console.error('UNCAUGHT EXCEPTION:', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('UNHANDLED REJECTION:', reason);
+});
 
 const server = http.createServer(async (req, res) => {
     // Basic CORS
@@ -21,19 +30,28 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
-    const { pathname } = parseUrl(req.url || '', true);
+    const host = req.headers.host || 'localhost';
+    const url = new URL(req.url || '', `http://${host}`);
+    const pathname = url.pathname;
 
     // Route /api/* to api/*.ts
-    if (pathname?.startsWith('/api/')) {
+    if (pathname.startsWith('/api/')) {
         const routeName = pathname.replace('/api/', '');
         const filePath = path.join(process.cwd(), 'api', `${routeName}.ts`);
 
         if (fs.existsSync(filePath)) {
+            let bodySent = false;
             try {
                 // Import the handler dynamically
                 const absolutePath = path.resolve(filePath);
-                const module = await import(`file://${absolutePath}?update=${Date.now()}`);
+                const fileUrl = pathToFileURL(absolutePath);
+                fileUrl.searchParams.set('update', Date.now().toString());
+                const module = await import(fileUrl.href);
                 const handler = module.default;
+
+                if (typeof handler !== 'function') {
+                    throw new Error(`Handler in ${routeName} is not a function (check default export)`);
+                }
 
                 // Mock VercelRequest and VercelResponse
                 const vercelReq = req as any;
@@ -54,32 +72,51 @@ const server = http.createServer(async (req, res) => {
                 }
 
                 vercelRes.status = (code: number) => {
-                    res.statusCode = code;
+                    if (!bodySent) res.statusCode = code;
                     return vercelRes;
                 };
 
                 vercelRes.json = (json: any) => {
+                    if (bodySent) return vercelRes;
+                    bodySent = true;
                     res.setHeader('Content-Type', 'application/json');
                     res.end(JSON.stringify(json));
+                    return vercelRes;
+                };
+
+                // Vercel-like send (fallback)
+                vercelRes.send = (data: any) => {
+                    if (bodySent) return vercelRes;
+                    bodySent = true;
+                    res.end(typeof data === 'string' ? data : JSON.stringify(data));
                     return vercelRes;
                 };
 
                 await handler(vercelReq, vercelRes);
             } catch (error) {
                 console.error(`Error in ${routeName}:`, error);
-                res.statusCode = 500;
-                res.end(JSON.stringify({ error: 'Internal Server Error', message: String(error) }));
+                if (!bodySent) {
+                    bodySent = true;
+                    res.statusCode = 500;
+                    res.setHeader('Content-Type', 'application/json');
+                    res.end(JSON.stringify({
+                        error: 'Intelligence Link Failure',
+                        message: String(error)
+                    }));
+                }
             }
         } else {
             res.statusCode = 404;
-            res.end(JSON.stringify({ error: 'Not Found' }));
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ error: 'Endpoint Not Found' }));
         }
     } else {
         res.statusCode = 404;
-        res.end('Not Found');
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ error: 'Not Found' }));
     }
 });
 
-server.listen(PORT, () => {
-    console.log(`API Server running at http://localhost:${PORT}`);
+server.listen(PORT, '127.0.0.1', () => {
+    console.log(`API Server running at http://127.0.0.1:${PORT}`);
 });

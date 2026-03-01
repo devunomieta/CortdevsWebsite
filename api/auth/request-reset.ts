@@ -1,5 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabase } from '../_lib/supabase';
+import { resend, getFromAddress } from '../_lib/resend';
+import crypto from 'crypto';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') {
@@ -9,32 +11,77 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { email } = req.body;
 
     if (!email) {
-        return res.status(400).json({ error: 'Identity email is required.' });
+        return res.status(400).json({ error: 'Credential key required for synchronization.' });
     }
 
     try {
-        // 1. Call custom RPC for rate limiting
-        // check_rate_limit(p_identifier, p_action, p_max_attempts, p_window_interval)
-        const { data: isAllowed, error: rpcError } = await supabase.rpc('check_rate_limit', {
-            p_identifier: email,
-            p_action: 'password_reset',
-            p_max_attempts: 3,
-            p_window_interval: '1 hour'
+        // 1. Check if user exists (admin only)
+        const { data: admin, error: fetchError } = await supabase
+            .from('profiles')
+            .select('id, full_name')
+            .eq('email', email)
+            .single();
+
+        if (fetchError || !admin) {
+            // For security, do not reveal if email exists
+            return res.status(200).json({ success: true, message: 'Synchronization link dispatched to secure node.' });
+        }
+
+        // 2. Generate secure token
+        const token = crypto.randomBytes(32).toString('hex');
+        const expiresAt = new Date(Date.now() + 3600000).toISOString(); // 1 hour
+
+        // 3. Store token in Supabase
+        const { error: updateError } = await supabase
+            .from('profiles')
+            .update({
+                reset_token: token,
+                reset_expires: expiresAt
+            })
+            .eq('id', admin.id);
+
+        if (updateError) throw updateError;
+
+        // 4. Send Email via Resend
+        const resetLink = `https://cortdevs.com/admin/reset-password?token=${token}`;
+
+        await resend.emails.send({
+            from: getFromAddress('Security Subsystem'),
+            to: email,
+            replyTo: 'projects@cortdevs.com',
+            subject: 'Security Subsystem: Synchronization Key Request',
+            html: `
+        <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px;">
+          <h2 style="color: #000; border-bottom: 2px solid #000; padding-bottom: 10px; font-weight: 300;">Security Synchronization</h2>
+          <p>Hello ${admin.full_name},</p>
+          <p>A request has been made to synchronize your administrative credentials. Please use the following high-priority link to complete the process:</p>
+          
+          <div style="margin: 30px 0; text-align: center;">
+            <a href="${resetLink}" style="background: #000; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold; display: inline-block;">
+              SYNCHRONIZE CREDENTIALS
+            </a>
+          </div>
+
+          <p style="color: #999; font-size: 12px;">This link will expire in 60 minutes. If you did not request this, please contact local security protocols immediately.</p>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;"/>
+          <p style="font-size: 10px; color: #ccc; text-align: center; text-transform: uppercase;">CortDevs Identity Relay</p>
+        </div>
+      `,
         });
 
-        if (rpcError) {
-            console.error('RPC Error:', rpcError);
-            // Fallback or handle error - if RPC fails, we might want to fail safe (deny) or allow (service availability)
-            // Here we'll allow but log it
-        }
+        // 5. Log security event
+        await supabase.from('messages').insert({
+            receiver_email: email,
+            subject: 'Security Subsystem: Synchronization Key Request',
+            body: 'Reset link dispatched via Resend API.',
+            type: 'Direct',
+            is_sent: true,
+            created_at: new Date().toISOString()
+        });
 
-        if (isAllowed === false) {
-            return res.status(429).json({ error: 'Security threshold exceeded. Maximum 3 requests per hour permitted.' });
-        }
-
-        return res.status(200).json({ success: true });
-    } catch (error) {
-        console.error('Auth Request Error:', error);
-        return res.status(500).json({ error: 'Internal synchronization failure.' });
+        return res.status(200).json({ success: true, message: 'Synchronization link dispatched to secure node.' });
+    } catch (error: any) {
+        console.error('Reset Error:', error);
+        return res.status(500).json({ error: 'Internal synchronization failure. Transmission path unstable.', details: error.message });
     }
 }

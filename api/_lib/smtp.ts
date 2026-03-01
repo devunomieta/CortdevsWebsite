@@ -13,11 +13,26 @@ export const getTransporter = () => {
     return nodemailer.createTransport({
         host,
         port,
-        secure: port === 465,
+        secure: Number(port) === 465, // SSL/TLS for 465, STARTTLS for 587
         auth: {
             user,
             pass,
         },
+        // Extreme timeouts for slow DNS/Reverse-DNS on server side
+        connectionTimeout: 30000,
+        greetingTimeout: 30000,
+        socketTimeout: 45000,
+        tls: {
+            // Bypass potential certificate validation hangs in local dev
+            rejectUnauthorized: false,
+            // Force TLS version if server is picky
+            minVersion: 'TLSv1.2',
+            ciphers: 'SSLv3' // Attempt older ciphers if server is legacy
+        },
+        requireTLS: Number(port) === 587,
+        logger: true,
+        debug: true,
+        pool: false // Disable pooling for debugging to ensure fresh handshake
     });
 };
 

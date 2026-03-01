@@ -22,56 +22,41 @@ export function Preloader() {
                 className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center overflow-hidden"
             >
                 <div className="relative flex flex-col items-center">
-                    {/* Animated Text */}
-                    <motion.div
-                        initial={{ y: 20, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        transition={{
-                            duration: 1,
-                            ease: [0.16, 1, 0.3, 1],
-                            delay: 0.2
-                        }}
-                        className="flex items-center gap-6"
-                    >
-                        <motion.div
-                            initial={{ scale: 0.8, rotate: -15, opacity: 0 }}
-                            animate={{ scale: 1, rotate: 0, opacity: 1 }}
-                            transition={{ duration: 1.2, delay: 0.1, ease: "easeOut" }}
-                            className="w-20 h-20 bg-white text-black flex items-center justify-center font-bold text-5xl shadow-[0_0_40px_rgba(255,255,255,0.1)]"
+                    {/* Minimalist Text Logo */}
+                    <div className="overflow-hidden">
+                        <motion.h1
+                            initial={{ y: "100%", opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            transition={{
+                                duration: 1.2,
+                                ease: [0.16, 1, 0.3, 1],
+                                delay: 0.2
+                            }}
+                            className="text-5xl md:text-7xl lg:text-8xl font-light text-white tracking-tighter text-center"
                         >
-                            C
-                        </motion.div>
-                        <div className="overflow-hidden">
-                            <motion.span
-                                initial={{ y: "100%" }}
-                                animate={{ y: 0 }}
-                                transition={{ duration: 0.8, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}
-                                className="text-6xl lg:text-8xl font-light text-white tracking-tighter block"
-                            >
-                                Cort<span className="font-semibold italic">Devs</span>
-                            </motion.span>
-                        </div>
-                    </motion.div>
+                            Cort<span className="font-semibold italic">Devs</span>
+                        </motion.h1>
+                    </div>
 
-                    {/* Speed Message */}
-                    <div className="mt-12 overflow-hidden h-6">
+                    {/* Premium Subtext */}
+                    <div className="mt-6 overflow-hidden">
                         <motion.p
                             initial={{ y: "100%", opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
-                            transition={{ duration: 0.6, delay: 1.2, ease: "easeOut" }}
-                            className="text-xs tracking-[0.4em] text-neutral-500 uppercase font-medium"
+                            transition={{ duration: 0.8, delay: 0.8, ease: "easeOut" }}
+                            className="text-[10px] md:text-xs tracking-[0.5em] text-neutral-500 uppercase font-medium text-center"
                         >
-                            Instant Load. Speed as Promised.
+                            Premium Web Solutions
                         </motion.p>
                     </div>
 
-                    {/* Luxurious Progress Track */}
-                    <div className="absolute -bottom-16 left-0 right-0 h-[2px] bg-white/5 overflow-hidden w-full max-w-[320px] mx-auto">
+                    {/* Sleek Progress Track */}
+                    <div className="mt-12 h-[1px] bg-white/5 overflow-hidden w-24 md:w-32">
                         <motion.div
                             initial={{ x: "-100%" }}
                             animate={{ x: "0%" }}
-                            transition={{ duration: 2.5, delay: 0.5, ease: [0.65, 0, 0.35, 1] }}
-                            className="h-full bg-white origin-left shadow-[0_0_15px_rgba(255,255,255,0.5)]"
+                            transition={{ duration: 2, delay: 0.4, ease: [0.65, 0, 0.35, 1] }}
+                            className="h-full bg-white origin-left"
                         />
                     </div>
                 </div>

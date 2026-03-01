@@ -79,7 +79,7 @@ export function Layout() {
       >
         <div className="max-w-7xl mx-auto px-6 lg:px-8 flex items-center justify-between">
           <Link to="/" className="text-2xl font-light tracking-tighter flex items-center gap-2 group underline-offset-8">
-            <img src={config.headerLogo} alt="CortDevs" className="h-10 w-auto object-contain transition-transform group-hover:scale-105" />
+            <img src={config.headerLogo} alt="CortDevs" className="h-8 w-auto object-contain transition-transform group-hover:scale-105" />
           </Link>
 
           {/* Desktop Nav */}
@@ -200,7 +200,7 @@ export function Layout() {
             {/* Brand */}
             <div className="lg:col-span-2">
               <div className="mb-8">
-                <img src={config.footerLogo} alt="CortDevs" className="h-12 w-auto object-contain" />
+                <img src={config.footerLogo} alt="CortDevs" className="h-10 w-auto object-contain" />
               </div>
               <p className="text-neutral-400 text-sm leading-relaxed max-w-md mb-8">
                 Crafting digital excellence through innovative web solutions.

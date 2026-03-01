@@ -71,7 +71,7 @@ export function AdminLogin() {
                                     type="email"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    placeholder="projects@cortdevs.com"
+                                    placeholder="Enter Key Combinations"
                                     className="w-full bg-neutral-50 border border-neutral-100 p-4 pl-12 text-sm outline-none focus:border-black transition-all"
                                     required
                                 />
