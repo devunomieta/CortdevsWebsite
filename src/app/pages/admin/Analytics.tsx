@@ -16,7 +16,10 @@ import {
     MessageSquare,
     Star,
     RefreshCw,
-    Search
+    Search,
+    ChevronLeft,
+    ChevronRight,
+    X
 } from "lucide-react";
 
 interface AnalyticsData {
@@ -43,6 +46,8 @@ interface AnalyticsData {
 export function Analytics() {
     const [isLoading, setIsLoading] = useState(true);
     const [data, setData] = useState<AnalyticsData | null>(null);
+    const [selectedDate, setSelectedDate] = useState(new Date());
+    const [showStrategyModal, setShowStrategyModal] = useState(false);
 
     const calculateGrowth = (current: number, previous: number) => {
         if (previous === 0) return current > 0 ? 100 : 0;
@@ -52,34 +57,37 @@ export function Analytics() {
     const fetchAnalytics = async () => {
         setIsLoading(true);
         try {
-            const now = new Date();
-            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-            const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
+            const year = selectedDate.getFullYear();
+            const month = selectedDate.getMonth();
 
-            // For Previous MTD, we want to compare the same number of days
-            const sameDayLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate()).toISOString();
+            const startOfMonth = new Date(year, month, 1).toISOString();
+            const endOfMonth = new Date(year, month + 1, 0, 23, 59, 59).toISOString();
+
+            // For Previous MTD, we compare to the previous month
+            const startOfPrevMonth = new Date(year, month - 1, 1).toISOString();
+            const endOfPrevMonth = new Date(year, month, 0, 23, 59, 59).toISOString();
 
             // 1. Leads
-            const { data: curLeads } = await supabase.from('leads').select('count').gte('created_at', startOfMonth);
-            const { data: prevLeads } = await supabase.from('leads').select('count').gte('created_at', startOfLastMonth).lte('created_at', sameDayLastMonth);
+            const { data: curLeads, count: curLeadsCount } = await supabase.from('leads').select('*', { count: 'exact' }).gte('created_at', startOfMonth).lte('created_at', endOfMonth);
+            const { data: prevLeads, count: prevLeadsCount } = await supabase.from('leads').select('*', { count: 'exact' }).gte('created_at', startOfPrevMonth).lte('created_at', endOfPrevMonth);
 
             // 2. Clients & Revenue
-            const { data: curClients } = await supabase.from('clients').select('total_value, review, created_at').gte('created_at', startOfMonth);
-            const { data: prevClients } = await supabase.from('clients').select('total_value, created_at').gte('created_at', startOfLastMonth).lte('created_at', sameDayLastMonth);
+            const { data: curClients } = await supabase.from('clients').select('total_value, review, created_at').gte('created_at', startOfMonth).lte('created_at', endOfMonth);
+            const { data: prevClients } = await supabase.from('clients').select('total_value, created_at').gte('created_at', startOfPrevMonth).lte('created_at', endOfPrevMonth);
 
             // 3. Transactions
-            const { data: curTransactions } = await supabase.from('transactions').select('amount, type').gte('date', startOfMonth).eq('type', 'Income');
-            const { data: prevTransactions } = await supabase.from('transactions').select('amount, type').gte('date', startOfLastMonth).lte('date', sameDayLastMonth).eq('type', 'Income');
+            const { data: curTransactions } = await supabase.from('transactions').select('amount, type').gte('date', startOfMonth).lte('date', endOfMonth).eq('type', 'Income');
+            const { data: prevTransactions } = await supabase.from('transactions').select('amount, type').gte('date', startOfPrevMonth).lte('date', endOfPrevMonth).eq('type', 'Income');
 
             // 4. Newsletter
-            const { data: curSubs } = await supabase.from('newsletter_subscribers').select('count', { count: 'exact' }).gte('created_at', startOfMonth);
-            const { data: prevSubs } = await supabase.from('newsletter_subscribers').select('count', { count: 'exact' }).gte('created_at', startOfLastMonth).lte('created_at', sameDayLastMonth);
+            const { data: curSubs, count: curSubsCount } = await supabase.from('newsletter_subscribers').select('*', { count: 'exact' }).gte('created_at', startOfMonth).lte('created_at', endOfMonth);
+            const { data: prevSubs, count: prevSubsCount } = await supabase.from('newsletter_subscribers').select('*', { count: 'exact' }).gte('created_at', startOfPrevMonth).lte('created_at', endOfPrevMonth);
 
             // Process Data
-            const curRev = (curClients?.reduce((acc: number, c: any) => acc + parseFloat(c.total_value.replace(/[^0-9.]/g, '') || "0"), 0) || 0) +
+            const curRev = (curClients?.reduce((acc: number, c: any) => acc + parseFloat(c.total_value?.replace(/[^0-9.]/g, '') || "0"), 0) || 0) +
                 (curTransactions?.reduce((acc: number, t: any) => acc + Number(t.amount), 0) || 0);
 
-            const prevRev = (prevClients?.reduce((acc: number, c: any) => acc + parseFloat(c.total_value.replace(/[^0-9.]/g, '') || "0"), 0) || 0) +
+            const prevRev = (prevClients?.reduce((acc: number, c: any) => acc + parseFloat(c.total_value?.replace(/[^0-9.]/g, '') || "0"), 0) || 0) +
                 (prevTransactions?.reduce((acc: number, t: any) => acc + Number(t.amount), 0) || 0);
 
             // Extract Review Data
@@ -103,16 +111,16 @@ export function Analytics() {
 
             setData({
                 current: {
-                    leads: curLeads?.length || 0,
+                    leads: curLeadsCount || 0,
                     clients: curClients?.length || 0,
                     revenue: curRev,
-                    subscribers: curSubs?.length || 0
+                    subscribers: curSubsCount || 0
                 },
                 previousMTD: {
-                    leads: prevLeads?.length || 0,
+                    leads: prevLeadsCount || 0,
                     clients: prevClients?.length || 0,
                     revenue: prevRev,
-                    subscribers: prevSubs?.length || 0
+                    subscribers: prevSubsCount || 0
                 },
                 reviews: {
                     total: ratingCount,
@@ -131,7 +139,7 @@ export function Analytics() {
 
     useEffect(() => {
         fetchAnalytics();
-    }, []);
+    }, [selectedDate]);
 
     const getSuggestion = (key: keyof AnalyticsData['current']) => {
         if (!data) return "";
@@ -149,6 +157,12 @@ export function Analytics() {
             default:
                 return "";
         }
+    };
+
+    const handleMonthChange = (offset: number) => {
+        const newDate = new Date(selectedDate);
+        newDate.setMonth(newDate.getMonth() + offset);
+        setSelectedDate(newDate);
     };
 
     if (isLoading) {
@@ -176,9 +190,25 @@ export function Analytics() {
                     <h2 className="text-3xl font-light tracking-tighter italic">Analytics Hub</h2>
                     <p className="text-sm text-neutral-500 max-w-md">Compare Month-To-Date performance against historical baselines to identify scaling opportunities.</p>
                 </div>
-                <div className="text-right">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Current Session</p>
-                    <p className="text-sm font-mono">{new Date().toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</p>
+                <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-2 border border-neutral-200 p-1">
+                        <button
+                            onClick={() => handleMonthChange(-1)}
+                            className="p-2 hover:bg-neutral-100 transition-colors"
+                        >
+                            <ChevronLeft size={16} />
+                        </button>
+                        <div className="px-4 text-[10px] font-bold uppercase tracking-widest text-black">
+                            {selectedDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
+                        </div>
+                        <button
+                            onClick={() => handleMonthChange(1)}
+                            disabled={selectedDate.getMonth() === new Date().getMonth() && selectedDate.getFullYear() === new Date().getFullYear()}
+                            className="p-2 hover:bg-neutral-100 transition-colors disabled:opacity-20"
+                        >
+                            <ChevronRight size={16} />
+                        </button>
+                    </div>
                 </div>
             </header>
 
@@ -307,7 +337,7 @@ export function Analytics() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
                     <div className="space-y-8">
                         {metrics.map((m) => {
-                            const ratio = Math.min((data.current[m.key] / (data.previousMTD[m.key] || 1)) * 100, 100);
+                            const ratio = Math.min((data.current[m.key] / (m.prev || 1)) * 100, 100);
                             return (
                                 <div key={m.label}>
                                     <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest mb-2">
@@ -334,12 +364,104 @@ export function Analytics() {
                                 ? "Infrastructure stability over acquisition. Solidify internal workflows to handle the higher revenue throughput."
                                 : "Aggressive acquisition mode. Trigger lead magnets across all social channels to bridge the revenue gap."}
                         </h4>
-                        <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-neutral-900 group cursor-pointer">
+                        <button
+                            onClick={() => setShowStrategyModal(true)}
+                            className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-neutral-900 group cursor-pointer hover:text-green-600 transition-colors"
+                        >
                             Full Strategy Doc <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
-                        </div>
+                        </button>
                     </div>
                 </div>
             </div>
+
+            {/* Strategy Modal */}
+            <AnimatePresence>
+                {showStrategyModal && (
+                    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+                        <motion.div
+                            initial={{ opacity: 0, y: 50, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 50, scale: 0.95 }}
+                            className="bg-white w-full max-w-4xl h-[80vh] overflow-y-auto p-12 relative shadow-4xl text-black"
+                        >
+                            <button
+                                onClick={() => setShowStrategyModal(false)}
+                                className="absolute top-8 right-8 text-neutral-400 hover:text-black transition-colors"
+                            >
+                                <X size={24} />
+                            </button>
+
+                            <div className="space-y-12">
+                                <header className="border-b border-neutral-100 pb-8">
+                                    <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.3em] text-neutral-400 mb-2">
+                                        <Target size={12} /> CORTDEVS Intelligence Report
+                                    </div>
+                                    <h3 className="text-5xl font-light italic tracking-tighter">Growth Strategy Directive</h3>
+                                    <p className="text-neutral-500 mt-4 uppercase text-[10px] font-bold tracking-widest">Session Period: {selectedDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</p>
+                                </header>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                                    <section className="space-y-6 text-left">
+                                        <h4 className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 border-b border-neutral-100 pb-2">Operational Summary</h4>
+                                        <div className="space-y-4">
+                                            <p className="text-sm leading-relaxed text-neutral-600">
+                                                The audit for {selectedDate.toLocaleDateString(undefined, { month: 'long' })} indicates a {calculateGrowth(data.current.revenue, data.previousMTD.revenue).toFixed(1)}% delta in operational revenue.
+                                                Our "Efficiency Breakdown" suggests that we are operating at {Math.min((data.current.revenue / (data.previousMTD.revenue || 1)) * 100, 100).toFixed(0)}% of the projected quarterly baseline.
+                                            </p>
+                                            <div className="p-6 bg-neutral-900 text-white italic text-lg font-light leading-relaxed">
+                                                "Current trajectory suggests a {data.current.revenue > data.previousMTD.revenue ? 'scaling' : 'contraction'} phase that requires immediate {data.current.revenue > data.previousMTD.revenue ? 'infrastructure reinforcement' : 'acquisition aggression'}."
+                                            </div>
+                                        </div>
+                                    </section>
+
+                                    <section className="space-y-8 text-left">
+                                        <h4 className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 border-b border-neutral-100 pb-2">Strategic Recommendations</h4>
+                                        <div className="space-y-8">
+                                            {metrics.map((m) => {
+                                                const growth = calculateGrowth(
+                                                    typeof m.value === 'string' ? parseFloat(m.value.replace(/[^0-9.]/g, '')) : m.value,
+                                                    m.prev
+                                                );
+                                                return (
+                                                    <div key={m.label} className="group">
+                                                        <div className="flex items-center justify-between mb-2">
+                                                            <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-900">{m.label}</p>
+                                                            <span className={`text-[10px] font-mono ${growth >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                                                                {growth >= 0 ? '+' : ''}{growth.toFixed(1)}%
+                                                            </span>
+                                                        </div>
+                                                        <p className="text-xs text-neutral-500 leading-relaxed font-light italic">
+                                                            Suggested Action: {getSuggestion(m.key)}
+                                                        </p>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </section>
+                                </div>
+
+                                <section className="p-10 border border-neutral-100 bg-neutral-50/50 space-y-6">
+                                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Implementation Roadmap</h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-left">
+                                        <div className="space-y-2">
+                                            <p className="text-[10px] font-bold uppercase tracking-tight text-neutral-900 italic">Phase I: Stabilization</p>
+                                            <p className="text-[11px] text-neutral-500 font-light">Audit current technical overhead and resolve bottlenecks in client delivery.</p>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <p className="text-[10px] font-bold uppercase tracking-tight text-neutral-900 italic">Phase II: Acquisition</p>
+                                            <p className="text-[11px] text-neutral-500 font-light">Leverage successful project case studies into the newsletter network for retargeting.</p>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <p className="text-[10px] font-bold uppercase tracking-tight text-neutral-900 italic">Phase III: Upscaling</p>
+                                            <p className="text-[11px] text-neutral-500 font-light">Introduce premium retainer tiers for existing high-value clientele.</p>
+                                        </div>
+                                    </div>
+                                </section>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

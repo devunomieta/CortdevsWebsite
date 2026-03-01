@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "../../../lib/supabase";
 import { motion } from "framer-motion";
 import { Lock, Mail, ArrowRight, ShieldCheck } from "lucide-react";
+import { errorService } from "../../../lib/ErrorService";
 import { BrandLoader } from "../../components/BrandLoader";
 
 export function AdminLogin() {
@@ -30,8 +31,8 @@ export function AdminLogin() {
                 navigate("/admin");
             }
         } catch (err: any) {
-            console.error("Login error:", err);
-            setError(err.message || "Invalid credentials. Please verify and try again.");
+            const genericMsg = await errorService.logError(err, "AdminLogin.handleLogin");
+            setError(err.message || genericMsg);
         } finally {
             setIsLoading(false);
         }
@@ -103,6 +104,15 @@ export function AdminLogin() {
                             Authenticate Portal <ArrowRight size={14} />
                         </button>
                     </form>
+
+                    <div className="mt-6 text-center">
+                        <button
+                            onClick={() => navigate("/admin/forgot-password")}
+                            className="text-[10px] uppercase tracking-widest font-bold text-neutral-400 hover:text-black transition-colors"
+                        >
+                            Forgot Access Key? Init Rotation
+                        </button>
+                    </div>
                 </motion.div>
 
                 <p className="text-center mt-8 text-[10px] text-neutral-400 uppercase tracking-widest font-bold">

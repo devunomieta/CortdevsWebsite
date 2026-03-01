@@ -8,13 +8,39 @@ import {
 } from "./ui/dialog";
 import { ContactForm } from "./ContactForm";
 import { useConfig } from "../context/ConfigContext";
+import { supabase } from '../../lib/supabase';
 
 export function Layout() {
-  const { config } = useConfig();
+  const { config, currency, setCurrencyCode } = useConfig();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const handleMaintenanceRedirect = async () => {
+      const isAdminPath = location.pathname.startsWith('/admin');
+      const isMaintenancePath = location.pathname === '/maintenance';
+
+      if (config.maintenanceMode && !isAdminPath && !isMaintenancePath) {
+        try {
+          // Check for admin session
+          const { data: { session } } = await supabase.auth.getSession();
+          const isAdmin = !!session || localStorage.getItem("admin_auth");
+
+          if (!isAdmin) {
+            navigate('/maintenance', { replace: true });
+          }
+        } catch (err) {
+          console.error("Maintenance check error:", err);
+          navigate('/maintenance', { replace: true });
+        }
+      }
+    };
+
+    handleMaintenanceRedirect();
+  }, [config.maintenanceMode, location.pathname, navigate]);
 
   useEffect(() => {
     const handleScroll = () => {

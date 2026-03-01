@@ -11,6 +11,8 @@ CREATE TABLE IF NOT EXISTS leads (
     budget TEXT,
     status TEXT DEFAULT 'New',
     details TEXT,
+    nda_url TEXT,
+    attachments JSONB DEFAULT '[]'::jsonb,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -35,12 +37,13 @@ CREATE TABLE IF NOT EXISTS site_config (
     favicon TEXT,
     site_title TEXT,
     meta_description TEXT,
+    maintenance_mode BOOLEAN DEFAULT FALSE,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Insert default config
-INSERT INTO site_config (id, header_logo, footer_logo, favicon, site_title, meta_description)
-VALUES ('main', '/logo-dark.svg', '/logo-light.svg', '/favicon.ico', 'CortDevs | Premium Web Solutions', 'Crafting digital excellence through innovative web solutions.')
+INSERT INTO site_config (id, header_logo, footer_logo, favicon, site_title, meta_description, maintenance_mode)
+VALUES ('main', '/logo-dark.svg', '/logo-light.svg', '/favicon.ico', 'CortDevs | Premium Web Solutions', 'Crafting digital excellence through innovative web solutions.', FALSE)
 ON CONFLICT (id) DO NOTHING;
 
 -- 4. Newsletter Subscribers Table
@@ -95,6 +98,26 @@ CREATE TABLE IF NOT EXISTS profiles (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- 9. Audit Logs Table
+CREATE TABLE IF NOT EXISTS audit_logs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    action TEXT NOT NULL,
+    target_type TEXT,
+    details JSONB,
+    performed_by UUID REFERENCES auth.users(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 10. Invitations Table
+CREATE TABLE IF NOT EXISTS invitations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    email TEXT UNIQUE NOT NULL,
+    role TEXT NOT NULL,
+    token TEXT UNIQUE NOT NULL,
+    status TEXT DEFAULT 'Pending',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Enable RLS (Row Level Security)
 ALTER TABLE leads ENABLE ROW LEVEL SECURITY;
 ALTER TABLE clients ENABLE ROW LEVEL SECURITY;
@@ -104,115 +127,122 @@ ALTER TABLE email_templates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE smtp_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE invitations ENABLE ROW LEVEL SECURITY;
 
--- Policies for Leads
-DROP POLICY IF EXISTS admin_all_access ON leads;
-CREATE POLICY admin_all_access ON leads FOR ALL USING (auth.role() = 'authenticated');
-DROP POLICY IF EXISTS public_insert_leads ON leads;
-CREATE POLICY public_insert_leads ON leads FOR INSERT WITH CHECK (true);
+CREATE POLICY admin_all_audit ON audit_logs FOR ALL USING (auth.role() = 'authenticated');
+CREATE POLICY admin_all_invites ON invitations FOR ALL USING (auth.role() = 'authenticated');
 
--- Policies for Clients
-DROP POLICY IF EXISTS admin_all_access ON clients;
-CREATE POLICY admin_all_access ON clients FOR ALL USING (auth.role() = 'authenticated');
-
--- Policies for Site Config
-DROP POLICY IF EXISTS admin_all_access ON site_config;
-CREATE POLICY admin_all_access ON site_config FOR ALL USING (auth.role() = 'authenticated');
-DROP POLICY IF EXISTS public_read_config ON site_config;
-CREATE POLICY public_read_config ON site_config FOR SELECT USING (true);
-
--- Policies for Newsletter Subscribers
-DROP POLICY IF EXISTS admin_all_access ON newsletter_subscribers;
-CREATE POLICY admin_all_access ON newsletter_subscribers FOR ALL USING (auth.role() = 'authenticated');
-DROP POLICY IF EXISTS public_insert_newsletter ON newsletter_subscribers;
-CREATE POLICY public_insert_newsletter ON newsletter_subscribers FOR INSERT WITH CHECK (true);
-
--- Policies for Email Templates
-DROP POLICY IF EXISTS admin_all_access ON email_templates;
-CREATE POLICY admin_all_access ON email_templates FOR ALL USING (auth.role() = 'authenticated');
-
--- Policies for SMTP Settings
-DROP POLICY IF EXISTS admin_all_access ON smtp_settings;
-CREATE POLICY admin_all_access ON smtp_settings FOR ALL USING (auth.role() = 'authenticated');
-
--- Policies for Profiles
-DROP POLICY IF EXISTS admin_read_profiles ON profiles;
-CREATE POLICY admin_read_profiles ON profiles FOR SELECT USING (auth.role() = 'authenticated');
-DROP POLICY IF EXISTS super_admin_all_profiles ON profiles;
-CREATE POLICY super_admin_all_profiles ON profiles FOR ALL USING (
-    EXISTS (
-        SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'Super Admin'
-    )
+-- 16. Server Errors Table
+CREATE TABLE IF NOT EXISTS server_errors (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    location TEXT NOT NULL,
+    message TEXT NOT NULL,
+    stack TEXT,
+    details JSONB,
+    fix_suggestion TEXT,
+    status TEXT DEFAULT 'Unresolved', -- 'Unresolved', 'Investigating', 'Resolved'
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Policies for Transactions
-DROP POLICY IF EXISTS admin_all_access ON transactions;
-CREATE POLICY admin_all_access ON transactions FOR ALL USING (auth.role() = 'authenticated');
+ALTER TABLE server_errors ENABLE ROW LEVEL SECURITY;
+CREATE POLICY admin_read_errors ON server_errors FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY system_insert_errors ON server_errors FOR INSERT WITH CHECK (true);
 
--- Trigger to create profile on signup
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
+-- 17. Rate Limiting Table
+CREATE TABLE IF NOT EXISTS rate_limits (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    identifier TEXT NOT NULL, -- email or IP
+    action TEXT NOT NULL, -- 'password_reset', 'login_attempt'
+    count INTEGER DEFAULT 1,
+    last_attempt TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(identifier, action)
+);
+
+ALTER TABLE rate_limits ENABLE ROW LEVEL SECURITY;
+CREATE POLICY admin_all_rate_limits ON rate_limits FOR ALL USING (auth.role() = 'authenticated');
+
+-- 18. Rate Limiting Function
+CREATE OR REPLACE FUNCTION check_rate_limit(p_identifier TEXT, p_action TEXT, p_max_attempts INTEGER, p_window_interval INTERVAL)
+RETURNS BOOLEAN AS $$
+DECLARE
+    v_count INTEGER;
+    v_last_attempt TIMESTAMP WITH TIME ZONE;
 BEGIN
-    INSERT INTO public.profiles (id, full_name, email, role, permissions)
-    VALUES (NEW.id, NEW.raw_user_meta_data->>'full_name', NEW.email, 'Editor', ARRAY['Settings']);
-    RETURN NEW;
+    SELECT count, last_attempt INTO v_count, v_last_attempt
+    FROM rate_limits
+    WHERE identifier = p_identifier AND action = p_action;
+
+    IF NOT FOUND THEN
+        INSERT INTO rate_limits (identifier, action, count, last_attempt)
+        VALUES (p_identifier, p_action, 1, NOW());
+        RETURN TRUE;
+    END IF;
+
+    IF v_last_attempt < (NOW() - p_window_interval) THEN
+        UPDATE rate_limits
+        SET count = 1, last_attempt = NOW()
+        WHERE identifier = p_identifier AND action = p_action;
+        RETURN TRUE;
+    END IF;
+
+    IF v_count >= p_max_attempts THEN
+        RETURN FALSE;
+    END IF;
+
+    UPDATE rate_limits
+    SET count = v_count + 1, last_attempt = NOW()
+    WHERE identifier = p_identifier AND action = p_action;
+
+    RETURN TRUE;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-CREATE TRIGGER on_auth_user_created
-    AFTER INSERT ON auth.users
-    FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+-- 19. Hardened RLS Policies (RBAC)
+-- Function to check if user has role
+CREATE OR REPLACE FUNCTION has_role(required_role TEXT)
+RETURNS BOOLEAN AS $$
+BEGIN
+    RETURN EXISTS (
+        SELECT 1 FROM profiles 
+        WHERE id = auth.uid() AND role = required_role
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 8. Storage Instructions
--- NOTE: Supabase Storage buckets cannot be fully managed via SQL in all environments.
--- 1. Go to "Storage" in the sidebar.
--- 2. Create a new bucket named "assets".
--- 3. Set the bucket to "Public" (or define specific RLS policies).
+-- Redefine Policies with Granularity
 
--- SQL to create bucket and policies
-INSERT INTO storage.buckets (id, name, public) 
-VALUES ('assets', 'assets', true)
-ON CONFLICT (id) DO NOTHING;
+-- Leads: Super Admin/PM (All), Editor (Read/Update)
+DROP POLICY IF EXISTS admin_all_access ON leads;
+CREATE POLICY super_admin_pm_leads ON leads FOR ALL USING (has_role('Super Admin') OR has_role('Project Manager'));
+CREATE POLICY editor_read_leads ON leads FOR SELECT USING (has_role('Editor'));
+CREATE POLICY editor_update_leads ON leads FOR UPDATE USING (has_role('Editor'));
 
--- Policies for storage
+-- Clients: Super Admin/PM (All), Editor (Read)
+DROP POLICY IF EXISTS admin_all_access ON clients;
+CREATE POLICY super_admin_pm_clients ON clients FOR ALL USING (has_role('Super Admin') OR has_role('Project Manager'));
+CREATE POLICY editor_read_clients ON clients FOR SELECT USING (has_role('Editor'));
+
+-- Transactions: Super Admin (All), PM (Read)
+DROP POLICY IF EXISTS admin_all_access ON transactions;
+CREATE POLICY super_admin_transactions ON transactions FOR ALL USING (has_role('Super Admin'));
+CREATE POLICY pm_read_transactions ON transactions FOR SELECT USING (has_role('Project Manager'));
+
+-- Storage Policies: Assets (Admin All, Public Read)
 DROP POLICY IF EXISTS "Public Access" ON storage.objects;
-CREATE POLICY "Public Access" ON storage.objects FOR SELECT USING (bucket_id = 'assets');
+CREATE POLICY "Public Access Assets" ON storage.objects FOR SELECT USING (bucket_id = 'assets');
 
 DROP POLICY IF EXISTS "Admin Upload" ON storage.objects;
-CREATE POLICY "Admin Upload" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'assets' AND auth.role() = 'authenticated');
+CREATE POLICY "Admin Upload Assets" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'assets' AND auth.role() = 'authenticated');
 
-DROP POLICY IF EXISTS "Admin Delete" ON storage.objects;
-CREATE POLICY "Admin Delete" ON storage.objects FOR DELETE USING (bucket_id = 'assets' AND auth.role() = 'authenticated');
+-- Storage Policies: Client Assets (Owner Access, Admin All)
+-- We use path-based isolation: client-assets/UUID/file.ext
+DROP POLICY IF EXISTS "Public Access Assets" ON storage.objects;
+DROP POLICY IF EXISTS "Admin Upload Assets" ON storage.objects;
+DROP POLICY IF EXISTS "Admin Delete Assets" ON storage.objects;
 
--- 9. Notifications Table
-CREATE TABLE IF NOT EXISTS notifications (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    type TEXT CHECK (type IN ('Lead', 'Transaction', 'System', 'Review')),
-    message TEXT NOT NULL,
-    link TEXT,
-    read BOOLEAN DEFAULT false,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+CREATE POLICY "Owner Access Client Assets" ON storage.objects FOR ALL 
+USING (bucket_id = 'client-assets' AND (storage.foldername(name))[1] = auth.uid()::text);
 
-ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS admin_all_access ON notifications;
-CREATE POLICY admin_all_access ON notifications FOR ALL USING (auth.role() = 'authenticated');
-DROP POLICY IF EXISTS public_insert_notifications ON notifications;
-CREATE POLICY public_insert_notifications ON notifications FOR INSERT WITH CHECK (true);
-
--- 10. Communications/Messages Table
-CREATE TABLE IF NOT EXISTS messages (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    sender_id UUID REFERENCES auth.users(id),
-    receiver_email TEXT NOT NULL,
-    subject TEXT,
-    body TEXT NOT NULL,
-    type TEXT CHECK (type IN ('Lead', 'Client', 'Newsletter', 'Direct')),
-    is_sent BOOLEAN DEFAULT true,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
-ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS admin_all_messages ON messages;
-CREATE POLICY admin_all_messages ON messages FOR ALL USING (auth.role() = 'authenticated');
+CREATE POLICY "Admin Access Client Assets" ON storage.objects FOR ALL
+USING (bucket_id = 'client-assets' AND auth.role() = 'authenticated');

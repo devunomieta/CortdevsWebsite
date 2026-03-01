@@ -20,7 +20,12 @@ import { Analytics } from "./pages/admin/Analytics";
 import { Notifications } from "./pages/admin/Notifications";
 import { PopulateData } from "./pages/admin/PopulateData";
 import { Profile as AdminProfile } from "./pages/admin/Profile";
+import { ServerErrors as AdminErrors } from "./pages/admin/ServerErrors";
 import { AdminLogin } from "./pages/admin/Login";
+import { ForgotPassword as AdminForgot } from "./pages/admin/ForgotPassword";
+import { ResetPassword as AdminReset } from "./pages/admin/ResetPassword";
+import { NotFound } from "./pages/NotFound";
+import { Maintenance } from "./pages/Maintenance";
 
 export const router = createBrowserRouter([
   {
@@ -109,10 +114,30 @@ export const router = createBrowserRouter([
         path: "settings",
         element: <AdminSettings />,
       },
+      {
+        path: "errors",
+        element: <AdminErrors />,
+      },
     ],
   },
   {
     path: "/admin/login",
     element: <AdminLogin />,
+  },
+  {
+    path: "/admin/forgot-password",
+    element: <AdminForgot />,
+  },
+  {
+    path: "/admin/reset-password",
+    element: <AdminReset />,
+  },
+  {
+    path: "/maintenance",
+    element: <Maintenance />,
+  },
+  {
+    path: "*",
+    element: <NotFound />,
   },
 ]);

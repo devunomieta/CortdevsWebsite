@@ -1,25 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { motion, AnimatePresence } from "framer-motion";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "../../../lib/supabase";
+
 import {
-    Search,
-    Filter,
-    MoreVertical,
-    Eye,
-    Mail,
-    Trash2,
-    CheckCircle2,
-    Clock,
-    ChevronRight,
-    User,
-    ExternalLink,
-    MessageSquare,
-    RefreshCw,
-    ChevronLeft,
-    X,
-    Plus
+    Search, Filter, Mail, Phone, Calendar, Clock, ChevronRight,
+    MoreHorizontal, CheckCircle2, AlertCircle, Trash2, UserPlus,
+    ExternalLink, Download, FileText, Send, Eye, RefreshCw, X
 } from "lucide-react";
+import { errorService } from "../../../lib/ErrorService";
+import { format } from "date-fns";
 import { useToast } from "../../components/Toast";
 import { RichTextEditor } from "../../components/RichTextEditor";
 import { cn } from "../../components/ui/utils";
@@ -34,6 +24,8 @@ interface Lead {
     status: "New" | "Contacted" | "Qualified" | "Lost" | "Converted";
     created_at: string; // From Supabase
     details: string;
+    nda_url?: string;
+    attachments?: { name: string, url: string }[];
 }
 
 export function Leads() {
@@ -54,6 +46,9 @@ export function Leads() {
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [leadToDelete, setLeadToDelete] = useState<Lead | null>(null);
     const [isDetailsExpanded, setIsDetailsExpanded] = useState(false);
+    const [leadMessages, setLeadMessages] = useState<any[]>([]);
+    const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+    const [viewingMessage, setViewingMessage] = useState<any | null>(null);
 
     const itemsPerPage = 20;
     const { showToast } = useToast();
@@ -69,7 +64,7 @@ export function Leads() {
             if (error) throw error;
             setLeads(data || []);
         } catch (err) {
-            console.error("Error fetching leads:", err);
+            await errorService.logError(err, "Leads.fetchLeads");
         } finally {
             setIsLoading(false);
         }
@@ -83,9 +78,30 @@ export function Leads() {
         const urlId = searchParams.get('id');
         if (urlId && leads.length > 0) {
             const leadToSelect = leads.find(l => l.id === urlId);
-            if (leadToSelect) setSelectedLead(leadToSelect);
+            if (leadToSelect) {
+                setSelectedLead(leadToSelect);
+                fetchLeadMessages(leadToSelect.email);
+            }
         }
     }, [searchParams, leads]);
+
+    const fetchLeadMessages = async (email: string) => {
+        setIsLoadingMessages(true);
+        try {
+            const { data, error } = await supabase
+                .from('messages')
+                .select('*')
+                .eq('receiver_email', email)
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+            setLeadMessages(data || []);
+        } catch (err) {
+            console.error("Error fetching messages:", err);
+        } finally {
+            setIsLoadingMessages(false);
+        }
+    };
 
     const updateLeadStatus = async (id: string, newStatus: Lead["status"]) => {
         try {
@@ -96,7 +112,6 @@ export function Leads() {
 
             if (error) throw error;
 
-            // Update local state directly to preserve selection and scroll
             setLeads(prev => prev.map(l => l.id === id ? { ...l, status: newStatus } : l));
             if (selectedLead?.id === id) {
                 setSelectedLead(prev => prev ? { ...prev, status: newStatus } : null);
@@ -104,8 +119,8 @@ export function Leads() {
 
             showToast(`Status updated to ${newStatus}`, "success");
         } catch (err) {
-            console.error("Error updating lead status:", err);
-            showToast("Failed to update status", "error");
+            await errorService.logError(err, "Leads.handleStatusUpdate", { id, status: newStatus });
+            showToast("Failed to update status.", "error");
         }
     };
 
@@ -133,7 +148,6 @@ export function Leads() {
         if (!confirm(`Convert ${lead.name} to a client?`)) return;
         setIsLoading(true);
         try {
-            // 1. Create client
             const { error: clientError } = await supabase
                 .from('clients')
                 .insert([{
@@ -146,16 +160,16 @@ export function Leads() {
 
             if (clientError) throw clientError;
 
-            // 2. Delete lead
             const { error: leadError } = await supabase
                 .from('leads')
-                .delete()
+                .update({ status: 'Converted' }) // Update status instead of deleting to keep history context
                 .eq('id', lead.id);
 
             if (leadError) throw leadError;
 
-            setLeads(prev => prev.filter(l => l.id !== lead.id));
-            setSelectedLead(null);
+            // Optional: You might want to keep the lead but move it to a different list
+            setLeads(prev => prev.map(l => l.id === lead.id ? { ...l, status: 'Converted' } : l));
+            setSelectedLead(prev => prev ? { ...prev, status: 'Converted' } : null);
             showToast("Lead successfully converted to client.", "success");
         } catch (err: any) {
             console.error("Error converting lead:", err);
@@ -163,6 +177,24 @@ export function Leads() {
         } finally {
             setIsLoading(false);
         }
+    };
+
+    const uploadToSupabase = async (file: File, folder: string) => {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
+        const filePath = `${folder}/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+            .from('assets')
+            .upload(filePath, file);
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+            .from('assets')
+            .getPublicUrl(filePath);
+
+        return publicUrl;
     };
 
     const sendEmail = async () => {
@@ -173,36 +205,57 @@ export function Leads() {
 
         setIsSendingEmail(true);
         try {
-            // In a real scenario, you'd upload files to storage and link them
-            // or send them as base64 to the API. For now, we simulate success
-            // but log the file count.
-            const attachmentMetadata = emailAttachments.map(f => ({ name: f.name, size: f.size }));
+            // 1. Upload attachments if any
+            const uploadedFiles = [];
+            for (const file of emailAttachments) {
+                const url = await uploadToSupabase(file, 'direct-emails');
+                uploadedFiles.push({ name: file.name, url });
+            }
 
-            const { error } = await supabase
-                .from('messages')
-                .insert([{
-                    receiver_email: selectedLead.email,
+            // 2. Call real SMTP backend
+            const response = await fetch('/api/send-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    to: selectedLead.email,
                     subject: emailSubject,
                     body: emailBody,
-                    type: 'Lead',
-                    is_sent: true,
-                    // metadata: { attachments: attachmentMetadata } // Assuming metadata column exists or ignore
-                }]);
+                    attachments: uploadedFiles,
+                    type: 'Lead'
+                })
+            });
 
-            if (error) throw error;
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.error || 'Failed to transmit email');
+            }
 
-            showToast(`Email sent successfully ${emailAttachments.length > 0 ? `with ${emailAttachments.length} attachments` : ''}`, "success");
+            showToast(`Email sent successfully`, "success");
             setIsEmailModalOpen(false);
             setEmailSubject("");
             setEmailBody("");
             setEmailAttachments([]);
+
+            // Refresh conversation history
+            fetchLeadMessages(selectedLead.email);
         } catch (err: any) {
-            console.error("Error sending email:", err);
-            showToast("Failed to send email: " + err.message, "error");
+            await errorService.logError(err, "Leads.handleSendEmail");
+            showToast("Failed to transmit communication.", "error");
         } finally {
-            setIsSendingEmail(true);
-            setTimeout(() => setIsSendingEmail(false), 500); // UI feel
+            setIsSendingEmail(false);
         }
+    };
+
+    const handleSelectLead = (lead: Lead) => {
+        setSelectedLead(lead);
+        fetchLeadMessages(lead.email);
+    };
+
+    const handleReply = (msg: any) => {
+        setEmailSubject(`Re: ${msg.subject || 'Our Discussion'}`);
+        setEmailBody(`<br/><br/><hr/><blockquote>${msg.body}</blockquote>`);
+        setViewingMessage(null);
+        setIsEmailModalOpen(true);
     };
 
     const filteredLeads = leads.filter(lead => {
@@ -276,7 +329,6 @@ export function Leads() {
                 </div>
             ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start relative pb-20">
-                    {/* Leads Table Container */}
                     <div className="lg:col-span-2 space-y-4">
                         <div className="bg-white border border-neutral-200 shadow-sm">
                             <div className="overflow-x-auto">
@@ -295,7 +347,7 @@ export function Leads() {
                                             <tr
                                                 key={lead.id}
                                                 className={`border-b border-neutral-50 hover:bg-neutral-50 transition-all cursor-pointer group ${selectedLead?.id === lead.id ? "bg-neutral-50" : ""}`}
-                                                onClick={() => setSelectedLead(lead)}
+                                                onClick={() => handleSelectLead(lead)}
                                             >
                                                 <td className="p-4 text-center text-neutral-400 font-mono text-[10px] font-bold">
                                                     {((currentPage - 1) * itemsPerPage) + index + 1}
@@ -332,7 +384,6 @@ export function Leads() {
                             </div>
                         </div>
 
-                        {/* Pagination controls */}
                         {totalPages > 1 && (
                             <div className="flex items-center justify-between px-2 text-[10px] font-bold uppercase tracking-widest text-neutral-400">
                                 <p>Showing {paginatedLeads.length} of {filteredLeads.length} leads</p>
@@ -357,7 +408,6 @@ export function Leads() {
                         )}
                     </div>
 
-                    {/* Lead Details Panel Fixed Container */}
                     <div className="lg:sticky lg:top-28 bg-white lg:col-span-1 shadow-xl border border-neutral-200 min-h-[400px]">
                         <AnimatePresence mode="wait">
                             {selectedLead ? (
@@ -439,6 +489,84 @@ export function Leads() {
                                             )}
                                         </div>
 
+                                        <div className="space-y-3 pt-4 border-t border-neutral-100">
+                                            <p className="text-[10px] uppercase tracking-widest text-neutral-400 font-bold">Documents & NDA</p>
+
+                                            {selectedLead.nda_url ? (
+                                                <div className="flex items-center justify-between p-3 bg-neutral-50 border border-neutral-100 group">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="p-2 bg-white text-black">
+                                                            <CheckCircle2 size={14} />
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-[10px] font-bold uppercase tracking-tight">NDA Secured</p>
+                                                            <p className="text-[9px] text-neutral-500 truncate max-w-[150px] font-mono">{selectedLead.nda_url}</p>
+                                                        </div>
+                                                    </div>
+                                                    <a
+                                                        href={selectedLead.nda_url}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="p-2 hover:bg-black hover:text-white transition-all"
+                                                    >
+                                                        <ExternalLink size={14} />
+                                                    </a>
+                                                </div>
+                                            ) : (
+                                                <p className="text-[10px] text-neutral-400 italic">No NDA data available.</p>
+                                            )}
+
+                                            {selectedLead.attachments && selectedLead.attachments.length > 0 && (
+                                                <div className="grid grid-cols-1 gap-2 mt-2">
+                                                    {selectedLead.attachments.map((file: { name: string, url: string }, idx: number) => (
+                                                        <div key={idx} className="flex items-center justify-between p-3 border border-neutral-100 hover:border-neutral-200 transition-all">
+                                                            <div className="flex items-center gap-3">
+                                                                <ExternalLink size={14} className="text-neutral-400" />
+                                                                <span className="text-[10px] font-medium truncate max-w-[180px] font-mono">{file.name}</span>
+                                                            </div>
+                                                            <a
+                                                                href={file.url}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="text-[9px] font-bold uppercase text-neutral-400 hover:text-black transition-all"
+                                                            >
+                                                                View
+                                                            </a>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="pt-4 border-t border-neutral-100 space-y-4">
+                                            <p className="text-[10px] uppercase tracking-widest text-neutral-400 font-bold">Communication History</p>
+                                            <div className="max-h-48 overflow-y-auto space-y-3 pr-2 scrollbar-thin text-black">
+                                                {isLoadingMessages ? (
+                                                    <div className="flex justify-center py-4">
+                                                        <RefreshCw className="w-4 h-4 animate-spin text-neutral-300" />
+                                                    </div>
+                                                ) : leadMessages.length > 0 ? (
+                                                    leadMessages.map((msg, idx) => (
+                                                        <button
+                                                            key={idx}
+                                                            onClick={() => setViewingMessage(msg)}
+                                                            className="w-full text-left p-3 bg-neutral-50 border border-neutral-100 space-y-1 hover:border-black transition-all group"
+                                                        >
+                                                            <div className="flex justify-between items-center">
+                                                                <p className="text-[10px] font-bold text-black truncate max-w-[150px] group-hover:italic">{msg.subject}</p>
+                                                                <p className="text-[8px] text-neutral-400">{new Date(msg.created_at).toLocaleDateString()}</p>
+                                                            </div>
+                                                            <p className="text-[10px] text-neutral-500 line-clamp-2 italic">
+                                                                {msg.body.replace(/<[^>]*>/g, '')}
+                                                            </p>
+                                                        </button>
+                                                    ))
+                                                ) : (
+                                                    <p className="text-[10px] text-neutral-400 italic py-2 text-center">No previous interactions recorded.</p>
+                                                )}
+                                            </div>
+                                        </div>
+
                                         <div className="pt-4 border-t border-neutral-100 space-y-4">
                                             <p className="text-[10px] uppercase tracking-widest text-neutral-400 font-bold">Update Lead Status</p>
                                             <div className="grid grid-cols-2 gap-2">
@@ -456,15 +584,15 @@ export function Leads() {
                                                 ))}
                                             </div>
                                         </div>
-                                    </div>
 
-                                    <button
-                                        onClick={() => convertToClient(selectedLead)}
-                                        disabled={isLoading}
-                                        className="w-full py-4 bg-black text-white text-[10px] uppercase font-bold tracking-[0.3em] flex items-center justify-center gap-2 hover:bg-neutral-800 transition-all disabled:opacity-50"
-                                    >
-                                        {isLoading ? "PROCESSSING..." : "Convert to Client"} <CheckCircle2 size={14} />
-                                    </button>
+                                        <button
+                                            onClick={() => convertToClient(selectedLead)}
+                                            disabled={isLoading}
+                                            className="w-full py-4 bg-black text-white text-[10px] uppercase font-bold tracking-[0.3em] flex items-center justify-center gap-2 hover:bg-neutral-800 transition-all disabled:opacity-50"
+                                        >
+                                            {isLoading ? "PROCESSSING..." : "Convert to Client"} <CheckCircle2 size={14} />
+                                        </button>
+                                    </div>
                                 </motion.div>
                             ) : (
                                 <div className="h-full min-h-[300px] flex flex-col items-center justify-center text-neutral-400 text-sm italic p-8">
@@ -477,140 +605,156 @@ export function Leads() {
                 </div>
             )}
 
-            {/* Email Modal */}
-            <AnimatePresence>
-                {isEmailModalOpen && selectedLead && (
-                    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                            className="bg-white border border-neutral-200 shadow-2xl w-full max-w-lg overflow-hidden"
-                        >
-                            <div className="p-6 border-b border-neutral-100 flex justify-between items-center">
-                                <div>
-                                    <h3 className="text-lg font-light italic">Compose Email</h3>
-                                    <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest">To: {selectedLead.name} ({selectedLead.email})</p>
-                                </div>
-                                <button onClick={() => setIsEmailModalOpen(false)} className="text-neutral-400 hover:text-black">
-                                    <X size={20} />
-                                </button>
-                            </div>
-
-                            <div className="p-6 space-y-4">
-                                <div className="space-y-1">
-                                    <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest">Subject</label>
-                                    <input
-                                        type="text"
-                                        placeholder="Project Discussion..."
-                                        value={emailSubject}
-                                        onChange={(e) => setEmailSubject(e.target.value)}
-                                        className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 outline-none focus:border-black transition-all text-sm"
-                                    />
-                                </div>
-
-                                <div className="space-y-1">
-                                    <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest">Message Body (Rich Text)</label>
-                                    <RichTextEditor
-                                        value={emailBody}
-                                        onChange={setEmailBody}
-                                        placeholder="Compose your reply..."
-                                        className="bg-neutral-50"
-                                    />
-                                </div>
-
-                                <div className="space-y-1">
-                                    <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest">Attachments (Optional)</label>
-                                    <div className="mt-1 flex flex-col gap-2">
-                                        <input
-                                            type="file"
-                                            multiple
-                                            onChange={(e) => {
-                                                if (e.target.files) {
-                                                    setEmailAttachments(Array.from(e.target.files));
-                                                }
-                                            }}
-                                            className="hidden"
-                                            id="email-file-upload"
-                                        />
-                                        <label
-                                            htmlFor="email-file-upload"
-                                            className="flex items-center gap-2 p-3 border border-dashed border-neutral-200 hover:border-black cursor-pointer text-xs text-neutral-500 transition-all bg-neutral-50/50"
-                                        >
-                                            <Plus size={14} /> {emailAttachments.length > 0 ? `${emailAttachments.length} files selected` : "Attach strategic documents..."}
-                                        </label>
-                                        {emailAttachments.length > 0 && (
-                                            <div className="flex flex-wrap gap-2 mt-2">
-                                                {emailAttachments.map((f, i) => (
-                                                    <div key={i} className="flex items-center gap-2 px-2 py-1 bg-black text-white text-[9px] font-bold uppercase">
-                                                        {f.name}
-                                                        <button onClick={() => setEmailAttachments(prev => prev.filter((_, idx) => idx !== i))}>
-                                                            <X size={10} />
-                                                        </button>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="p-6 bg-neutral-50 border-t border-neutral-100 flex justify-end gap-3">
-                                <button
-                                    onClick={() => setIsEmailModalOpen(false)}
-                                    className="px-6 py-2 text-[10px] uppercase font-bold tracking-widest text-neutral-400 hover:text-black transition-all"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={sendEmail}
-                                    disabled={isSendingEmail}
-                                    className="px-8 py-2 bg-black text-white text-[10px] uppercase font-bold tracking-widest hover:bg-neutral-800 transition-all flex items-center gap-2"
-                                >
-                                    {isSendingEmail ? "SENDING..." : "Send Email"} <MessageSquare size={14} />
-                                </button>
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
-
-            {/* Custom Delete Confirmation Modal */}
-            <AnimatePresence>
-                {isDeleteDialogOpen && leadToDelete && (
-                    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.9 }}
-                            className="bg-white border border-neutral-200 shadow-3xl w-full max-w-md overflow-hidden p-8 space-y-6"
-                        >
-                            <div className="space-y-2">
-                                <h3 className="text-xl font-light italic">Terminate Data Point?</h3>
-                                <p className="text-sm text-neutral-500">
-                                    You are about to delete <span className="font-bold text-black">{leadToDelete.name}</span>. This action is irreversible and will purge all associated inquiry data.
+            {viewingMessage && (
+                <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        className="bg-white border border-neutral-200 shadow-3xl w-full max-w-2xl overflow-hidden text-black"
+                    >
+                        <div className="p-6 border-b border-neutral-100 flex justify-between items-center bg-neutral-50">
+                            <div>
+                                <h3 className="text-lg font-light italic">{viewingMessage.subject || "Message Details"}</h3>
+                                <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest">
+                                    Transmitted: {new Date(viewingMessage.created_at).toLocaleString()}
                                 </p>
                             </div>
+                            <button onClick={() => setViewingMessage(null)} className="text-neutral-400 hover:text-black">
+                                <X size={20} />
+                            </button>
+                        </div>
 
-                            <div className="flex gap-4 pt-4 border-t border-neutral-100">
-                                <button
-                                    onClick={() => setIsDeleteDialogOpen(false)}
-                                    className="flex-1 py-3 text-[10px] uppercase font-bold tracking-[0.2em] border border-neutral-200 hover:bg-neutral-50"
-                                >
-                                    Abort
-                                </button>
-                                <button
-                                    onClick={confirmDeleteLead}
-                                    className="flex-1 py-3 text-[10px] uppercase font-bold tracking-[0.2em] bg-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-200"
-                                >
-                                    Confirm Purge
-                                </button>
+                        <div className="p-8 space-y-6 max-h-[60vh] overflow-y-auto scrollbar-thin">
+                            <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest border-b border-neutral-100 pb-4 text-neutral-400">
+                                <div>To: <span className="text-black italic">{viewingMessage.receiver_email}</span></div>
+                                <div>Category: <span className="text-black">{viewingMessage.type}</span></div>
                             </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
+
+                            <div className="prose prose-sm max-w-none text-neutral-800 leading-relaxed whitespace-pre-wrap bg-neutral-50/50 p-6 border border-neutral-100 italic">
+                                <div dangerouslySetInnerHTML={{ __html: viewingMessage.body }} />
+                            </div>
+                        </div>
+
+                        <div className="p-6 bg-neutral-50 border-t border-neutral-100 flex justify-end gap-4">
+                            <button
+                                onClick={() => setViewingMessage(null)}
+                                className="px-6 py-2 border border-neutral-200 text-[10px] font-bold uppercase tracking-widest hover:border-black transition-all"
+                            >
+                                Close
+                            </button>
+                            <button
+                                onClick={() => handleReply(viewingMessage)}
+                                className="px-8 py-2 bg-black text-white text-[10px] font-bold uppercase tracking-widest hover:bg-neutral-800 transition-all flex items-center gap-2"
+                            >
+                                <Mail size={14} /> Reply Mail
+                            </button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
+
+            {isEmailModalOpen && selectedLead && (
+                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                        className="bg-white border border-neutral-200 shadow-2xl w-full max-w-lg overflow-hidden"
+                    >
+                        <div className="p-6 border-b border-neutral-100 flex justify-between items-center">
+                            <div>
+                                <h3 className="text-lg font-light italic">Compose Email</h3>
+                                <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest">To: {selectedLead.name} ({selectedLead.email})</p>
+                            </div>
+                            <button onClick={() => setIsEmailModalOpen(false)} className="text-neutral-400 hover:text-black">
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div className="p-6 space-y-4">
+                            <div className="space-y-1">
+                                <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest">Subject</label>
+                                <input
+                                    type="text"
+                                    placeholder="Project Discussion..."
+                                    value={emailSubject}
+                                    onChange={(e) => setEmailSubject(e.target.value)}
+                                    className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 outline-none focus:border-black transition-all text-sm"
+                                />
+                            </div>
+
+                            <div className="space-y-1">
+                                <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest">Message Body</label>
+                                <RichTextEditor
+                                    value={emailBody}
+                                    onChange={setEmailBody}
+                                    placeholder="Write your response here..."
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest">Attachments</label>
+                                <div className="flex flex-wrap gap-2">
+                                    {emailAttachments.map((file, idx) => (
+                                        <div key={idx} className="flex items-center gap-2 px-3 py-1 bg-neutral-100 text-[10px] font-bold border border-neutral-200">
+                                            <span>{file.name}</span>
+                                            <button onClick={() => setEmailAttachments(prev => prev.filter((_, i) => i !== idx))}><X size={12} /></button>
+                                        </div>
+                                    ))}
+                                    <label className="flex items-center gap-1 px-3 py-1 border border-dashed border-neutral-300 text-[10px] font-bold text-neutral-400 hover:border-black hover:text-black cursor-pointer transition-all">
+                                        <Plus size={12} /> Add File
+                                        <input type="file" multiple className="hidden" onChange={(e) => setEmailAttachments(prev => [...prev, ...Array.from(e.target.files || [])])} />
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="p-6 bg-neutral-50 border-t border-neutral-100 flex justify-end">
+                            <button
+                                onClick={sendEmail}
+                                disabled={isSendingEmail}
+                                className="px-8 py-3 bg-black text-white text-[10px] font-bold uppercase tracking-widest hover:bg-neutral-800 transition-all disabled:opacity-50"
+                            >
+                                {isSendingEmail ? "Sending..." : "Send Response"}
+                            </button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
+
+            {isDeleteDialogOpen && leadToDelete && (
+                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        className="bg-white border border-neutral-200 shadow-3xl w-full max-w-md overflow-hidden p-8 space-y-6"
+                    >
+                        <div className="space-y-2">
+                            <h3 className="text-xl font-light italic">Terminate Data Point?</h3>
+                            <p className="text-sm text-neutral-500">
+                                You are about to delete <span className="font-bold text-black">{leadToDelete.name}</span>. This action is irreversible and will purge all associated inquiry data.
+                            </p>
+                        </div>
+
+                        <div className="flex gap-4 pt-4 border-t border-neutral-100">
+                            <button
+                                onClick={() => setIsDeleteDialogOpen(false)}
+                                className="flex-1 py-3 text-[10px] uppercase font-bold tracking-[0.2em] border border-neutral-200 hover:bg-neutral-50"
+                            >
+                                Abort
+                            </button>
+                            <button
+                                onClick={confirmDeleteLead}
+                                className="flex-1 py-3 text-[10px] uppercase font-bold tracking-[0.2em] bg-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-200"
+                            >
+                                Confirm Purge
+                            </button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
         </div>
     );
 }
-

@@ -1,18 +1,26 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '../../lib/supabase';
 
-interface BrandingConfig {
+export interface BrandingConfig {
     headerLogo: string;
     footerLogo: string;
     favicon: string;
     siteTitle: string;
     metaDescription: string;
+    maintenanceMode: boolean;
 }
 
 interface ConfigContextType {
     config: BrandingConfig;
     updateConfig: (newConfig: Partial<BrandingConfig>) => Promise<void>;
     isLoading: boolean;
+    currency: {
+        code: string;
+        symbol: string;
+        rate: number; // USD to target rate
+    };
+    setCurrencyCode: (code: "USD" | "NGN") => void;
+    setMaintenanceMode: (enabled: boolean) => Promise<void>;
 }
 
 const defaultConfig: BrandingConfig = {
@@ -21,6 +29,7 @@ const defaultConfig: BrandingConfig = {
     favicon: '/favicon.ico',
     siteTitle: 'CortDevs | Premium Web Solutions',
     metaDescription: 'Crafting digital excellence through innovative web solutions. Transforming visions into powerful, scalable digital experiences.',
+    maintenanceMode: false,
 };
 
 const ConfigContext = createContext<ConfigContextType | undefined>(undefined);
@@ -28,6 +37,39 @@ const ConfigContext = createContext<ConfigContextType | undefined>(undefined);
 export function ConfigProvider({ children }: { children: React.ReactNode }) {
     const [config, setConfig] = useState<BrandingConfig>(defaultConfig);
     const [isLoading, setIsLoading] = useState(true);
+    const [currency, setCurrency] = useState({ code: "USD", symbol: "$", rate: 1 });
+
+    useEffect(() => {
+        const initCurrency = async () => {
+            // Hardcoded exchange rate fallback (USD to NGN ~1600 as a placeholder)
+            const fallbackRate = 1600;
+            try {
+                const response = await fetch("https://api.frankfurter.app/latest?from=USD&to=NGN");
+                const data = await response.json();
+                const rate = data.rates?.NGN || fallbackRate;
+
+                // Check local storage for preference
+                const saved = localStorage.getItem("pref_currency") as "USD" | "NGN";
+                if (saved === "NGN") {
+                    setCurrency({ code: "NGN", symbol: "₦", rate });
+                } else {
+                    setCurrency({ code: "USD", symbol: "$", rate });
+                }
+            } catch (err) {
+                setCurrency({ code: "USD", symbol: "$", rate: fallbackRate });
+            }
+        };
+        initCurrency();
+    }, []);
+
+    const setCurrencyCode = (code: "USD" | "NGN") => {
+        localStorage.setItem("pref_currency", code);
+        setCurrency(prev => ({
+            ...prev,
+            code,
+            symbol: code === "NGN" ? "₦" : "$"
+        }));
+    };
 
     useEffect(() => {
         const fetchConfig = async () => {
@@ -46,6 +88,7 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
                         favicon: data.favicon,
                         siteTitle: data.site_title,
                         metaDescription: data.meta_description,
+                        maintenanceMode: data.maintenance_mode || false
                     });
                 }
                 setIsLoading(false);
@@ -71,6 +114,7 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
                     favicon: updated.favicon,
                     site_title: updated.siteTitle,
                     meta_description: updated.metaDescription,
+                    maintenance_mode: updated.maintenanceMode,
                     updated_at: new Date().toISOString()
                 })
                 .eq('id', 'main');
@@ -82,8 +126,19 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
+    const setMaintenanceMode = async (enabled: boolean) => {
+        await updateConfig({ maintenanceMode: enabled });
+    };
+
     return (
-        <ConfigContext.Provider value={{ config, updateConfig, isLoading }}>
+        <ConfigContext.Provider value={{
+            config,
+            updateConfig,
+            isLoading,
+            currency,
+            setCurrencyCode,
+            setMaintenanceMode
+        }}>
             {children}
         </ConfigContext.Provider>
     );

@@ -18,16 +18,27 @@ import {
     BarChart3,
     Bell
 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "../../../lib/supabase";
 import { useConfig } from "../../context/ConfigContext";
 
 export function AdminLayout() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 1024);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
     const [unreadCount, setUnreadCount] = useState(0);
     const location = useLocation();
     const navigate = useNavigate();
     const { config } = useConfig();
+
+    useEffect(() => {
+        const handleResize = () => {
+            const desktop = window.innerWidth >= 1024;
+            setIsDesktop(desktop);
+            if (desktop) setIsMobileMenuOpen(false);
+        };
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     const fetchUnreadCount = async () => {
         const { count, error } = await supabase
@@ -103,11 +114,11 @@ export function AdminLayout() {
                 className="bg-black text-white h-screen flex flex-col relative z-30 shadow-2xl hidden lg:flex"
             >
                 <div className="p-6 flex items-center gap-3 border-b border-white/10">
-                    <div className="flex items-center justify-center">
+                    <div className="bg-white/10 p-2 group-hover:bg-white/20 transition-all">
                         <img
                             src={config.footerLogo}
                             alt="Logo"
-                            className={isSidebarOpen ? "h-6 w-auto" : "h-5 w-auto"}
+                            className={isSidebarOpen ? "h-5 w-auto" : "h-4 w-auto"}
                         />
                     </div>
                 </div>
@@ -181,7 +192,7 @@ export function AdminLayout() {
                         >
                             <div className="p-6 flex items-center justify-between border-b border-white/10">
                                 <div className="flex items-center gap-3">
-                                    <img src={config.footerLogo} alt="Logo" className="h-6 w-auto" />
+                                    <img src={config.footerLogo} alt="Logo" className="h-5 w-auto" />
                                 </div>
                                 <button onClick={() => setIsMobileMenuOpen(false)} className="text-neutral-400 hover:text-white">
                                     <X size={24} />
@@ -265,6 +276,46 @@ export function AdminLayout() {
                     <Outlet />
                 </div>
             </main>
+
+            {/* Desktop Only Restriction Overlay */}
+            <AnimatePresence>
+                {!isDesktop && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[1000] bg-black flex flex-col items-center justify-center p-8 text-center"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            className="max-w-xs space-y-6"
+                        >
+                            <div className="flex justify-center">
+                                <Monitor size={64} className="text-white opacity-20" strokeWidth={1} />
+                            </div>
+                            <div className="space-y-2">
+                                <h2 className="text-2xl font-light italic text-white tracking-tight">Administrative Restriction</h2>
+                                <p className="text-[10px] text-neutral-500 uppercase tracking-[0.2em] font-bold">Optimal desktop environment required</p>
+                            </div>
+                            <p className="text-sm text-neutral-400 leading-relaxed font-light">
+                                For security, operational density, and data integrity, the CortDevs Command Center is restricted to desktop displays.
+                            </p>
+                            <div className="pt-4 space-y-3">
+                                <button
+                                    onClick={() => navigate("/")}
+                                    className="w-full py-4 bg-white text-black text-[10px] font-bold uppercase tracking-[0.3em] hover:bg-neutral-200 transition-all"
+                                >
+                                    Return to Public Portal
+                                </button>
+                                <p className="text-[9px] text-neutral-600 uppercase tracking-[0.3em]">
+                                    Switch to a 1024px+ display to proceed
+                                </p>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
