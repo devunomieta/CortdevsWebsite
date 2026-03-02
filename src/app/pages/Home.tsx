@@ -3,9 +3,23 @@ import { motion } from "framer-motion";
 import { ArrowRight, CheckCircle2, Zap, Shield, TrendingUp } from "lucide-react";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { Preloader } from "../components/Preloader";
+import { SEO } from "../components/SEO";
 
 export function Home() {
   const { setIsDialogOpen } = useOutletContext<{ setIsDialogOpen: (open: boolean) => void }>();
+
+  const organizationSchema = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "CortDevs",
+    "url": "https://cortdevs.com",
+    "logo": "https://cortdevs.com/logo.png",
+    "sameAs": [
+      "https://linkedin.com/company/cortdevs",
+      "https://twitter.com/cortdevs"
+    ],
+    "description": "Premium web development agency specializing in WordPress, Shopify, GHL, and custom solutions."
+  };
 
   const fadeInUp = {
     initial: { opacity: 0, y: 30 },
@@ -63,6 +77,11 @@ export function Home() {
 
   return (
     <div className="bg-white">
+      <SEO
+        title="Premium Web Solutions | WordPress, Shopify, GHL & Custom Apps"
+        description="CortDevs delivers elite web development services. From custom WordPress and Shopify stores to GHL automations and full-stack applications."
+        structuredData={organizationSchema}
+      />
       <Preloader />
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center pt-20 lg:pt-24">

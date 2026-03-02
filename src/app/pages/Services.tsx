@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   Settings
 } from "lucide-react";
+import { SEO } from "../components/SEO";
 
 export function Services() {
   const allServices = [
@@ -64,6 +65,11 @@ export function Services() {
 
   return (
     <div className="bg-white pt-20 lg:pt-24">
+      <SEO
+        title="Web Development Services | WordPress, Shopify & GHL Mastery"
+        description="Elite technical solutions including Custom WordPress development, conversion-optimized Shopify stores, and advanced GHL automation."
+        keywords="wordpress excellence, shopify mastery, ghl solutions, custom development, web developer, build websites"
+      />
       {/* Hero Section */}
       <section className="relative py-20 lg:py-32 bg-neutral-50 border-b border-neutral-100 overflow-hidden">
         {/* Subtle decorative background element */}

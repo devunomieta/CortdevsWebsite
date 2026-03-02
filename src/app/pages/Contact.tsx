@@ -12,7 +12,7 @@ import {
   TrendingUp
 } from "lucide-react";
 import { ContactForm } from "../components/ContactForm";
-
+import { SEO } from "../components/SEO";
 import { useConfig } from "../context/ConfigContext";
 
 export function Contact() {
@@ -70,6 +70,11 @@ export function Contact() {
 
   return (
     <div className="bg-white pt-20 lg:pt-24">
+      <SEO
+        title="Contact Us | Get a Web Development Quote"
+        description="Ready to start your project? Contact CortDevs for a free consultation on WordPress, Shopify, GHL, or custom coding solutions."
+        keywords="web developer contact, build websites consultation, wordpress quote, shopify expert contact"
+      />
       {/* Hero */}
       <section className="py-20 lg:py-32 bg-neutral-50">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
