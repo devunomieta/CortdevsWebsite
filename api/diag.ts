@@ -14,11 +14,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         log.push(`Env check: ${JSON.stringify(env)}`);
 
         log.push("Attempting to import Supabase lib...");
-        const { supabase } = await import('./_lib/supabase');
+        const { supabase } = await import('./_lib/supabase.js');
         log.push(`Supabase lib imported. Instance exists: ${!!supabase}`);
 
         log.push("Attempting to import Resend lib...");
-        const { resend } = await import('./_lib/resend');
+        const { resend } = await import('./_lib/resend.js');
         log.push(`Resend lib imported. Instance exists: ${!!resend}`);
 
         return res.status(200).json({
