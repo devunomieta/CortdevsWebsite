@@ -7,12 +7,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { name, email, industry, highlight, type, rating, message, impact, isAnonymous, website } = req.body;
+  const {
+    name = "Anonymous",
+    email = "no-email@provided.com",
+    industry = "General",
+    highlight = "Service Excellence",
+    type = "review",
+    rating = 5,
+    message = "",
+    impact = "N/A",
+    isAnonymous = false,
+    website
+  } = req.body;
 
   // 1. Honeypot check
   if (website) {
     return res.status(200).json({ success: true, message: 'Feedback transmitted successfully (bot detected)' });
   }
+
+  // 2. Data Sanitization & Protection
+  const safeMessage = (message || "").replace(/\n/g, '<br/>');
 
   try {
     const feedbackHtml = `
@@ -26,7 +40,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         <p><strong>Impact:</strong> ${impact}</p>
         <div style="margin-top: 20px; padding: 15px; background: #f9f9f9; border-left: 4px solid #000;">
           <strong style="font-size: 10px; color: #999;">MESSAGE</strong><br/><br/>
-          ${message.replace(/\n/g, '<br/>')}
+          ${safeMessage}
         </div>
       </div>
     `;
@@ -47,7 +61,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       industry,
       type,
       rating,
-      message,
+      message: message || "No message provided.",
       highlight,
       impact,
       is_anonymous: isAnonymous,
@@ -60,6 +74,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({ success: true, message: 'Feedback transmitted successfully' });
   } catch (error: any) {
     console.error('Feedback Error:', error);
-    return res.status(500).json({ error: 'Feedback transmission failed.', details: error.message });
+    return res.status(500).json({
+      error: 'Feedback transmission failed. Secure relay path unavailable.',
+      details: error.message
+    });
   }
 }

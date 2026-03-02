@@ -46,7 +46,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           ${attachments && attachments.length > 0 ? `
             <p style="margin: 5px 0 0 0;"><strong>ATTACHMENTS:</strong></p>
             <ul style="margin: 5px 0 0 20px; padding: 0;">
-              ${attachments.map((url: string) => `<li style="margin-bottom: 3px;"><a href="${url}" style="color: #000;">${url.split('/').pop()}</a></li>`).join('')}
+              ${attachments.map((att: { name: string, url: string }) => `<li style="margin-bottom: 3px;"><a href="${att.url}" style="color: #000;">${att.name}</a></li>`).join('')}
             </ul>
           ` : ''}
         </div>
@@ -64,6 +64,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       replyTo: email, // This allows admin to reply directly to the client
       subject: `[LEAD] ${service} - ${name}`,
       html: adminMailHtml,
+      attachments: [
+        ...(attachments || []).map((att: any) => ({ filename: att.name, path: att.url })),
+        ...(ndaUrl && !issueNDA ? [{ filename: 'NDAA-Document.pdf', path: ndaUrl }] : [])
+      ]
     });
 
     // 2. Send Confirmation to User
@@ -81,6 +85,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           ${adminMailHtml}
         </div>
       `,
+      attachments: [
+        ...(attachments || []).map((att: any) => ({ filename: att.name, path: att.url })),
+        ...(ndaUrl && !issueNDA ? [{ filename: 'NDA-Document.pdf', path: ndaUrl }] : [])
+      ]
     });
 
     // 3. Log to Supabase

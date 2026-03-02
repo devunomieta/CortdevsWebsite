@@ -1,13 +1,16 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Star, Send, Shield, User, AlertCircle, CheckCircle2, Globe, Zap, Info, Quote } from "lucide-react";
 import { BrandLoader } from "./BrandLoader";
+import { useToast } from "./Toast";
 
 interface ReviewFormProps {
     onComplete: () => void;
 }
 
 export function ReviewForm({ onComplete }: ReviewFormProps) {
+    const { showToast } = useToast();
+    const successRef = useRef<HTMLDivElement>(null);
     const [formData, setFormData] = useState({
         name: "",
         email: "",
@@ -36,7 +39,7 @@ export function ReviewForm({ onComplete }: ReviewFormProps) {
         // 2. Strict Email Validation
         const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
         if (!emailRegex.test(formData.email)) {
-            alert("Please provide a valid corporate email address (e.g. name@company.com).");
+            showToast("Please provide a valid corporate email address (e.g. name@company.com).", "error");
             return;
         }
 
@@ -65,15 +68,20 @@ export function ReviewForm({ onComplete }: ReviewFormProps) {
             }, 2500);
         } catch (err: any) {
             console.error("Transmission error:", err);
-            // We'll show a basic alert for now if it fails
-            alert(err.message || "Failed to transmit feedback. Please try again.");
+            showToast(err.message || "Failed to transmit feedback. Please try again.", "error");
             setIsSubmitting(false);
         }
     };
 
+    useEffect(() => {
+        if (isSubmitted && successRef.current) {
+            successRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+    }, [isSubmitted]);
+
     if (isSubmitted) {
         return (
-            <div className="flex flex-col items-center justify-center py-12 px-6 bg-neutral-900 text-white rounded-3xl animate-in zoom-in duration-500">
+            <div ref={successRef} id="review-success-box" className="flex flex-col items-center justify-center py-12 px-6 bg-neutral-900 text-white rounded-3xl animate-in zoom-in duration-500 scroll-mt-24">
                 <motion.div
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}

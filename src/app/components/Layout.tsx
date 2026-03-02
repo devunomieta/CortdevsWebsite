@@ -1,6 +1,9 @@
 import { useNavigate, Outlet, Link, useLocation } from "react-router";
 import { useState, useEffect } from "react";
-import { ArrowRight } from "lucide-react";
+import {
+  ArrowRight,
+  Star
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Dialog,
@@ -53,7 +56,7 @@ export function Layout() {
   useEffect(() => {
     setIsMenuOpen(false);
     window.scrollTo(0, 0);
-  }, [location]);
+  }, [location.pathname]);
 
   const navLinks = [
     { to: "/", label: "Home" },
@@ -228,11 +231,12 @@ export function Layout() {
                     </Link>
                   </li>
                 ))}
-                <li>
+                <li className="pt-2">
                   <Link
                     to="/work?review=true"
-                    className="text-sm text-neutral-300 hover:text-white transition-colors"
+                    className="group flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 text-xs font-bold uppercase tracking-widest text-white hover:bg-white hover:text-black transition-all"
                   >
+                    <Star size={12} className="group-hover:fill-current transition-all" />
                     Leave a Review
                   </Link>
                 </li>

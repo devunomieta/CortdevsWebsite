@@ -246,3 +246,50 @@ USING (bucket_id = 'client-assets' AND (storage.foldername(name))[1] = auth.uid(
 
 CREATE POLICY "Admin Access Client Assets" ON storage.objects FOR ALL
 USING (bucket_id = 'client-assets' AND auth.role() = 'authenticated');
+
+-- 20. Notifications Table
+CREATE TABLE IF NOT EXISTS notifications (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    type TEXT DEFAULT 'System',
+    message TEXT NOT NULL,
+    link TEXT,
+    read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+CREATE POLICY admin_all_notifications ON notifications FOR ALL USING (has_role('Super Admin') OR has_role('Project Manager'));
+
+-- 21. Messages Table
+CREATE TABLE IF NOT EXISTS messages (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    receiver_email TEXT NOT NULL,
+    subject TEXT,
+    body TEXT,
+    type TEXT DEFAULT 'Direct',
+    is_sent BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
+CREATE POLICY admin_all_messages ON messages FOR ALL USING (has_role('Super Admin') OR has_role('Project Manager'));
+
+-- 22. Reviews Table
+CREATE TABLE IF NOT EXISTS reviews (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name TEXT NOT NULL,
+    email TEXT,
+    industry TEXT,
+    type TEXT DEFAULT 'review', -- 'review' or 'complaint'
+    rating INTEGER DEFAULT 5,
+    message TEXT,
+    highlight TEXT,
+    impact TEXT,
+    is_anonymous BOOLEAN DEFAULT FALSE,
+    is_published BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE reviews ENABLE ROW LEVEL SECURITY;
+CREATE POLICY admin_all_reviews ON reviews FOR ALL USING (has_role('Super Admin') OR has_role('Project Manager'));
+CREATE POLICY public_read_reviews ON reviews FOR SELECT USING (is_published = TRUE);

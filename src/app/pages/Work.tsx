@@ -24,12 +24,16 @@ export function Work() {
   useEffect(() => {
     if (searchParams.get("review") === "true") {
       setShowReviewForm(true);
-      // Ensure we scroll to the form area
-      const element = document.getElementById("success-stories-section");
-      if (element) {
-        element.scrollIntoView({ behavior: "smooth" });
-      }
-      setSearchParams({}, { replace: true });
+      // Ensure the form container is rendered and scroll into view after a short delay
+      // Delay allows Layout's scroll-to-top (if any) to settle and AnimatePresence to start
+      setTimeout(() => {
+        const element = document.getElementById("review-form-container");
+        if (element) {
+          element.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+        // Clear param after scroll is initiated
+        setTimeout(() => setSearchParams({}, { replace: true }), 1000);
+      }, 500);
     }
   }, [searchParams, setSearchParams]);
 
@@ -225,9 +229,10 @@ export function Work() {
                 animate={{ height: "auto", opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
                 transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-                className="overflow-hidden mb-16"
               >
-                <ReviewForm onComplete={() => setShowReviewForm(false)} />
+                <div id="review-form-container" className="overflow-hidden mb-16">
+                  <ReviewForm onComplete={() => setShowReviewForm(false)} />
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
