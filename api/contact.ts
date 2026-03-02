@@ -21,6 +21,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    // 0. Configuration check (Hardened)
+    if (!resend) {
+      return res.status(500).json({ error: 'Transmission failed. Resend API key is missing in production environment.' });
+    }
+    if (!supabase) {
+      return res.status(500).json({ error: 'Transmission failed. Supabase configuration is missing in production environment.' });
+    }
+
     const adminMailHtml = `
       <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px; color: #333;">
         <h2 style="color: #000; border-bottom: 2px solid #000; padding-bottom: 10px; font-weight: 300; letter-spacing: -1px;">New Project Briefing</h2>

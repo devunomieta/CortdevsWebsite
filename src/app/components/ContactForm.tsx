@@ -186,8 +186,17 @@ export function ContactForm({ onSuccess, isPopup = false }: ContactFormProps) {
         });
 
         if (!response.ok) {
-          const resData = await response.json();
-          throw new Error(resData.error || "Intelligence Transmission Failure. Secure relay path unavailable.");
+          let errorMsg = "Intelligence Transmission Failure. Secure relay path unavailable.";
+          try {
+            const resData = await response.json();
+            errorMsg = resData.error || errorMsg;
+          } catch (jsonErr) {
+            // If response is not JSON, it's likely a Vercel/Server error page
+            const textResponse = await response.text();
+            console.error("Non-JSON error response from server:", textResponse);
+            errorMsg = `Server Error (${response.status}): ${textResponse.slice(0, 100)}...`;
+          }
+          throw new Error(errorMsg);
         }
       } catch (emailErr: any) {
         console.error("Transmission failed", emailErr);

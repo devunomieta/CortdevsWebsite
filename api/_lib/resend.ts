@@ -1,12 +1,13 @@
 import { Resend } from 'resend';
 
-const resendApiKey = process.env.RESEND_API_KEY;
+const resendApiKey = process.env.RESEND_API_KEY || '';
 
 if (!resendApiKey) {
     console.error('CRITICAL: RESEND_API_KEY is missing from environment variables.');
 }
 
-export const resend = new Resend(resendApiKey);
+// Only initialize if we have the API key to avoid potential top-level crash
+export const resend = resendApiKey ? new Resend(resendApiKey) : null as any;
 
 export const DEFAULT_FROM = process.env.SMTP_FROM_NAME
     ? `${process.env.SMTP_FROM_NAME} <noreply@cortdevs.com>`

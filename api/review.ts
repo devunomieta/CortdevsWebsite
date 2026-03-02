@@ -29,6 +29,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const safeMessage = (message || "").replace(/\n/g, '<br/>');
 
   try {
+    // 0. Configuration check (Hardened)
+    if (!resend) {
+      return res.status(500).json({ error: 'Feedback transmission failed. Resend API key is missing in production environment.' });
+    }
+    if (!supabase) {
+      return res.status(500).json({ error: 'Feedback transmission failed. Supabase configuration is missing in production environment.' });
+    }
+
     const feedbackHtml = `
       <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px;">
         <h2 style="color: #000; border-bottom: 2px solid #000; padding-bottom: 10px;">NEW FEEDBACK RECEIVED</h2>
