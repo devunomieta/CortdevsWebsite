@@ -56,7 +56,13 @@ export function Layout() {
   useEffect(() => {
     setIsMenuOpen(false);
     window.scrollTo(0, 0);
-  }, [location.pathname]);
+
+    // Deep link check for Google Ads / External Links
+    const params = new URLSearchParams(location.search);
+    if (params.get('start') === 'true') {
+      setIsDialogOpen(true);
+    }
+  }, [location.pathname, location.search]);
 
   const navLinks = [
     { to: "/", label: "Home" },
