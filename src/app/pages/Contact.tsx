@@ -35,6 +35,8 @@ export function Contact() {
       title: "Free Consultation",
       description: "No-obligation discovery call to explore possibilities"
     }
+  ];
+
   const contactMethods = [
     {
       icon: <Mail className="w-6 h-6" />,
