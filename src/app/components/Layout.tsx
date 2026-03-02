@@ -14,7 +14,7 @@ import { useConfig } from "../context/ConfigContext";
 import { supabase } from '../../lib/supabase';
 
 export function Layout() {
-  const { config, currency, setCurrencyCode } = useConfig();
+  const { config, currency, setCurrencyCode, isNigerian } = useConfig();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -176,10 +176,12 @@ export function Layout() {
                 <p className="text-[10px] tracking-widest text-neutral-400 uppercase mb-2 font-bold">Inquiries</p>
                 <a href="mailto:projects@cortdevs.com" className="text-xs font-semibold block truncate">projects@cortdevs.com</a>
               </div>
-              <div>
-                <p className="text-[10px] tracking-widest text-neutral-400 uppercase mb-2 font-bold">WhatsApp</p>
-                <a href="https://wa.me/2348162351372" className="text-xs font-semibold">+234 816 235 1372</a>
-              </div>
+              {isNigerian && (
+                <div>
+                  <p className="text-[10px] tracking-widest text-neutral-400 uppercase mb-2 font-bold">WhatsApp</p>
+                  <a href="https://wa.me/2348162351372" className="text-xs font-semibold">+234 816 235 1372</a>
+                </div>
+              )}
             </div>
           </motion.div>
         )}

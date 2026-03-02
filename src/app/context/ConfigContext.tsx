@@ -21,6 +21,7 @@ interface ConfigContextType {
     };
     setCurrencyCode: (code: "USD" | "NGN") => void;
     setMaintenanceMode: (enabled: boolean) => Promise<void>;
+    isNigerian: boolean;
 }
 
 const defaultConfig: BrandingConfig = {
@@ -38,28 +39,37 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     const [config, setConfig] = useState<BrandingConfig>(defaultConfig);
     const [isLoading, setIsLoading] = useState(true);
     const [currency, setCurrency] = useState({ code: "USD", symbol: "$", rate: 1 });
+    const [isNigerian, setIsNigerian] = useState(false);
 
     useEffect(() => {
-        const initCurrency = async () => {
+        const initGeoAndCurrency = async () => {
             // Hardcoded exchange rate fallback (USD to NGN ~1600 as a placeholder)
             const fallbackRate = 1600;
             try {
+                // Fetch Geo and Currency meta
+                const geoRes = await fetch("https://ipapi.co/json/");
+                const geoData = await geoRes.json();
+
+                const inNG = geoData.country_code === 'NG';
+                setIsNigerian(inNG);
+
                 const response = await fetch("https://api.frankfurter.app/latest?from=USD&to=NGN");
                 const data = await response.json();
                 const rate = data.rates?.NGN || fallbackRate;
 
                 // Check local storage for preference
                 const saved = localStorage.getItem("pref_currency") as "USD" | "NGN";
-                if (saved === "NGN") {
+                if (saved === "NGN" || (inNG && !saved)) {
                     setCurrency({ code: "NGN", symbol: "₦", rate });
                 } else {
                     setCurrency({ code: "USD", symbol: "$", rate });
                 }
             } catch (err) {
+                console.error("Geo/Currency init failed:", err);
                 setCurrency({ code: "USD", symbol: "$", rate: fallbackRate });
             }
         };
-        initCurrency();
+        initGeoAndCurrency();
     }, []);
 
     const setCurrencyCode = (code: "USD" | "NGN") => {
@@ -137,7 +147,8 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
             isLoading,
             currency,
             setCurrencyCode,
-            setMaintenanceMode
+            setMaintenanceMode,
+            isNigerian
         }}>
             {children}
         </ConfigContext.Provider>

@@ -13,7 +13,10 @@ import {
 } from "lucide-react";
 import { ContactForm } from "../components/ContactForm";
 
+import { useConfig } from "../context/ConfigContext";
+
 export function Contact() {
+  const { isNigerian } = useConfig();
   const [isSubmitted, setIsSubmitted] = useState(false);
 
   const benefits = [
@@ -32,8 +35,6 @@ export function Contact() {
       title: "Free Consultation",
       description: "No-obligation discovery call to explore possibilities"
     }
-  ];
-
   const contactMethods = [
     {
       icon: <Mail className="w-6 h-6" />,
@@ -42,25 +43,27 @@ export function Contact() {
       description: "For detailed service inquiries"
     },
     {
-      icon: <Phone className="w-6 h-6" />,
-      title: "Call Us",
-      detail: "+234 816 235 1372 / +234 704 989 8962",
-      description: "Standard business hours"
-    },
-    {
-      icon: <MessageSquare className="w-6 h-6" />,
-      title: "Live Chat",
-      detail: "WhatsApp Support",
-      description: "Instant response via DM",
-      link: "https://wa.me/2348162351372"
-    },
-    {
       icon: <Calendar className="w-6 h-6" />,
       title: "Schedule Call",
       detail: "Calendly Booking",
       description: "Automated meeting scheduling",
       link: "https://calendly.com/cortdevs"
-    }
+    },
+    ...(isNigerian ? [
+      {
+        icon: <Phone className="w-6 h-6" />,
+        title: "Call Us",
+        detail: "+234 816 235 1372 / +234 704 989 8962",
+        description: "Standard business hours"
+      },
+      {
+        icon: <MessageSquare className="w-6 h-6" />,
+        title: "Live Chat",
+        detail: "WhatsApp Support",
+        description: "Instant response via DM",
+        link: "https://wa.me/2348162351372"
+      }
+    ] : [])
   ];
 
   return (
@@ -227,13 +230,15 @@ export function Contact() {
                   </ol>
                 </div>
 
-                <div className="mt-8 bg-neutral-50 p-6 border-l-4 border-black">
-                  <p className="text-sm text-neutral-700 leading-relaxed">
-                    <strong className="font-normal">Urgent project?</strong> Call us directly at
-                    <span className="block mt-1">+2348156841952</span>
-                    and we'll prioritize your inquiry.
-                  </p>
-                </div>
+                {isNigerian && (
+                  <div className="mt-8 bg-neutral-50 p-6 border-l-4 border-black">
+                    <p className="text-sm text-neutral-700 leading-relaxed">
+                      <strong className="font-normal">Urgent project?</strong> Call us directly at
+                      <span className="block mt-1">+2348156841952</span>
+                      and we'll prioritize your inquiry.
+                    </p>
+                  </div>
+                )}
               </div>
             </motion.div>
           </div>
