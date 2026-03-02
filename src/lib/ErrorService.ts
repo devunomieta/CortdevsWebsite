@@ -49,7 +49,7 @@ class ErrorService {
             }
         }
 
-        return "An internal synchronization error occurred. The technical team has been notified.";
+        return error.message || "An internal synchronization error occurred. The technical team has been notified.";
     }
 
     private deriveFixSuggestion(error: any, location: string): string {

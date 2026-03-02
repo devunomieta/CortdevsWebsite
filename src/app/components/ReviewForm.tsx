@@ -55,15 +55,16 @@ export function ReviewForm({ onComplete }: ReviewFormProps) {
             });
 
             if (!response.ok) {
+                const responseClone = response.clone();
                 let errorMsg = 'Failed to transmit feedback';
                 try {
                     const result = await response.json();
                     errorMsg = result.error || errorMsg;
                 } catch (jsonErr) {
                     // If response is not JSON, it's likely a Vercel/Server error page
-                    const textResponse = await response.text();
+                    const textResponse = await responseClone.text();
                     console.error("Non-JSON error response from server:", textResponse);
-                    errorMsg = `Server Error (${response.status}): ${textResponse.slice(0, 100)}...`;
+                    errorMsg = `Server Error (${response.status}): ${textResponse.slice(0, 150)}...`;
                 }
                 throw new Error(errorMsg);
             }
@@ -77,7 +78,8 @@ export function ReviewForm({ onComplete }: ReviewFormProps) {
             }, 2500);
         } catch (err: any) {
             console.error("Transmission error:", err);
-            showToast(err.message || "Failed to transmit feedback. Please try again.", "error");
+            const displayMsg = await errorService.logError(err, "ReviewForm.handleSubmit");
+            showToast(displayMsg || "Failed to transmit feedback. Please try again.", "error");
             setIsSubmitting(false);
         }
     };

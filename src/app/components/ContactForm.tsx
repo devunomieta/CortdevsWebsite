@@ -186,15 +186,16 @@ export function ContactForm({ onSuccess, isPopup = false }: ContactFormProps) {
         });
 
         if (!response.ok) {
-          let errorMsg = "Intelligence Transmission Failure. Secure relay path unavailable.";
+          const responseClone = response.clone();
+          let errorMsg = "Transmission Failure. Secure relay path unavailable.";
           try {
             const resData = await response.json();
             errorMsg = resData.error || errorMsg;
           } catch (jsonErr) {
             // If response is not JSON, it's likely a Vercel/Server error page
-            const textResponse = await response.text();
+            const textResponse = await responseClone.text();
             console.error("Non-JSON error response from server:", textResponse);
-            errorMsg = `Server Error (${response.status}): ${textResponse.slice(0, 100)}...`;
+            errorMsg = `Server Error (${response.status}): ${textResponse.slice(0, 150)}...`;
           }
           throw new Error(errorMsg);
         }
@@ -207,8 +208,8 @@ export function ContactForm({ onSuccess, isPopup = false }: ContactFormProps) {
       setIsSubmitting(false);
       navigate("/success");
     } catch (err: any) {
-      const genericMsg = await errorService.logError(err, "ContactForm.handleSubmit.FullFlow");
-      setError(genericMsg);
+      const displayMsg = await errorService.logError(err, "ContactForm.handleSubmit.FullFlow");
+      setError(displayMsg ?? "Transmission Failed");
       setIsSubmitting(false);
       setIsPreview(false);
     }
