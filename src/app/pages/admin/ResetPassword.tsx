@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { supabase } from "../../../lib/supabase";
 import { motion } from "framer-motion";
 import { Lock, ShieldCheck, CheckCircle2, ArrowRight } from "lucide-react";
@@ -9,6 +9,7 @@ import { useToast } from "../../components/Toast";
 
 export function ResetPassword() {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const { showToast } = useToast();
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
@@ -16,22 +17,15 @@ export function ResetPassword() {
     const [isSuccess, setIsSuccess] = useState(false);
     const [error, setError] = useState("");
 
-    useEffect(() => {
-        // Check if we have an active session or recovery token in the URL
-        // Supabase UI handles the "recovery" type automatically if configured,
-        // but we need to ensure the user is "authenticated" or has the right metadata.
-        const checkSession = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) {
-                // If no session, it might be an invalid or expired link
-                // But Supabase often puts the user in a temporary session during recovery
-            }
-        };
-        checkSession();
-    }, [navigate]);
+    const token = searchParams.get("token");
 
     const handleUpdatePassword = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (!token) {
+            setError("Synchronization token missing from transmission. Please use the original link.");
+            return;
+        }
 
         if (password !== confirmPassword) {
             setError("Passwords do not match.");
@@ -42,17 +36,28 @@ export function ResetPassword() {
         setError("");
 
         try {
-            const { error: updateError } = await supabase.auth.updateUser({
-                password: password
+            const response = await fetch('/api/auth/reset-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token, password })
             });
 
-            if (updateError) throw updateError;
+            const data = await response.json();
 
-            // Log successful rotation
-            await supabase.from('audit_logs').insert([{
-                action: 'PASSWORD_RESET_SUCCESS',
-                target_type: 'Self'
-            }]);
+            if (!response.ok) {
+                throw new Error(data.error || "Intelligence Link Failure (Password Resynchronization).");
+            }
+
+            // Log successful rotation (using admin/public insert if allowed, 
+            // but the backend should ideally handle this log)
+            try {
+                await supabase.from('audit_logs').insert([{
+                    action: 'PASSWORD_RESET_SUCCESS',
+                    target_type: 'Self'
+                }]);
+            } catch (pErr) {
+                // Ignore audit failures if RLS blocks it, the backend should be the source of truth
+            }
 
             setIsSuccess(true);
             showToast("Access Key rotated successfully.", "success");
