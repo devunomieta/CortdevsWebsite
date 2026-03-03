@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { CheckCircle2, ArrowRight, Mail, Calendar, FileText, Users } from "lucide-react";
 import { Link } from "react-router";
+import { SEO } from "../components/SEO";
 
 export function Success() {
     const steps = [
@@ -28,6 +29,7 @@ export function Success() {
 
     return (
         <div className="bg-white pt-20 lg:pt-24 min-h-screen flex flex-col">
+            <SEO title="Success! Inquiry Received | CortDevs" description="Your inquiry has been successfully received. We'll be in touch within 24 hours." />
             <section className="flex-grow py-20 lg:py-32">
                 <div className="max-w-4xl mx-auto px-6 lg:px-8 text-center">
                     <motion.div

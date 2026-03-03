@@ -12,8 +12,20 @@ import {
   Lightbulb
 } from "lucide-react";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
+import { SEO } from "../components/SEO";
 
 export function About() {
+  const aboutPageSchema = {
+    "@context": "https://schema.org",
+    "@type": "AboutPage",
+    "mainEntity": {
+      "@type": "Organization",
+      "name": "CortDevs",
+      "description": "Elite digital agency specializing in premium web development, WordPress, Shopify, and custom solutions.",
+      "url": "https://cortdevs.com/about"
+    }
+  };
+
   const values = [
     {
       icon: <Award className="w-6 h-6" />,
@@ -107,6 +119,11 @@ export function About() {
 
   return (
     <div className="bg-white pt-20 lg:pt-24">
+      <SEO
+        title="About CortDevs | Elite Digital Agency"
+        description="Learn about CortDevs, a premium web development agency. We combine artistry with human-centric engineering to deliver high-performance digital solutions."
+        structuredData={aboutPageSchema}
+      />
       {/* Hero */}
       <section className="relative py-20 lg:py-32 bg-neutral-50 border-b border-neutral-100 overflow-hidden">
         {/* Subtle decorative background element */}

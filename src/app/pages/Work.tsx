@@ -14,8 +14,28 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ReviewForm } from "../components/ReviewForm";
+import { SEO } from "../components/SEO";
 
 export function Work() {
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      {
+        "@type": "ListItem",
+        "position": 1,
+        "name": "Home",
+        "item": "https://cortdevs.com"
+      },
+      {
+        "@type": "ListItem",
+        "position": 2,
+        "name": "Our Work",
+        "item": "https://cortdevs.com/work"
+      }
+    ]
+  };
+
   const { setIsDialogOpen } = useOutletContext<{ setIsDialogOpen: (open: boolean) => void }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const [copied, setCopied] = useState(false);
@@ -92,6 +112,11 @@ export function Work() {
 
   return (
     <div className="bg-white pt-20 lg:pt-24">
+      <SEO
+        title="Our Work | High-Impact Digital Solutions"
+        description="Explore the impact CortDevs has delivered for elite clientele. From enterprise-grade security to scalable e-commerce architectures and financial automation."
+        structuredData={breadcrumbSchema}
+      />
       {/* Hero Section */}
       <section className="py-20 lg:py-32 bg-neutral-50 border-b border-neutral-100">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">

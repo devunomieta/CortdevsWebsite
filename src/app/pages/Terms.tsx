@@ -1,8 +1,10 @@
 import { motion } from "framer-motion";
+import { SEO } from "../components/SEO";
 
 export function Terms() {
     return (
         <div className="bg-white pt-20 lg:pt-24 min-h-screen">
+            <SEO title="Terms & Conditions | CortDevs" description="Terms and Conditions for using CortDevs services. Specialized web development and technical consulting." />
             <section className="py-20 lg:py-32">
                 <div className="max-w-4xl mx-auto px-6 lg:px-8">
                     <motion.div

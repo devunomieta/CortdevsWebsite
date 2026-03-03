@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "dev": "vite",
+    "dev": "concurrently \"npm:dev:vite\" \"npm:dev:api\"",
+    "dev:vite": "vite",
     "dev:api": "tsx scripts/api-server.ts"
   },
   "dependencies": {
@@ -84,6 +85,7 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "4.7.0",
+    "concurrently": "^9.2.1",
     "tailwindcss": "4.1.12",
     "tsx": "^4.19.3",
     "vite": "^6.4.1"

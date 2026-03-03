@@ -1,8 +1,10 @@
 import { motion } from "framer-motion";
+import { SEO } from "../components/SEO";
 
 export function Privacy() {
     return (
         <div className="bg-white pt-20 lg:pt-24 min-h-screen">
+            <SEO title="Privacy Policy | CortDevs" description="CortDevs Privacy Policy. We are committed to protecting your personal data and ensuring confidentiality." />
             <section className="py-20 lg:py-32">
                 <div className="max-w-4xl mx-auto px-6 lg:px-8">
                     <motion.div
