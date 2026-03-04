@@ -26,6 +26,7 @@ import { ForgotPassword as AdminForgot } from "./pages/admin/ForgotPassword";
 import { ResetPassword as AdminReset } from "./pages/admin/ResetPassword";
 import { NotFound } from "./pages/NotFound";
 import { Maintenance } from "./pages/Maintenance";
+import { ProjectPublic } from "./pages/ProjectPublic";
 
 export const router = createBrowserRouter([
   {
@@ -35,6 +36,10 @@ export const router = createBrowserRouter([
       {
         index: true,
         element: <Home />,
+      },
+      {
+        path: "portal",
+        element: <ProjectPublic />,
       },
       {
         path: "about",

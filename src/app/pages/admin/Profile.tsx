@@ -26,11 +26,12 @@ export function Profile() {
     const [profile, setProfile] = useState({
         full_name: "",
         email: "",
-        role: "Editor",
+        role: "Client",
         avatar_url: "",
-        permissions: [] as string[]
+        permissions: ["Projects"] as string[]
     });
     const [passwordData, setPasswordData] = useState({
+        currentPassword: "",
         newPassword: "",
         confirmPassword: ""
     });
@@ -49,33 +50,54 @@ export function Profile() {
                 return;
             }
 
-            const { data, error } = await supabase
+            // 1. Fetch Profile
+            let { data, error } = await supabase
                 .from('profiles')
                 .select('*')
                 .eq('id', user.id)
                 .single();
 
+            // 2. Auto-Creation Logic: If profile missing, establish dashboard entry
+            if (error && error.code === 'PGRST116') {
+                const newProfile = {
+                    id: user.id,
+                    full_name: user.user_metadata?.full_name || "New Entity",
+                    email: user.email || "",
+                    role: user.email === 'projects@cortdevs.com' ? "Superadmin" : "Client",
+                    permissions: user.email === 'projects@cortdevs.com' ? ["Dashboard", "Leads", "Clients", "Transactions", "Intelligence", "Personnel", "Settings"] : ["Projects"]
+                };
+
+                const { data: created, error: createErr } = await supabase
+                    .from('profiles')
+                    .insert([newProfile])
+                    .select()
+                    .single();
+
+                if (createErr) throw createErr;
+                data = created;
+            }
+
             if (data) {
                 setProfile({
-                    full_name: data.full_name || "",
+                    full_name: data.full_name || user.user_metadata?.full_name || "Intelligence Agent",
                     email: data.email || user.email || "",
-                    role: data.role || "Editor",
+                    role: data.role || "Client",
                     avatar_url: data.avatar_url || "",
-                    permissions: data.permissions || []
+                    permissions: (data.permissions && data.permissions.length > 0) ? data.permissions : ["Projects"]
                 });
 
-                // Fetch personal audit
-                const { data: audit } = await supabase
-                    .from('audit_logs')
-                    .select('*')
-                    .eq('actor_id', user.id)
-                    .order('created_at', { ascending: false })
-                    .limit(5);
-
-                if (audit) setPersonalAudit(audit);
+                console.log("Intelligence Dossier Synchronized:", data);
+            } else {
+                // Absolute fallback in case data retrieval is fully blocked
+                setProfile(prev => ({
+                    ...prev,
+                    full_name: user.user_metadata?.full_name || "New Administrator",
+                    email: user.email || ""
+                }));
             }
-        } catch (err) {
-            console.error("Error fetching profile:", err);
+        } catch (err: any) {
+            console.error("Dossier retrieval error:", err);
+            showToast("Intelligence failure: Could not reconcile profile data.", "error");
         } finally {
             setIsLoading(false);
         }
@@ -88,7 +110,40 @@ export function Profile() {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
 
-            // 1. Update Profile Information
+            // 1. Password Rotation Verification
+            if (passwordData.newPassword) {
+                if (!passwordData.currentPassword) {
+                    throw new Error("Current access key required for rotation.");
+                }
+                if (passwordData.newPassword !== passwordData.confirmPassword) {
+                    throw new Error("Access key confirmation mismatch.");
+                }
+
+                // Verify current password via re-authentication
+                const { error: signInError } = await supabase.auth.signInWithPassword({
+                    email: user.email!,
+                    password: passwordData.currentPassword,
+                });
+
+                if (signInError) {
+                    throw new Error("Current access key is invalid. Rotation denied.");
+                }
+
+                // Proceed with update
+                const { error: authError } = await supabase.auth.updateUser({
+                    password: passwordData.newPassword
+                });
+                if (authError) throw authError;
+
+                await supabase.from('audit_logs').insert([{
+                    actor_id: user.id,
+                    action: 'CREDENTIAL_ROTATION',
+                    target_type: 'Self',
+                    details: { method: 'Profile Dashboard' }
+                }]);
+            }
+
+            // 2. Update Profile Metadata
             const { error: profileError } = await supabase
                 .from('profiles')
                 .update({
@@ -99,25 +154,9 @@ export function Profile() {
 
             if (profileError) throw profileError;
 
-            // 2. Handle Password Change if provided
-            if (passwordData.newPassword) {
-                if (passwordData.newPassword !== passwordData.confirmPassword) {
-                    throw new Error("Passwords do not match");
-                }
-                const { error: authError } = await supabase.auth.updateUser({
-                    password: passwordData.newPassword
-                });
-                if (authError) throw authError;
-
-                await supabase.from('audit_logs').insert([{
-                    action: 'PASSWORD_ROTATED',
-                    target_type: 'Self'
-                }]);
-            }
-
             setSaveStatus("success");
             showToast("Dossier synchronized securely.", "success");
-            setPasswordData({ newPassword: "", confirmPassword: "" });
+            setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
             setTimeout(() => setSaveStatus("idle"), 3000);
             fetchProfile();
         } catch (err: any) {
@@ -169,6 +208,15 @@ export function Profile() {
         localStorage.removeItem("admin_auth");
         navigate("/admin/login");
     };
+
+    if (isLoading) {
+        return (
+            <div className="h-[60vh] flex flex-col items-center justify-center gap-4 text-neutral-400">
+                <RefreshCw size={32} className="animate-spin" />
+                <p className="text-[10px] font-bold uppercase tracking-[0.3em]">Synchronizing Intelligence Dossier...</p>
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-4xl space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -242,26 +290,40 @@ export function Profile() {
                                 <h3 className="text-[10px] font-bold uppercase tracking-widest italic">Credential Rotation</h3>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                <div className="space-y-2">
-                                    <label className="text-[10px] uppercase tracking-widest font-bold text-neutral-400">New Access Key</label>
+                            <div className="space-y-6">
+                                <div className="space-y-2 max-w-sm">
+                                    <label className="text-[10px] uppercase tracking-widest font-bold text-neutral-400">Current Access Key</label>
                                     <input
                                         type="password"
-                                        value={passwordData.newPassword}
-                                        onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
-                                        placeholder="••••••••"
+                                        value={passwordData.currentPassword}
+                                        onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                                        placeholder="Verify existing key"
                                         className="w-full bg-neutral-50 border border-neutral-100 p-4 text-sm outline-none focus:border-black transition-all"
                                     />
+                                    <p className="text-[9px] text-neutral-400 italic">Required to authorize security modifications.</p>
                                 </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] uppercase tracking-widest font-bold text-neutral-400">Confirm Rotation</label>
-                                    <input
-                                        type="password"
-                                        value={passwordData.confirmPassword}
-                                        onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
-                                        placeholder="••••••••"
-                                        className="w-full bg-neutral-50 border border-neutral-100 p-4 text-sm outline-none focus:border-black transition-all"
-                                    />
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] uppercase tracking-widest font-bold text-neutral-400">New Access Key</label>
+                                        <input
+                                            type="password"
+                                            value={passwordData.newPassword}
+                                            onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                                            placeholder="••••••••"
+                                            className="w-full bg-neutral-50 border border-neutral-100 p-4 text-sm outline-none focus:border-black transition-all"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] uppercase tracking-widest font-bold text-neutral-400">Confirm Rotation</label>
+                                        <input
+                                            type="password"
+                                            value={passwordData.confirmPassword}
+                                            onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                                            placeholder="••••••••"
+                                            className="w-full bg-neutral-50 border border-neutral-100 p-4 text-sm outline-none focus:border-black transition-all"
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -318,13 +380,26 @@ export function Profile() {
                             <h3 className="text-[10px] font-bold uppercase tracking-[0.2em]">Intelligence Feeds</h3>
                         </div>
                         {personalAudit.length === 0 ? (
-                            <p className="text-xs text-neutral-500 italic">No critical security overrides detected in the last 24 cycles.</p>
+                            <div className="space-y-2">
+                                <p className="text-xs text-neutral-500 italic">No critical security overrides detected in the last 24 cycles.</p>
+                                <div className="w-full h-1 bg-neutral-100 rounded-full overflow-hidden">
+                                    <div className="w-1/3 h-full bg-green-400 opacity-50" />
+                                </div>
+                            </div>
                         ) : (
-                            <div className="space-y-4">
+                            <div className="space-y-6">
                                 {personalAudit.map(log => (
-                                    <div key={log.id} className="text-[10px] space-y-1">
-                                        <p className="font-bold uppercase tracking-widest text-black">{log.action.replace('_', ' ')}</p>
-                                        <p className="text-neutral-400 italic">{new Date(log.created_at).toLocaleString()}</p>
+                                    <div key={log.id} className="text-[10px] space-y-2 group">
+                                        <div className="flex items-center justify-between">
+                                            <p className="font-bold uppercase tracking-widest text-black flex items-center gap-2">
+                                                <div className="w-1.5 h-1.5 bg-black rounded-full" />
+                                                {log.action.replace('_', ' ')}
+                                            </p>
+                                            <span className="text-neutral-300 group-hover:text-neutral-500 transition-colors">
+                                                <Key size={10} />
+                                            </span>
+                                        </div>
+                                        <p className="text-neutral-400 italic pl-3.5 border-l border-neutral-100">{new Date(log.created_at).toLocaleString()}</p>
                                     </div>
                                 ))}
                             </div>

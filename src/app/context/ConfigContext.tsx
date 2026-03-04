@@ -14,6 +14,7 @@ interface ConfigContextType {
     config: BrandingConfig;
     updateConfig: (newConfig: Partial<BrandingConfig>) => Promise<void>;
     isLoading: boolean;
+    getAbstractUrl: (url: string) => string;
     currency: {
         code: string;
         symbol: string;
@@ -111,6 +112,47 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
         fetchConfig();
     }, []);
 
+    // Apply branding to DOM
+    useEffect(() => {
+        if (!config) return;
+
+        // Update Title
+        if (config.siteTitle) {
+            document.title = config.siteTitle;
+        }
+
+        // Update Favicon
+        if (config.favicon) {
+            let link: HTMLLinkElement | null = document.querySelector("link[rel*='icon']");
+            if (!link) {
+                link = document.createElement('link');
+                link.rel = 'icon';
+                document.getElementsByTagName('head')[0].appendChild(link);
+            }
+            link.href = config.favicon;
+
+            // Also update apple-touch-icon if it exists or create it
+            let appleLink: HTMLLinkElement | null = document.querySelector("link[rel='apple-touch-icon']");
+            if (!appleLink) {
+                appleLink = document.createElement('link');
+                appleLink.rel = 'apple-touch-icon';
+                document.getElementsByTagName('head')[0].appendChild(appleLink);
+            }
+            appleLink.href = config.favicon;
+        }
+
+        // Update Meta Description
+        if (config.metaDescription) {
+            let meta = document.querySelector('meta[name="description"]');
+            if (!meta) {
+                meta = document.createElement('meta');
+                meta.setAttribute('name', 'description');
+                document.getElementsByTagName('head')[0].appendChild(meta);
+            }
+            meta.setAttribute('content', config.metaDescription);
+        }
+    }, [config]);
+
     const updateConfig = async (newConfig: Partial<BrandingConfig>) => {
         const updated = { ...config, ...newConfig };
         setConfig(updated);
@@ -140,11 +182,33 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
         await updateConfig({ maintenanceMode: enabled });
     };
 
+    const getAbstractUrl = (url: string) => {
+        if (!url) return "";
+        try {
+            // If it's a supabase URL, extract the filename
+            if (url.includes("supabase.co") && url.includes("/assets/")) {
+                const parts = url.split("/");
+                return `/${parts[parts.length - 1]}`;
+            }
+            // For local paths already starting with /
+            if (url.startsWith("/")) return url;
+            // Otherwise return last segment if it looks like a path
+            if (url.includes("/")) {
+                const parts = url.split("/");
+                return `/${parts[parts.length - 1]}`;
+            }
+            return url;
+        } catch (e) {
+            return url;
+        }
+    };
+
     return (
         <ConfigContext.Provider value={{
             config,
             updateConfig,
             isLoading,
+            getAbstractUrl,
             currency,
             setCurrencyCode,
             setMaintenanceMode,

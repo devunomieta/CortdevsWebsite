@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useNavigate, useSearchParams, Link } from "react-router";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../../lib/supabase";
 
 import {
-    Search, Filter, Mail, Phone, Calendar, Clock, ChevronRight,
-    MoreHorizontal, CheckCircle2, AlertCircle, Trash2, UserPlus,
-    ExternalLink, Download, FileText, Send, Eye, RefreshCw, X
+    Search, Filter, Mail, Phone, Calendar, Clock, ChevronRight, ChevronLeft,
+    MoreHorizontal, CheckCircle2, AlertCircle, Trash2, UserPlus, User,
+    ExternalLink, Download, FileText, Send, Eye, RefreshCw, X, MessageSquare, Plus,
+    ArrowLeft
 } from "lucide-react";
 import { errorService } from "../../../lib/ErrorService";
 import { format } from "date-fns";
@@ -21,11 +22,13 @@ interface Lead {
     phone: string;
     service: string;
     budget: string;
-    status: "New" | "Contacted" | "Qualified" | "Lost" | "Converted";
+    status: "New" | "Contacted" | "Qualified" | "Lost" | "Converted" | "Closed" | "Pending";
     created_at: string; // From Supabase
     details: string;
     nda_url?: string;
     attachments?: { name: string, url: string }[];
+    onboarded_by?: string;
+    onboarder_name?: string;
 }
 
 export function Leads() {
@@ -44,7 +47,9 @@ export function Leads() {
     const [isSendingEmail, setIsSendingEmail] = useState(false);
 
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const [isConvertDialogOpen, setIsConvertDialogOpen] = useState(false);
     const [leadToDelete, setLeadToDelete] = useState<Lead | null>(null);
+    const [leadToConvert, setLeadToConvert] = useState<Lead | null>(null);
     const [isDetailsExpanded, setIsDetailsExpanded] = useState(false);
     const [leadMessages, setLeadMessages] = useState<any[]>([]);
     const [isLoadingMessages, setIsLoadingMessages] = useState(false);
@@ -52,17 +57,31 @@ export function Leads() {
 
     const itemsPerPage = 20;
     const { showToast } = useToast();
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [newLead, setNewLead] = useState({
+        name: "",
+        email: "",
+        phone: "",
+        service: "Web Development",
+        budget: "Not Specified",
+        message: "Manually Onboarded Lead"
+    });
 
     const fetchLeads = async () => {
         setIsLoading(true);
         try {
             const { data, error } = await supabase
                 .from('leads')
-                .select('*')
+                .select('*, onboarder:onboarded_by(full_name)')
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
-            setLeads(data || []);
+            const mappedData = data?.map(item => ({
+                ...item,
+                onboarder_name: item.onboarder?.full_name
+            }));
+            setLeads(mappedData || []);
+            if (data) checkAndNotifyPendingLeads(data);
         } catch (err) {
             await errorService.logError(err, "Leads.fetchLeads");
         } finally {
@@ -104,6 +123,15 @@ export function Leads() {
     };
 
     const updateLeadStatus = async (id: string, newStatus: Lead["status"]) => {
+        if (newStatus === "Converted") {
+            const lead = leads.find(l => l.id === id);
+            if (lead) {
+                setLeadToConvert(lead);
+                setIsConvertDialogOpen(true);
+                return;
+            }
+        }
+
         try {
             const { error } = await supabase
                 .from('leads')
@@ -118,10 +146,91 @@ export function Leads() {
             }
 
             showToast(`Status updated to ${newStatus}`, "success");
-        } catch (err) {
+        } catch (err: any) {
             await errorService.logError(err, "Leads.handleStatusUpdate", { id, status: newStatus });
             showToast("Failed to update status.", "error");
         }
+    };
+
+    const handleAddLead = async () => {
+        if (!newLead.name || !newLead.email) {
+            showToast("Name and Email are required.", "error");
+            return;
+        }
+
+        const { data: { session } } = await supabase.auth.getSession();
+
+        try {
+            const { error } = await supabase
+                .from('leads')
+                .insert([{
+                    ...newLead,
+                    status: 'New',
+                    onboarded_by: session?.user.id
+                }]);
+
+            if (error) throw error;
+            showToast("Manual lead created successfully.", "success");
+            setIsAddModalOpen(false);
+            fetchLeads();
+            setNewLead({
+                name: "",
+                email: "",
+                phone: "",
+                service: "Web Development",
+                budget: "Not Specified",
+                message: "Manually Onboarded Lead"
+            });
+        } catch (err: any) {
+            showToast(err.message || "Failed to create lead.", "error");
+        }
+    };
+
+    const checkAndNotifyPendingLeads = async (leadsData: Lead[]) => {
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+        const leadsToTransition = leadsData.filter(l =>
+            l.status === 'New' &&
+            new Date(l.created_at) < sevenDaysAgo
+        );
+
+        if (leadsToTransition.length === 0) return;
+
+        for (const lead of leadsToTransition) {
+            try {
+                // 1. Update status to Pending
+                await supabase
+                    .from('leads')
+                    .update({ status: 'Pending' })
+                    .eq('id', lead.id);
+
+                // 2. Add In-App Notification
+                await supabase.from('notifications').insert({
+                    type: 'Lead',
+                    message: `7-DAY ALERT: Lead ${lead.name} requires immediate attention.`,
+                    link: `/admin/leads?id=${lead.id}`,
+                    read: false
+                });
+
+                // 3. Send Email Follow-up to Lead
+                await fetch('/api/send-email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        to: lead.email,
+                        subject: "Regarding your inquiry - CortDevs",
+                        body: `Hi ${lead.name}, thank you for reaching out to CortDevs. We are currently reviewing your project details and will be in touch shortly. We appreciate your patience.`,
+                        type: 'System'
+                    })
+                });
+            } catch (err) {
+                console.error("Sweep Error for lead:", lead.id, err);
+            }
+        }
+
+        // Re-fetch to update UI state
+        fetchLeads();
     };
 
     const confirmDeleteLead = async () => {
@@ -145,17 +254,18 @@ export function Leads() {
     };
 
     const convertToClient = async (lead: Lead) => {
-        if (!confirm(`Convert ${lead.name} to a client?`)) return;
         setIsLoading(true);
         try {
             const { error: clientError } = await supabase
                 .from('clients')
                 .insert([{
                     full_name: lead.name,
+                    email: lead.email,
                     project_name: lead.service,
                     status: 'In Progress',
                     total_value: lead.budget,
                     paid_amount: '0',
+                    onboarded_by: lead.onboarded_by
                 }]);
 
             if (clientError) throw clientError;
@@ -274,12 +384,20 @@ export function Leads() {
             case "Contacted": return "bg-orange-500";
             case "Qualified": return "bg-green-500";
             case "Converted": return "bg-purple-500";
+            case "Closed": return "bg-neutral-800";
+            case "Pending": return "bg-rose-600 animate-pulse";
             default: return "bg-neutral-500";
         }
     };
 
     return (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <Link
+                to="/admin"
+                className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-neutral-400 hover:text-black transition-colors"
+            >
+                <ArrowLeft size={12} /> Back to Dashboard
+            </Link>
             <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6">
                 <div className="xl:whitespace-nowrap">
                     <h2 className="text-2xl font-light tracking-tight italic">Project Leads & Inquiries</h2>
@@ -302,11 +420,14 @@ export function Leads() {
                         onChange={(e) => setStatusFilter(e.target.value)}
                         className="flex-1 md:flex-none px-4 py-3 bg-white border border-neutral-200 text-sm outline-none focus:border-black transition-all min-w-[140px]"
                     >
-                        {["All", "New", "Contacted", "Qualified", "Converted"].map(s => (
+                        {["All", "New", "Pending", "Contacted", "Qualified", "Closed", "Converted"].map(s => (
                             <option key={s} value={s}>{s === "All" ? "All Status" : s}</option>
                         ))}
                     </select>
                     <div className="flex items-center gap-2">
+                        <div className="px-4 py-3 border border-neutral-200 bg-neutral-50 text-[10px] uppercase tracking-widest text-neutral-400 font-bold whitespace-nowrap text-center">
+                            {filteredLeads.length} Records
+                        </div>
                         <button
                             onClick={fetchLeads}
                             disabled={isLoading}
@@ -315,9 +436,12 @@ export function Leads() {
                         >
                             <RefreshCw size={18} className={`mx-auto text-neutral-500 ${isLoading ? "animate-spin" : ""}`} />
                         </button>
-                        <div className="px-4 py-3 border border-neutral-200 bg-neutral-50 text-[10px] uppercase tracking-widest text-neutral-400 font-bold whitespace-nowrap text-center">
-                            {filteredLeads.length} Records
-                        </div>
+                        <button
+                            onClick={() => setIsAddModalOpen(true)}
+                            className="bg-black text-white px-6 py-3 text-[10px] font-bold uppercase tracking-[0.2em] flex items-center gap-2 hover:bg-neutral-800 transition-all shadow-xl shadow-black/10"
+                        >
+                            Record Lead <Plus size={14} />
+                        </button>
                     </div>
                 </div>
             </div>
@@ -396,6 +520,20 @@ export function Leads() {
                                         <ChevronLeft size={14} />
                                     </button>
                                     <span>Page {currentPage} of {totalPages}</span>
+                                    <div className="flex items-center gap-2 px-2 border-l border-neutral-100 ml-2">
+                                        <span className="text-[9px] text-neutral-400">Jump:</span>
+                                        <input
+                                            type="number"
+                                            min={1}
+                                            max={totalPages}
+                                            value={currentPage}
+                                            onChange={(e) => {
+                                                const p = parseInt(e.target.value);
+                                                if (p >= 1 && p <= totalPages) setCurrentPage(p);
+                                            }}
+                                            className="w-10 py-1 bg-white border border-neutral-200 text-center outline-none focus:border-black transition-all"
+                                        />
+                                    </div>
                                     <button
                                         disabled={currentPage === totalPages}
                                         onClick={() => setCurrentPage(prev => prev + 1)}
@@ -459,6 +597,12 @@ export function Leads() {
                                             <div className="flex items-center gap-2 text-sm text-neutral-600">
                                                 <User size={14} /> {selectedLead.phone}
                                             </div>
+                                            {selectedLead.onboarder_name && (
+                                                <div className="flex items-center gap-2 text-sm text-neutral-600 mt-1">
+                                                    <Shield size={14} className="text-blue-500" />
+                                                    <span className="text-[10px] font-bold uppercase">Onboarded By:</span> {selectedLead.onboarder_name}
+                                                </div>
+                                            )}
                                         </div>
 
                                         <div className="space-y-2">
@@ -570,7 +714,7 @@ export function Leads() {
                                         <div className="pt-4 border-t border-neutral-100 space-y-4">
                                             <p className="text-[10px] uppercase tracking-widest text-neutral-400 font-bold">Update Lead Status</p>
                                             <div className="grid grid-cols-2 gap-2">
-                                                {["New", "Contacted", "Qualified", "Converted"].map(status => (
+                                                {["New", "Contacted", "Qualified", "Closed"].map(status => (
                                                     <button
                                                         key={status}
                                                         onClick={() => updateLeadStatus(selectedLead.id, status as Lead["status"])}
@@ -586,7 +730,10 @@ export function Leads() {
                                         </div>
 
                                         <button
-                                            onClick={() => convertToClient(selectedLead)}
+                                            onClick={() => {
+                                                setLeadToConvert(selectedLead);
+                                                setIsConvertDialogOpen(true);
+                                            }}
                                             disabled={isLoading}
                                             className="w-full py-4 bg-black text-white text-[10px] uppercase font-bold tracking-[0.3em] flex items-center justify-center gap-2 hover:bg-neutral-800 transition-all disabled:opacity-50"
                                         >
@@ -598,6 +745,81 @@ export function Leads() {
                                 <div className="h-full min-h-[300px] flex flex-col items-center justify-center text-neutral-400 text-sm italic p-8">
                                     <MessageSquare size={32} className="mb-4 opacity-20" />
                                     <p>Select a lead to view details</p>
+                                </div>
+                            )}
+                        </AnimatePresence>
+
+                        {/* Manual Lead Modal */}
+                        <AnimatePresence>
+                            {isAddModalOpen && (
+                                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 30 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: 30 }}
+                                        className="bg-white border border-neutral-200 w-full max-w-lg p-10 relative shadow-2xl"
+                                    >
+                                        <button onClick={() => setIsAddModalOpen(false)} className="absolute top-8 right-8 text-neutral-400 hover:text-black">
+                                            <X size={20} />
+                                        </button>
+                                        <h3 className="text-3xl font-light italic mb-8 text-black">Record Manual Lead</h3>
+
+                                        <div className="space-y-4">
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Full Name</label>
+                                                <input
+                                                    type="text"
+                                                    value={newLead.name}
+                                                    onChange={(e) => setNewLead({ ...newLead, name: e.target.value })}
+                                                    className="w-full p-4 border border-neutral-200 outline-none focus:border-black text-sm"
+                                                    placeholder="Prospect Name"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Email Address</label>
+                                                <input
+                                                    type="email"
+                                                    value={newLead.email}
+                                                    onChange={(e) => setNewLead({ ...newLead, email: e.target.value })}
+                                                    className="w-full p-4 border border-neutral-200 outline-none focus:border-black text-sm"
+                                                    placeholder="prospect@email.com"
+                                                />
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Service</label>
+                                                    <select
+                                                        value={newLead.service}
+                                                        onChange={(e) => setNewLead({ ...newLead, service: e.target.value })}
+                                                        className="w-full p-4 border border-neutral-200 outline-none focus:border-black text-[10px] uppercase font-bold"
+                                                    >
+                                                        <option>Web Development</option>
+                                                        <option>SEO Strategy</option>
+                                                        <option>App Development</option>
+                                                        <option>Consultation</option>
+                                                        <option>Brand Identity</option>
+                                                    </select>
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Budget</label>
+                                                    <input
+                                                        type="text"
+                                                        value={newLead.budget}
+                                                        onChange={(e) => setNewLead({ ...newLead, budget: e.target.value })}
+                                                        className="w-full p-4 border border-neutral-200 outline-none focus:border-black text-sm"
+                                                        placeholder="$1,000 - $5,000"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <button
+                                            onClick={handleAddLead}
+                                            className="w-full mt-8 bg-black text-white py-5 text-[10px] font-bold uppercase tracking-[0.25em] hover:bg-neutral-800 transition-all shadow-xl shadow-black/10"
+                                        >
+                                            Initiate Pipeline
+                                        </button>
+                                    </motion.div>
                                 </div>
                             )}
                         </AnimatePresence>
@@ -750,6 +972,51 @@ export function Leads() {
                                 className="flex-1 py-3 text-[10px] uppercase font-bold tracking-[0.2em] bg-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-200"
                             >
                                 Confirm Purge
+                            </button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
+
+            {isConvertDialogOpen && leadToConvert && (
+                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        className="bg-white border border-neutral-200 shadow-3xl w-full max-w-md overflow-hidden p-8 space-y-6"
+                    >
+                        <div className="space-y-4 text-center">
+                            <div className="mx-auto w-16 h-16 bg-neutral-50 flex items-center justify-center text-black border border-neutral-100">
+                                <UserPlus size={32} strokeWidth={1.5} />
+                            </div>
+                            <div className="space-y-2">
+                                <h3 className="text-xl font-light italic">Confirm Client Conversion</h3>
+                                <p className="text-sm text-neutral-500">
+                                    Are you ready to elevate <span className="font-bold text-black">{leadToConvert.name}</span> to the Client base? This will initiate the project onboarding sequence.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-4 pt-4 border-t border-neutral-100">
+                            <button
+                                onClick={() => {
+                                    setIsConvertDialogOpen(false);
+                                    setLeadToConvert(null);
+                                }}
+                                className="flex-1 py-3 text-[10px] uppercase font-bold tracking-[0.2em] border border-neutral-200 hover:bg-neutral-50"
+                            >
+                                Not Yet
+                            </button>
+                            <button
+                                onClick={() => {
+                                    convertToClient(leadToConvert);
+                                    setIsConvertDialogOpen(false);
+                                    setLeadToConvert(null);
+                                }}
+                                className="flex-1 py-3 text-[10px] uppercase font-bold tracking-[0.2em] bg-black text-white hover:bg-neutral-800 shadow-lg shadow-neutral-200"
+                            >
+                                Finalize Conversion
                             </button>
                         </div>
                     </motion.div>

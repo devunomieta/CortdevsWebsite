@@ -40,72 +40,84 @@ export function Dashboard() {
     const fetchDashboardData = async () => {
         setIsLoading(true);
         try {
-            // 1. Fetch Lead count
+            const now = new Date();
+            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+            const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
+            const sameDayLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate()).toISOString();
+
+            // 1. Fetch Active Lead count (Excluding Lost and Closed)
             const { count: leadCount } = await supabase
                 .from('leads')
+                .select('*', { count: 'exact', head: true })
+                .not('status', 'in', '("Lost","Closed")');
+
+            // 2. Fetch Client count
+            const { count: clientCount } = await supabase
+                .from('clients')
                 .select('*', { count: 'exact', head: true });
 
-            // 2. Fetch Client count & Revenue
-            const { data: clientsData, count: clientCount } = await supabase
-                .from('clients')
-                .select('total_value', { count: 'exact' });
+            // 3. Fetch Total Revenue from Transactions (Income + Completed)
+            const { data: allIncome } = await supabase
+                .from('transactions')
+                .select('amount')
+                .eq('type', 'Income')
+                .eq('status', 'Completed');
 
-            const revenue = clientsData?.reduce((acc: number, c: any) => acc + parseFloat(c.total_value.replace(/[^0-9.]/g, '') || "0"), 0) || 0;
+            const totalRevenue = allIncome?.reduce((acc: number, t: any) => acc + (t.amount || 0), 0) || 0;
 
-            // 3. Fetch Recent Leads
+            // 4. Calculate MTD Growth (Month-over-Month)
+            const { data: currentMonthTx } = await supabase
+                .from('transactions')
+                .select('amount')
+                .eq('type', 'Income')
+                .eq('status', 'Completed')
+                .gte('date', startOfMonth);
+
+            const { data: lastMonthToDateTx } = await supabase
+                .from('transactions')
+                .select('amount')
+                .eq('type', 'Income')
+                .eq('status', 'Completed')
+                .gte('date', startOfLastMonth)
+                .lte('date', sameDayLastMonth);
+
+            const currentMonthTotal = currentMonthTx?.reduce((acc: number, t: any) => acc + (t.amount || 0), 0) || 0;
+            const lastMonthToDateTotal = lastMonthToDateTx?.reduce((acc: number, t: any) => acc + (t.amount || 0), 0) || 0;
+
+            let growthValue = "0%";
+            if (lastMonthToDateTotal > 0) {
+                const diff = currentMonthTotal - lastMonthToDateTotal;
+                growthValue = `${((diff / lastMonthToDateTotal) * 100).toFixed(1)}%`;
+            } else if (currentMonthTotal > 0) {
+                growthValue = "+100%";
+            }
+
+            // 5. Fetch Recent Leads for Activity Table
             const { data: leadsData } = await supabase
                 .from('leads')
                 .select('*')
                 .order('created_at', { ascending: false })
                 .limit(4);
 
-            // 4. Calculate MTD Revenue Growth
-            const now = new Date();
-            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-            const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
-            const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0).toISOString();
-
-            const { data: currentMonthRev } = await supabase
-                .from('clients')
-                .select('total_value, created_at')
-                .gte('created_at', startOfMonth);
-
-            const { data: lastMonthRev } = await supabase
-                .from('clients')
-                .select('total_value, created_at')
-                .gte('created_at', startOfLastMonth)
-                .lte('created_at', endOfLastMonth);
-
-            const currentTotal = currentMonthRev?.reduce((acc: number, c: any) => acc + parseFloat(c.total_value.replace(/[^0-9.]/g, '') || "0"), 0) || 0;
-            const lastTotal = lastMonthRev?.reduce((acc: number, c: any) => acc + parseFloat(c.total_value.replace(/[^0-9.]/g, '') || "0"), 0) || 0;
-
-            let growth = "0%";
-            if (lastTotal > 0) {
-                growth = `${(((currentTotal - lastTotal) / lastTotal) * 100).toFixed(1)}%`;
-            } else if (currentTotal > 0) {
-                growth = "100%";
-            }
-
             setStats([
                 { label: "Active Project Leads", value: leadCount?.toString() || "0", icon: <MessageSquare />, trend: "Realtime", color: "bg-blue-500", path: "/admin/leads" },
                 { label: "Total Clients", value: clientCount?.toString() || "0", icon: <Users />, trend: "Verified", color: "bg-green-500", path: "/admin/clients" },
-                { label: "Closed Revenue", value: `$${revenue.toLocaleString()}`, icon: <DollarSign />, trend: "Confirmed", color: "bg-purple-500", path: "/admin/transactions" },
-                { label: "MTD Growth", value: growth, icon: <TrendingUp />, trend: "Comparative", color: "bg-orange-500", path: "/admin/analytics" },
+                { label: "Closed Revenue", value: `$${totalRevenue.toLocaleString()}`, icon: <DollarSign />, trend: "Confirmed", color: "bg-purple-500", path: "/admin/transactions" },
+                { label: "MTD Growth", value: growthValue, icon: <TrendingUp />, trend: "Comparative", color: "bg-orange-500", path: "/admin/analytics" },
             ]);
 
             if (leadsData) {
                 setRecentLeads(leadsData.map((l: any) => ({
                     id: l.id,
                     name: l.name,
-                    company: l.email.split('@')[0], // Mock company from email if not present
+                    company: l.email.split('@')[0],
                     service: l.service,
                     status: l.status,
                     time: new Date(l.created_at).toLocaleDateString()
                 })));
             }
-
         } catch (err) {
-            console.error("Dashboard fetch error:", err);
+            console.error("Dashboard synchronization error:", err);
         } finally {
             setIsLoading(false);
         }

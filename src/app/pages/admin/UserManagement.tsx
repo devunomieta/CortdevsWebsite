@@ -15,17 +15,34 @@ import {
     Trash2,
     Mail,
     RefreshCw,
-    X
+    X,
+    Wallet,
+    DollarSign,
+    ArrowUpRight,
+    ArrowDownLeft,
+    Banknote
 } from "lucide-react";
 
 interface AdminUser {
     id: string;
     name: string;
     email: string;
-    role: "Super Admin" | "Project Manager" | "Editor";
+    role: "Superadmin" | "Admin" | "CTO" | "Devs" | "Operations Officer" | "Sales Officer" | "Client";
     permissions: string[];
     status: "Active" | "Pending" | "Suspended";
     avatar_url?: string;
+    wallet_balance?: number;
+    wallet_type?: 'Central' | 'Personnel';
+    commission_rate?: number;
+}
+
+interface WalletTransaction {
+    id: string;
+    amount: number;
+    type: 'Credit' | 'Debit';
+    category: string;
+    description: string;
+    created_at: string;
 }
 
 interface AuditLog {
@@ -55,11 +72,16 @@ export function UserManagement() {
     const [pendingRequests, setPendingRequests] = useState<AdminUser[]>([]);
     const [provisionData, setProvisionData] = useState({
         email: "",
-        role: "Editor" as AdminUser["role"],
-        permissions: ["Settings"] as string[]
+        role: "Client" as AdminUser["role"],
+        permissions: ["Projects"] as string[]
     });
     const [isProcessing, setIsProcessing] = useState(false);
     const [duplicateInvite, setDuplicateInvite] = useState<any>(null);
+    const [selectedUserForWallet, setSelectedUserForWallet] = useState<AdminUser | null>(null);
+    const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
+    const [disburseAmount, setDisburseAmount] = useState("");
+    const [disburseDescription, setDisburseDescription] = useState("");
+    const [walletHistory, setWalletHistory] = useState<WalletTransaction[]>([]);
 
     const fetchUsers = async () => {
         setIsLoading(true);
@@ -72,15 +94,24 @@ export function UserManagement() {
             if (error) throw error;
 
             if (data) {
-                const mappedUsers: AdminUser[] = data.map((u: any) => ({
-                    id: u.id,
-                    name: u.full_name || "New User",
-                    email: u.email,
-                    role: (u.role as AdminUser["role"]) || "Editor",
-                    permissions: u.permissions || [],
-                    status: (u.status as AdminUser["status"]) || "Pending",
-                    avatar_url: u.avatar_url
-                }));
+                // Fetch wallets in parallel
+                const { data: wallets } = await supabase.from('wallets').select('*');
+
+                const mappedUsers: AdminUser[] = data.map((u: any) => {
+                    const userWallet = wallets?.find(w => w.user_id === u.id || w.email === u.email);
+                    return {
+                        id: u.id,
+                        name: u.full_name || "New User",
+                        email: u.email,
+                        role: (u.role as AdminUser["role"]) || "Client",
+                        permissions: u.permissions || [],
+                        status: (u.status as AdminUser["status"]) || "Pending",
+                        avatar_url: u.avatar_url,
+                        wallet_balance: userWallet?.balance || 0,
+                        wallet_type: userWallet?.type || 'Personnel',
+                        commission_rate: u.commission_rate || 0
+                    };
+                });
                 setUsers(mappedUsers.filter(u => u.status !== 'Pending'));
                 setPendingRequests(mappedUsers.filter(u => u.status === 'Pending'));
             }
@@ -200,28 +231,121 @@ export function UserManagement() {
         }
     };
 
-    const handleApproveUser = async (userId: string) => {
-        setIsProcessing(true);
+    const handleTogglePermission = async (userId: string, currentPermissions: string[], permission: string) => {
+        const newPermissions = currentPermissions.includes(permission)
+            ? currentPermissions.filter(p => p !== permission)
+            : [...currentPermissions, permission];
+
         try {
             const { error } = await supabase
                 .from('profiles')
-                .update({ status: 'Active' })
+                .update({ permissions: newPermissions })
                 .eq('id', userId);
 
             if (error) throw error;
-
-            await supabase.from('audit_logs').insert([{
-                action: 'USER_APPROVED',
-                target_type: 'User',
-                target_id: userId
-            }]);
-
-            showToast("User account approved.", "success");
+            showToast("System permissions synchronized.", "success");
             fetchUsers();
         } catch (err: any) {
-            showToast(err.message || "Failed to approve user.", "error");
+            showToast(err.message || "Failed to update permissions.", "error");
+        }
+    };
+
+    const handleUpdateRole = async (userId: string, newRole: AdminUser["role"]) => {
+        try {
+            const { error } = await supabase
+                .from('profiles')
+                .update({ role: newRole })
+                .eq('id', userId);
+
+            if (error) throw error;
+            showToast(`Role elevated to ${newRole}.`, "success");
+            fetchUsers();
+        } catch (err: any) {
+            showToast(err.message || "Failed to update role.", "error");
+        }
+    };
+
+    const handleUpdateCommissionRate = async (userId: string, rate: number) => {
+        try {
+            const { error } = await supabase
+                .from('profiles')
+                .update({ commission_rate: rate })
+                .eq('id', userId);
+
+            if (error) throw error;
+            showToast(`Commission rate set to ${rate}%.`, "success");
+            fetchUsers();
+        } catch (err: any) {
+            showToast(err.message || "Failed to update commission rate.", "error");
+        }
+    };
+
+    const handleDisburse = async () => {
+        if (!selectedUserForWallet || !disburseAmount) return;
+        setIsProcessing(true);
+
+        try {
+            const amount = parseFloat(disburseAmount);
+            if (isNaN(amount) || amount <= 0) throw new Error("Invalid disbursement amount.");
+
+            // 1. Get Wallet ID
+            const { data: wallet } = await supabase
+                .from('wallets')
+                .select('id, balance')
+                .eq('user_id', selectedUserForWallet.id)
+                .maybeSingle();
+
+            if (!wallet) throw new Error("Target wallet synchronization failed.");
+
+            // 2. Perform Transaction (In a real app, this should be a DB function/transaction)
+            // Credit target
+            const { error: txError } = await supabase.from('wallet_transactions').insert([{
+                wallet_id: wallet.id,
+                amount: amount,
+                type: 'Credit',
+                category: 'Disbursement',
+                description: disburseDescription || 'Administrative Disbursement'
+            }]);
+
+            if (txError) throw txError;
+
+            // Update balance
+            const { error: balError } = await supabase
+                .from('wallets')
+                .update({ balance: wallet.balance + amount })
+                .eq('id', wallet.id);
+
+            if (balError) throw balError;
+
+            // Log it
+            await supabase.from('audit_logs').insert([{
+                action: 'WALLET_DISBURSEMENT',
+                target_type: 'Wallet',
+                details: { to: selectedUserForWallet.email, amount, description: disburseDescription }
+            }]);
+
+            showToast(`Dossier funded: $${amount} successfully disbursed.`, "success");
+            setIsWalletModalOpen(false);
+            setDisburseAmount("");
+            setDisburseDescription("");
+            fetchUsers();
+        } catch (err: any) {
+            showToast(err.message || "Funds transmission failed.", "error");
         } finally {
             setIsProcessing(false);
+        }
+    };
+
+    const fetchWalletHistory = async (userId: string) => {
+        const { data: wallet } = await supabase.from('wallets').select('id').eq('user_id', userId).maybeSingle();
+        if (wallet) {
+            const { data } = await supabase
+                .from('wallet_transactions')
+                .select('*')
+                .eq('wallet_id', wallet.id)
+                .order('created_at', { ascending: false })
+                .limit(5);
+            if (data) setWalletHistory(data);
         }
     };
 
@@ -284,6 +408,7 @@ export function UserManagement() {
                                         <tr className="bg-neutral-50 text-[10px] uppercase tracking-widest text-neutral-400 font-bold">
                                             <th className="p-4">User</th>
                                             <th className="p-4">Authorization</th>
+                                            <th className="p-4">Wallet</th>
                                             <th className="p-4">Status</th>
                                             <th className="p-4 text-right">Settings</th>
                                         </tr>
@@ -303,13 +428,67 @@ export function UserManagement() {
                                                     </div>
                                                 </td>
                                                 <td className="p-4">
-                                                    <div className="flex flex-col gap-1">
-                                                        <span className="font-medium text-black">{user.role}</span>
+                                                    <div className="flex flex-col gap-2">
+                                                        <select
+                                                            value={user.role}
+                                                            onChange={(e) => handleUpdateRole(user.id, e.target.value as AdminUser["role"])}
+                                                            className="bg-transparent font-bold text-black outline-none cursor-pointer hover:underline"
+                                                        >
+                                                            <option value="Superadmin">Superadmin</option>
+                                                            <option value="Admin">Admin</option>
+                                                            <option value="CTO">CTO</option>
+                                                            <option value="Operations Officer">Operations Officer</option>
+                                                            <option value="Sales Officer">Sales Officer</option>
+                                                            <option value="Devs">Devs</option>
+                                                            <option value="Client">Client</option>
+                                                        </select>
                                                         <div className="flex gap-1 flex-wrap">
-                                                            {user.permissions.map(p => (
-                                                                <span key={p} className="text-[8px] bg-neutral-100 text-neutral-500 px-1 border border-neutral-200 uppercase font-bold">{p}</span>
+                                                            {['Dashboard', 'Leads', 'Clients', 'Transactions', 'Intelligence', 'Personnel', 'Settings'].map(perm => (
+                                                                <button
+                                                                    key={perm}
+                                                                    onClick={() => handleTogglePermission(user.id, user.permissions, perm)}
+                                                                    className={`text-[8px] px-1.5 py-0.5 border uppercase font-bold transition-all ${user.permissions.includes(perm)
+                                                                        ? "bg-black text-white border-black"
+                                                                        : "bg-neutral-50 text-neutral-300 border-neutral-100 hover:border-neutral-300"
+                                                                        }`}
+                                                                >
+                                                                    {perm}
+                                                                </button>
                                                             ))}
                                                         </div>
+                                                    </div>
+                                                </td>
+                                                <td className="p-4">
+                                                    <div className="flex flex-col gap-1">
+                                                        <div className="flex items-center gap-1.5 font-bold text-black">
+                                                            <Wallet size={12} className="text-neutral-400" />
+                                                            <span>${user.wallet_balance?.toLocaleString() || '0'}</span>
+                                                        </div>
+                                                        {user.wallet_type === 'Central' && (
+                                                            <span className="text-[7px] bg-black text-white px-1 py-0.5 uppercase tracking-widest w-fit font-bold">Treasury</span>
+                                                        )}
+                                                        <button
+                                                            onClick={() => {
+                                                                setSelectedUserForWallet(user);
+                                                                setIsWalletModalOpen(true);
+                                                                fetchWalletHistory(user.id);
+                                                            }}
+                                                            className="text-[8px] text-neutral-400 hover:text-black uppercase font-bold tracking-widest underline w-fit"
+                                                        >
+                                                            Disburse Funds
+                                                        </button>
+                                                        {user.role === 'Sales Officer' && (
+                                                            <div className="mt-2 flex items-center gap-2">
+                                                                <span className="text-[8px] font-bold uppercase text-neutral-400">Rate:</span>
+                                                                <input
+                                                                    type="number"
+                                                                    defaultValue={user.commission_rate}
+                                                                    onBlur={(e) => handleUpdateCommissionRate(user.id, parseFloat(e.target.value) || 0)}
+                                                                    className="w-10 bg-neutral-50 border border-neutral-100 px-1 py-0.5 text-[10px] font-bold text-center outline-none focus:border-black"
+                                                                />
+                                                                <span className="text-[10px] font-bold">%</span>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </td>
                                                 <td className="p-4">
@@ -336,15 +515,19 @@ export function UserManagement() {
                     <div className="bg-neutral-900 text-white p-8 space-y-8 relative overflow-hidden">
                         <h3 className="text-xl font-light italic">Role Definitons</h3>
 
-                        <div className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
                             {[
-                                { r: "Super Admin", d: "Absolute control over infrastructure and finance." },
-                                { r: "Project Manager", d: "Manage leads, CRM, and outreach modules." },
-                                { r: "Editor", d: "Manage templates, site content, and messaging." },
+                                { r: "Superadmin", d: "Absolute infrastructure & fiscal control." },
+                                { r: "Admin", d: "High-level operations (Excl. Root deletion)." },
+                                { r: "CTO", d: "Project integrity & Developer oversight." },
+                                { r: "Operations", d: "HR, Personnel, & System management." },
+                                { r: "Sales Officer", d: "Pipeline & Client relationship management." },
+                                { r: "Devs", d: "Restricted to assigned project builds." },
+                                { r: "Client", d: "Read-only access to own project metrics." },
                             ].map(role => (
                                 <div key={role.r} className="space-y-1">
                                     <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">{role.r}</p>
-                                    <p className="text-xs text-neutral-200 font-light">{role.d}</p>
+                                    <p className="text-xs text-neutral-200 font-light leading-tight">{role.d}</p>
                                 </div>
                             ))}
                         </div>
@@ -462,9 +645,13 @@ export function UserManagement() {
                                             onChange={(e) => setProvisionData({ ...provisionData, role: e.target.value as AdminUser["role"] })}
                                             className="w-full bg-neutral-50 border border-neutral-100 p-4 text-sm outline-none focus:border-black transition-all appearance-none"
                                         >
-                                            <option value="Super Admin">Super Admin (Root Access)</option>
-                                            <option value="Project Manager">Project Manager (Operations)</option>
-                                            <option value="Editor">Editor (Intelligence)</option>
+                                            <option value="Superadmin">Superadmin (Root Access)</option>
+                                            <option value="Admin">Admin (Oversight)</option>
+                                            <option value="CTO">CTO (Tech Lead)</option>
+                                            <option value="Operations Officer">Operations Officer (HR/Systems)</option>
+                                            <option value="Sales Officer">Sales Officer (Pipeline)</option>
+                                            <option value="Devs">Developer (Project Specific)</option>
+                                            <option value="Client">Client (Portfolio Access)</option>
                                         </select>
                                     </div>
                                 </div>
@@ -529,6 +716,107 @@ export function UserManagement() {
                                             </div>
                                         ))
                                     )}
+                                </div>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Wallet Disbursement Modal */}
+            <AnimatePresence>
+                {isWalletModalOpen && selectedUserForWallet && (
+                    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl">
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: 20 }}
+                            className="bg-white w-full max-w-xl grid grid-cols-1 md:grid-cols-2 overflow-hidden shadow-2xl"
+                        >
+                            {/* Left Side: Summary */}
+                            <div className="bg-neutral-900 text-white p-10 space-y-8 relative overflow-hidden">
+                                <header className="space-y-1">
+                                    <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-neutral-400">Fiscal Intelligence</p>
+                                    <h3 className="text-3xl font-light italic tracking-tight">{selectedUserForWallet.name}</h3>
+                                </header>
+
+                                <div className="space-y-6">
+                                    <div className="p-6 border border-white/10 space-y-2">
+                                        <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-500">Current Liquidity</p>
+                                        <p className="text-3xl font-light">${selectedUserForWallet.wallet_balance?.toLocaleString()}</p>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-500">Recent Registry Entries</p>
+                                        <div className="space-y-2">
+                                            {walletHistory.length === 0 ? (
+                                                <p className="text-[10px] text-white/30 italic">No recent tactical disbursements.</p>
+                                            ) : (
+                                                walletHistory.map(tx => (
+                                                    <div key={tx.id} className="flex justify-between items-center text-[10px] border-b border-white/5 pb-2">
+                                                        <span className="text-neutral-400">{new Date(tx.created_at).toLocaleDateString()}</span>
+                                                        <span className={tx.type === 'Credit' ? 'text-green-400' : 'text-red-400'}>
+                                                            {tx.type === 'Credit' ? '+' : '-'}${tx.amount}
+                                                        </span>
+                                                    </div>
+                                                ))
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="absolute bottom-0 right-0 p-8">
+                                    <Banknote size={80} className="text-white/5" />
+                                </div>
+                            </div>
+
+                            {/* Right Side: Form */}
+                            <div className="p-10 space-y-8 relative">
+                                <button
+                                    onClick={() => setIsWalletModalOpen(false)}
+                                    className="absolute top-8 right-8 text-neutral-400 hover:text-black transition-colors"
+                                >
+                                    <X size={24} />
+                                </button>
+
+                                <header className="space-y-1">
+                                    <h4 className="text-lg font-light tracking-tight italic">Disburse Funds</h4>
+                                    <p className="text-[10px] text-neutral-400 uppercase tracking-widest">Execute Commission or Salary Payment</p>
+                                </header>
+
+                                <div className="space-y-4">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Amount (USD)</label>
+                                        <div className="relative">
+                                            <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-300" size={16} />
+                                            <input
+                                                type="number"
+                                                value={disburseAmount}
+                                                onChange={(e) => setDisburseAmount(e.target.value)}
+                                                className="w-full bg-neutral-50 border border-neutral-100 p-4 pl-10 text-sm outline-none focus:border-black transition-all"
+                                                placeholder="0.00"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Description / Memo</label>
+                                        <textarea
+                                            value={disburseDescription}
+                                            onChange={(e) => setDisburseDescription(e.target.value)}
+                                            className="w-full bg-neutral-50 border border-neutral-100 p-4 text-sm outline-none focus:border-black transition-all h-24 resize-none"
+                                            placeholder="Quarterly Commission / Project Alpha Bonus"
+                                        />
+                                    </div>
+
+                                    <button
+                                        onClick={handleDisburse}
+                                        disabled={isProcessing || !disburseAmount}
+                                        className="w-full py-5 bg-black text-white text-[10px] font-bold uppercase tracking-[0.3em] flex items-center justify-center gap-3 hover:bg-neutral-800 transition-all shadow-xl shadow-black/10 disabled:opacity-50"
+                                    >
+                                        {isProcessing ? <RefreshCw size={16} className="animate-spin" /> : <ArrowUpRight size={16} />}
+                                        Execute Disbursement
+                                    </button>
                                 </div>
                             </div>
                         </motion.div>

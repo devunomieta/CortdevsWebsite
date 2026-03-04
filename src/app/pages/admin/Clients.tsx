@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, Link } from "react-router";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import {
@@ -13,6 +13,7 @@ import {
     Plus,
     Settings,
     Star,
+    Search,
     RefreshCw,
     Trash2,
     Mail,
@@ -28,9 +29,11 @@ import {
     Info,
     Layers,
     History,
-    Edit
+    Edit,
+    ArrowLeft
 } from "lucide-react";
 import { useToast } from "../../components/Toast";
+import { cn } from "../../components/ui/utils";
 
 interface Client {
     id: string;
@@ -46,6 +49,8 @@ interface Client {
         text: string;
         isPublic: boolean;
     } | null;
+    onboarded_by?: string;
+    onboarder_name?: string;
 }
 
 export function Clients() {
@@ -56,6 +61,8 @@ export function Clients() {
     const [isAddingMilestone, setIsAddingMilestone] = useState(false);
     const [newMilestone, setNewMilestone] = useState({ title: "", description: "" });
     const [isMilestoneLoading, setIsMilestoneLoading] = useState(false);
+    const [searchTerm, setSearchTerm] = useState("");
+    const [statusFilter, setStatusFilter] = useState("All");
 
     // Pagination state
     const [currentPage, setCurrentPage] = useState(1);
@@ -71,8 +78,13 @@ export function Clients() {
         company: "",
         project_name: "",
         total_value: "",
-        paid_amount: "0"
+        paid_amount: "0",
+        payment_status: "Pending" as "Pending" | "Partial" | "Full",
+        payment_method: "",
+        payment_date: new Date().toISOString().split('T')[0],
+        payment_notes: ""
     });
+    const [receiptFile, setReceiptFile] = useState<File | null>(null);
 
     // Invoice State
     const [showInvoiceModal, setShowInvoiceModal] = useState(false);
@@ -109,7 +121,28 @@ export function Clients() {
 
         setIsSubmittingManual(true);
         try {
-            // 1. Insert Client
+            let receiptUrl = "";
+
+            // 1. Upload Receipt if exists
+            if (receiptFile) {
+                const fileExt = receiptFile.name.split('.').pop();
+                const fileName = `${Math.random()}.${fileExt}`;
+                const filePath = `receipts/${fileName}`;
+
+                const { error: uploadError } = await supabase.storage
+                    .from('client-assets')
+                    .upload(filePath, receiptFile);
+
+                if (uploadError) throw uploadError;
+
+                const { data: { publicUrl } } = supabase.storage
+                    .from('client-assets')
+                    .getPublicUrl(filePath);
+
+                receiptUrl = publicUrl;
+            }
+
+            // 2. Insert Client with Payment Info
             const { data: clientData, error: clientError } = await supabase
                 .from('clients')
                 .insert([{
@@ -119,14 +152,21 @@ export function Clients() {
                     total_value: manualForm.total_value,
                     paid_amount: manualForm.paid_amount,
                     email: manualForm.email,
-                    status: 'In Progress'
+                    status: 'In Progress',
+                    // Note: These fields should exist in your 'clients' table
+                    payment_status: manualForm.payment_status,
+                    payment_method: manualForm.payment_method,
+                    payment_date: manualForm.payment_date,
+                    payment_notes: manualForm.payment_notes,
+                    receipt_url: receiptUrl,
+                    onboarded_by: (await supabase.auth.getUser()).data.user?.id
                 }])
                 .select()
                 .single();
 
             if (clientError) throw clientError;
 
-            // 2. Insert Initial Milestone
+            // 3. Insert Initial Milestone
             const { error: mileError } = await supabase
                 .from('project_milestones')
                 .insert([{
@@ -138,12 +178,23 @@ export function Clients() {
 
             if (mileError) throw mileError;
 
-            // 3. Create Notification
+            // 4. Create Notification
             await supabase.from('notifications').insert([{
                 type: 'System',
                 message: `Manually onboarded ${manualForm.full_name}`,
                 link: '/admin/clients'
             }]);
+
+            // 5. If receipt uploaded, register as document too
+            if (receiptFile && receiptUrl) {
+                await supabase.from('client_documents').insert([{
+                    client_id: clientData.id,
+                    name: `Receipt - ${manualForm.project_name}`,
+                    file_url: receiptUrl,
+                    type: receiptFile.type,
+                    size: receiptFile.size
+                }]);
+            }
 
             showToast(`${manualForm.full_name} onboarded successfully`, "success");
             setShowManualModal(false);
@@ -153,8 +204,13 @@ export function Clients() {
                 company: "",
                 project_name: "",
                 total_value: "",
-                paid_amount: "0"
+                paid_amount: "0",
+                payment_status: "Pending",
+                payment_method: "",
+                payment_date: new Date().toISOString().split('T')[0],
+                payment_notes: ""
             });
+            setReceiptFile(null);
             fetchClients();
         } catch (err: any) {
             console.error("Manual onboarding failed:", err);
@@ -457,7 +513,7 @@ export function Clients() {
         try {
             const { data, error } = await supabase
                 .from('clients')
-                .select('*')
+                .select('*, onboarder:onboarded_by(full_name)')
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
@@ -472,7 +528,8 @@ export function Clients() {
                     paid: item.paid_amount,
                     status: item.status as Client["status"],
                     email: item.email || '',
-                    review: item.review
+                    review: item.review,
+                    onboarder_name: item.onboarder?.full_name
                 }));
                 setClients(mappedClients);
             }
@@ -587,8 +644,16 @@ export function Clients() {
         }
     }, [selectedClient]);
 
-    const totalPages = Math.ceil(clients.length / itemsPerPage);
-    const paginatedClients = clients.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+    const filteredClients = clients.filter(client => {
+        const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            client.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            client.project.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesStatus = statusFilter === "All" || client.status === statusFilter;
+        return matchesSearch && matchesStatus;
+    });
+
+    const totalPages = Math.ceil(filteredClients.length / itemsPerPage);
+    const paginatedClients = filteredClients.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
     const getStatusStyle = (status: Client["status"]) => {
         switch (status) {
@@ -603,31 +668,58 @@ export function Clients() {
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6">
-                <div className="w-full">
+            <Link
+                to="/admin"
+                className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-neutral-400 hover:text-black transition-colors"
+            >
+                <ArrowLeft size={12} /> Back to Dashboard
+            </Link>
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+                <div className="lg:w-auto">
                     <h2 className="text-2xl font-light tracking-tight italic">Client Portfolios</h2>
                     <p className="text-sm text-neutral-500 mt-1">Oversee active projects, financial data, and client satisfaction.</p>
                 </div>
-                <div className="flex items-center gap-3 w-full sm:w-auto">
-                    <button
-                        onClick={fetchClients}
-                        disabled={isLoading}
-                        className="flex-1 sm:flex-none p-3 border border-neutral-200 hover:bg-neutral-50 transition-colors disabled:opacity-50"
-                        title="Refresh Clients"
+                <div className="flex flex-wrap md:flex-nowrap items-center gap-3 w-full lg:w-auto">
+                    <div className="relative flex-1 sm:w-64">
+                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+                        <input
+                            type="text"
+                            placeholder="Search portfolios..."
+                            value={searchTerm}
+                            onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                            className="w-full pl-10 pr-4 py-3 bg-white border border-neutral-200 text-[10px] uppercase tracking-widest outline-none focus:border-black transition-all"
+                        />
+                    </div>
+                    <select
+                        value={statusFilter}
+                        onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
+                        className="flex-1 sm:flex-none px-4 py-3 bg-white border border-neutral-200 text-[10px] uppercase tracking-widest outline-none focus:border-black transition-all min-w-[140px]"
                     >
-                        <RefreshCw size={18} className={`mx-auto text-neutral-500 ${isLoading ? "animate-spin" : ""}`} />
-                    </button>
-                    <button
-                        onClick={handleOnboard}
-                        className="flex-1 sm:flex-none bg-black text-white px-6 py-3 text-[10px] font-bold uppercase tracking-[0.2em] flex items-center justify-center gap-2 hover:bg-neutral-800 transition-all shadow-xl shadow-black/10"
-                    >
-                        Onboard <Plus size={14} />
-                    </button>
+                        {["All", "In Progress", "Launched", "Completed", "Maintenance"].map(s => (
+                            <option key={s} value={s}>{s === "All" ? "All Status" : s}</option>
+                        ))}
+                    </select>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={fetchClients}
+                            disabled={isLoading}
+                            className="p-3 border border-neutral-200 hover:bg-neutral-50 transition-colors disabled:opacity-50"
+                            title="Refresh Clients"
+                        >
+                            <RefreshCw size={18} className={`mx-auto text-neutral-500 ${isLoading ? "animate-spin" : ""}`} />
+                        </button>
+                        <button
+                            onClick={handleOnboard}
+                            className="bg-black text-white px-6 py-3 text-[10px] font-bold uppercase tracking-[0.2em] flex items-center justify-center gap-2 hover:bg-neutral-800 transition-all shadow-xl shadow-black/10"
+                        >
+                            Onboard <Plus size={14} />
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-                <div className="lg:col-span-3 space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+                <div className="lg:col-span-3 space-y-8">
                     <div className="bg-white border border-neutral-200 min-h-[400px]">
                         {isLoading && clients.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-32">
@@ -637,7 +729,7 @@ export function Clients() {
                         ) : clients.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-32 text-neutral-400">
                                 <Briefcase size={40} className="mb-4 opacity-20" />
-                                <p className="text-sm italic">No active clients found in the ecosystem.</p>
+                                <p className="text-sm italic">No matching portfolios found in the ecosystem.</p>
                             </div>
                         ) : (
                             <div className="overflow-x-auto">
@@ -662,14 +754,13 @@ export function Clients() {
                                                 <td className="p-6 text-neutral-300 font-mono text-xs">
                                                     {(currentPage - 1) * itemsPerPage + index + 1}
                                                 </td>
-                                                <td className="p-6">
-                                                    <p className="font-semibold text-neutral-900">{client.name}</p>
-                                                    <p className="text-xs text-neutral-500">{client.company}</p>
+                                                <td className="p-6 font-medium text-neutral-500">
+                                                    {client.company || "Direct Client"}
                                                 </td>
                                                 <td className="p-6">
-                                                    <div className="flex items-center gap-2">
-                                                        <Briefcase size={14} className="text-neutral-400" />
-                                                        <span className="font-light">{client.project}</span>
+                                                    <div className="flex flex-col">
+                                                        <p className="font-semibold text-neutral-900">{client.project}</p>
+                                                        <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest">{client.name}</p>
                                                     </div>
                                                 </td>
                                                 <td className="p-6">
@@ -695,10 +786,46 @@ export function Clients() {
                                 </table>
                             </div>
                         )}
+                        {totalPages > 1 && (
+                            <div className="flex items-center justify-between p-6 border-t border-neutral-100 text-[10px] font-bold uppercase tracking-widest text-neutral-400">
+                                <p>Showing {paginatedClients.length} of {clients.length} accounts</p>
+                                <div className="flex items-center gap-4">
+                                    <button
+                                        disabled={currentPage === 1}
+                                        onClick={() => setCurrentPage(prev => prev - 1)}
+                                        className="p-2 border border-neutral-200 hover:bg-neutral-50 transition-all disabled:opacity-30"
+                                    >
+                                        <ChevronLeft size={14} />
+                                    </button>
+                                    <span>Page {currentPage} of {totalPages}</span>
+                                    <div className="flex items-center gap-2 px-2 border-l border-neutral-100 ml-2">
+                                        <span className="text-[9px] text-neutral-400">Jump:</span>
+                                        <input
+                                            type="number"
+                                            min={1}
+                                            max={totalPages}
+                                            value={currentPage}
+                                            onChange={(e) => {
+                                                const p = parseInt(e.target.value);
+                                                if (p >= 1 && p <= totalPages) setCurrentPage(p);
+                                            }}
+                                            className="w-10 py-1 bg-white border border-neutral-200 text-center outline-none focus:border-black transition-all"
+                                        />
+                                    </div>
+                                    <button
+                                        disabled={currentPage === totalPages}
+                                        onClick={() => setCurrentPage(prev => prev + 1)}
+                                        className="p-2 border border-neutral-200 hover:bg-neutral-50 transition-all disabled:opacity-30"
+                                    >
+                                        <ChevronRight size={14} />
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="bg-neutral-900 p-8 text-white relative overflow-hidden">
+                    <div className="grid grid-cols-1 gap-8">
+                        <div className="bg-neutral-900 p-8 text-white relative overflow-hidden shadow-2xl">
                             <h3 className="text-3xl font-light italic mb-2">Revenue<br />Stream</h3>
                             <p className="text-4xl font-bold tracking-tighter">
                                 ${clients.reduce((acc, c) => acc + parseFloat(c.totalValue.replace(/[^0-9.]/g, '') || "0"), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
@@ -709,12 +836,12 @@ export function Clients() {
                             <DollarSign size={80} className="absolute -bottom-4 -right-4 opacity-5" />
                         </div>
 
-                        <div className="bg-white border border-neutral-200 p-8">
+                        <div className="bg-white border border-neutral-200 p-8 shadow-xl">
                             <h3 className="text-sm font-bold uppercase tracking-[0.2em] text-neutral-400 mb-6">Pending Review Requests</h3>
-                            <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                            <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                                 {pendingReviewClients.length === 0 ? (
-                                    <div className="py-4 text-center border border-dashed border-neutral-100 rounded">
-                                        <p className="text-[10px] text-neutral-400 uppercase font-bold tracking-widest">No pending reviews</p>
+                                    <div className="py-12 text-center border-2 border-dashed border-neutral-100 rounded">
+                                        <p className="text-[10px] text-neutral-400 uppercase font-bold tracking-widest">No pending reviews in pipeline</p>
                                     </div>
                                 ) : (
                                     pendingReviewClients.map(client => (
@@ -737,181 +864,182 @@ export function Clients() {
                     </div>
                 </div>
 
-                {/* Action Panel */}
-                <div className="space-y-6">
-                    <AnimatePresence mode="wait">
-                        {selectedClient ? (
-                            <motion.div
-                                key={selectedClient.id}
-                                initial={{ opacity: 0, scale: 0.95 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                className="bg-white border border-neutral-200 shadow-2xl overflow-hidden"
-                            >
-                                <div className="p-6 bg-neutral-900 text-white flex justify-between items-center">
-                                    <h3 className="font-bold uppercase tracking-[0.2em] text-xs">Project Dossier</h3>
-                                    <div className="flex gap-2">
-                                        <button
-                                            onClick={() => deleteClient(selectedClient.id)}
-                                            className="p-2 border border-neutral-100 hover:bg-red-600 hover:text-white transition-all text-red-500"
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
-                                        <CheckCircle2 size={16} className="text-green-400" />
-                                    </div>
-                                </div>
-
-                                <div className="p-6 md:p-8 space-y-8">
-                                    <div className="space-y-1">
-                                        <p className="text-[10px] uppercase tracking-widest text-neutral-400 font-bold">Current Milestone</p>
-                                        <p className="text-lg font-light italic leading-tight">
-                                            {currentMilestone ? currentMilestone.title : "No active milestone"}
-                                        </p>
-                                        {currentMilestone && (
-                                            <p className="text-[10px] text-orange-500 font-bold uppercase tracking-widest mt-1">
-                                                [{currentMilestone.status}]
-                                            </p>
-                                        )}
-                                    </div>
-
-                                    {/* Milestone Manager */}
-                                    <div className="space-y-4 pt-4 border-t border-neutral-50">
-                                        <div className="flex justify-between items-center">
-                                            <p className="text-[10px] uppercase tracking-widest text-neutral-400 font-bold">Milestones</p>
+                <div className="lg:col-span-2">
+                    <div className="sticky top-28 space-y-6">
+                        <AnimatePresence mode="wait">
+                            {selectedClient ? (
+                                <motion.div
+                                    key={selectedClient.id}
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    className="bg-white border border-neutral-200 shadow-2xl overflow-hidden"
+                                >
+                                    <div className="p-6 bg-neutral-900 text-white flex justify-between items-center">
+                                        <h3 className="font-bold uppercase tracking-[0.2em] text-xs">Project Dossier</h3>
+                                        <div className="flex gap-2">
                                             <button
-                                                onClick={() => setIsAddingMilestone(!isAddingMilestone)}
-                                                className="text-[10px] font-bold uppercase tracking-widest text-neutral-900 border-b border-black flex items-center gap-1"
+                                                onClick={() => deleteClient(selectedClient.id)}
+                                                className="p-2 border border-neutral-100 hover:bg-red-600 hover:text-white transition-all text-red-500"
                                             >
-                                                {isAddingMilestone ? "Cancel" : "Add New"} <PlusCircle size={12} />
+                                                <Trash2 size={16} />
+                                            </button>
+                                            <CheckCircle2 size={16} className="text-green-400" />
+                                        </div>
+                                    </div>
+
+                                    <div className="p-6 md:p-8 space-y-8">
+                                        <div className="space-y-1">
+                                            <p className="text-[10px] uppercase tracking-widest text-neutral-400 font-bold">Current Milestone</p>
+                                            <p className="text-lg font-light italic leading-tight">
+                                                {currentMilestone ? currentMilestone.title : "No active milestone"}
+                                            </p>
+                                            {currentMilestone && (
+                                                <p className="text-[10px] text-orange-500 font-bold uppercase tracking-widest mt-1">
+                                                    [{currentMilestone.status}]
+                                                </p>
+                                            )}
+                                        </div>
+
+                                        {/* Milestone Manager */}
+                                        <div className="space-y-4 pt-4 border-t border-neutral-50">
+                                            <div className="flex justify-between items-center">
+                                                <p className="text-[10px] uppercase tracking-widest text-neutral-400 font-bold">Milestones</p>
+                                                <button
+                                                    onClick={() => setIsAddingMilestone(!isAddingMilestone)}
+                                                    className="text-[10px] font-bold uppercase tracking-widest text-neutral-900 border-b border-black flex items-center gap-1"
+                                                >
+                                                    {isAddingMilestone ? "Cancel" : "Add New"} <PlusCircle size={12} />
+                                                </button>
+                                            </div>
+
+                                            <AnimatePresence>
+                                                {isAddingMilestone && (
+                                                    <motion.div
+                                                        initial={{ height: 0, opacity: 0 }}
+                                                        animate={{ height: "auto", opacity: 1 }}
+                                                        exit={{ height: 0, opacity: 0 }}
+                                                        className="overflow-hidden space-y-2 pb-4"
+                                                    >
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Milestone Title"
+                                                            value={newMilestone.title}
+                                                            onChange={(e) => setNewMilestone(prev => ({ ...prev, title: e.target.value }))}
+                                                            className="w-full p-2 text-xs border border-neutral-200 outline-none focus:border-black"
+                                                        />
+                                                        <textarea
+                                                            placeholder="Quick description..."
+                                                            value={newMilestone.description}
+                                                            onChange={(e) => setNewMilestone(prev => ({ ...prev, description: e.target.value }))}
+                                                            className="w-full p-2 text-xs border border-neutral-200 outline-none focus:border-black h-16 resize-none"
+                                                        />
+                                                        <button
+                                                            onClick={addMilestone}
+                                                            className="w-full py-2 bg-black text-white text-[10px] font-bold uppercase tracking-widest"
+                                                        >
+                                                            Deploy Milestone
+                                                        </button>
+                                                    </motion.div>
+                                                )}
+                                            </AnimatePresence>
+
+                                            <div className="space-y-3 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
+                                                {isMilestoneLoading ? (
+                                                    <div className="flex justify-center py-4"><RefreshCw size={14} className="animate-spin text-neutral-200" /></div>
+                                                ) : milestones.length === 0 ? (
+                                                    <p className="text-[10px] italic text-neutral-400">Initialize project roadmap...</p>
+                                                ) : (
+                                                    milestones.map((m) => (
+                                                        <div key={m.id} className="group/m p-3 bg-neutral-50 border border-neutral-100 space-y-2">
+                                                            <div className="flex justify-between items-start">
+                                                                <div className="flex items-center gap-2">
+                                                                    <CornerDownRight size={12} className="text-neutral-300" />
+                                                                    <span className="text-xs font-semibold">{m.title}</span>
+                                                                </div>
+                                                                <button onClick={() => deleteMilestone(m.id)} className="opacity-0 group-hover/m:opacity-100 text-red-400 hover:text-red-600 transition-all">
+                                                                    <Trash2 size={12} />
+                                                                </button>
+                                                            </div>
+                                                            <div className="flex flex-wrap gap-2">
+                                                                {['Pending', 'In Progress', 'Completed'].map((s) => (
+                                                                    <button
+                                                                        key={s}
+                                                                        onClick={() => updateMilestoneStatus(m.id, s)}
+                                                                        className={`px-2 py-0.5 text-[8px] font-bold uppercase tracking-tighter transition-all border ${m.status === s
+                                                                            ? (s === 'Completed' ? 'bg-green-600 text-white border-green-600' : s === 'In Progress' ? 'bg-orange-500 text-white border-orange-500' : 'bg-neutral-900 text-white border-neutral-900')
+                                                                            : 'bg-white text-neutral-400 border-neutral-100 hover:border-neutral-300'
+                                                                            }`}
+                                                                    >
+                                                                        {s}
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    ))
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-4 pt-6 border-t border-neutral-50">
+                                            <button
+                                                onClick={() => setShowInvoiceModal(true)}
+                                                className="w-full p-4 border border-neutral-100 flex items-center justify-between group hover:bg-neutral-900 hover:text-white transition-all"
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <FileText size={16} />
+                                                    <span className="text-[10px] font-bold uppercase tracking-widest text-left">Generate Invoice</span>
+                                                </div>
+                                                <Plus size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                                            </button>
+
+                                            <button
+                                                onClick={() => {
+                                                    setShowFullDetailsModal(true);
+                                                    setActiveDetailTab("Vault");
+                                                }}
+                                                className="w-full p-4 border border-neutral-100 flex items-center justify-between group hover:bg-neutral-900 hover:text-white transition-all text-left"
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <Download size={16} />
+                                                    <span className="text-[10px] font-bold uppercase tracking-widest">Project Assets (Mojo)</span>
+                                                </div>
+                                            </button>
+
+                                            <button
+                                                onClick={() => setShowFullDetailsModal(true)}
+                                                className="w-full p-4 bg-black text-white flex items-center justify-between group hover:bg-neutral-800 transition-all shadow-lg"
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <Layers size={16} />
+                                                    <span className="text-[10px] font-bold uppercase tracking-widest text-left">Full Details</span>
+                                                </div>
+                                                <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
                                             </button>
                                         </div>
 
-                                        <AnimatePresence>
-                                            {isAddingMilestone && (
-                                                <motion.div
-                                                    initial={{ height: 0, opacity: 0 }}
-                                                    animate={{ height: "auto", opacity: 1 }}
-                                                    exit={{ height: 0, opacity: 0 }}
-                                                    className="overflow-hidden space-y-2 pb-4"
-                                                >
-                                                    <input
-                                                        type="text"
-                                                        placeholder="Milestone Title"
-                                                        value={newMilestone.title}
-                                                        onChange={(e) => setNewMilestone(prev => ({ ...prev, title: e.target.value }))}
-                                                        className="w-full p-2 text-xs border border-neutral-200 outline-none focus:border-black"
-                                                    />
-                                                    <textarea
-                                                        placeholder="Quick description..."
-                                                        value={newMilestone.description}
-                                                        onChange={(e) => setNewMilestone(prev => ({ ...prev, description: e.target.value }))}
-                                                        className="w-full p-2 text-xs border border-neutral-200 outline-none focus:border-black h-16 resize-none"
-                                                    />
-                                                    <button
-                                                        onClick={addMilestone}
-                                                        className="w-full py-2 bg-black text-white text-[10px] font-bold uppercase tracking-widest"
-                                                    >
-                                                        Deploy Milestone
-                                                    </button>
-                                                </motion.div>
-                                            )}
-                                        </AnimatePresence>
-
-                                        <div className="space-y-3 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
-                                            {isMilestoneLoading ? (
-                                                <div className="flex justify-center py-4"><RefreshCw size={14} className="animate-spin text-neutral-200" /></div>
-                                            ) : milestones.length === 0 ? (
-                                                <p className="text-[10px] italic text-neutral-400">Initialize project roadmap...</p>
-                                            ) : (
-                                                milestones.map((m) => (
-                                                    <div key={m.id} className="group/m p-3 bg-neutral-50 border border-neutral-100 space-y-2">
-                                                        <div className="flex justify-between items-start">
-                                                            <div className="flex items-center gap-2">
-                                                                <CornerDownRight size={12} className="text-neutral-300" />
-                                                                <span className="text-xs font-semibold">{m.title}</span>
-                                                            </div>
-                                                            <button onClick={() => deleteMilestone(m.id)} className="opacity-0 group-hover/m:opacity-100 text-red-400 hover:text-red-600 transition-all">
-                                                                <Trash2 size={12} />
-                                                            </button>
-                                                        </div>
-                                                        <div className="flex flex-wrap gap-2">
-                                                            {['Pending', 'In Progress', 'Completed'].map((s) => (
-                                                                <button
-                                                                    key={s}
-                                                                    onClick={() => updateMilestoneStatus(m.id, s)}
-                                                                    className={`px-2 py-0.5 text-[8px] font-bold uppercase tracking-tighter transition-all border ${m.status === s
-                                                                        ? (s === 'Completed' ? 'bg-green-600 text-white border-green-600' : s === 'In Progress' ? 'bg-orange-500 text-white border-orange-500' : 'bg-neutral-900 text-white border-neutral-900')
-                                                                        : 'bg-white text-neutral-400 border-neutral-100 hover:border-neutral-300'
-                                                                        }`}
-                                                                >
-                                                                    {s}
-                                                                </button>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                ))
-                                            )}
-                                        </div>
+                                        {selectedClient.review && (
+                                            <div className="p-4 bg-yellow-50/50 border border-yellow-100 space-y-3">
+                                                <div className="flex gap-1">
+                                                    {[...Array(5)].map((_, i) => (
+                                                        <Star key={i} size={12} className={i < selectedClient.review!.rating ? "fill-yellow-400 text-yellow-400" : "text-neutral-200"} />
+                                                    ))}
+                                                </div>
+                                                <p className="text-xs italic text-neutral-600 leading-relaxed">"{selectedClient.review.text}"</p>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[10px] font-bold uppercase tracking-widest text-yellow-600">Public Review</span>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
-
-                                    <div className="space-y-4 pt-6 border-t border-neutral-50">
-                                        <button
-                                            onClick={() => setShowInvoiceModal(true)}
-                                            className="w-full p-4 border border-neutral-100 flex items-center justify-between group hover:bg-neutral-900 hover:text-white transition-all"
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <FileText size={16} />
-                                                <span className="text-[10px] font-bold uppercase tracking-widest text-left">Generate Invoice</span>
-                                            </div>
-                                            <Plus size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />
-                                        </button>
-
-                                        <button
-                                            onClick={() => {
-                                                setShowFullDetailsModal(true);
-                                                setActiveDetailTab("Vault");
-                                            }}
-                                            className="w-full p-4 border border-neutral-100 flex items-center justify-between group hover:bg-neutral-900 hover:text-white transition-all text-left"
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <Download size={16} />
-                                                <span className="text-[10px] font-bold uppercase tracking-widest">Project Assets (Mojo)</span>
-                                            </div>
-                                        </button>
-
-                                        <button
-                                            onClick={() => setShowFullDetailsModal(true)}
-                                            className="w-full p-4 bg-black text-white flex items-center justify-between group hover:bg-neutral-800 transition-all shadow-lg"
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <Layers size={16} />
-                                                <span className="text-[10px] font-bold uppercase tracking-widest text-left">Full Details</span>
-                                            </div>
-                                            <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
-                                        </button>
-                                    </div>
-
-                                    {selectedClient.review && (
-                                        <div className="p-4 bg-yellow-50/50 border border-yellow-100 space-y-3">
-                                            <div className="flex gap-1">
-                                                {[...Array(5)].map((_, i) => (
-                                                    <Star key={i} size={12} className={i < selectedClient.review!.rating ? "fill-yellow-400 text-yellow-400" : "text-neutral-200"} />
-                                                ))}
-                                            </div>
-                                            <p className="text-xs italic text-neutral-600 leading-relaxed">"{selectedClient.review.text}"</p>
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-[10px] font-bold uppercase tracking-widest text-yellow-600">Public Review</span>
-                                            </div>
-                                        </div>
-                                    )}
+                                </motion.div>
+                            ) : (
+                                <div className="p-12 border-2 border-dashed border-neutral-200 flex flex-col items-center justify-center text-neutral-300 text-center space-y-4">
+                                    <Briefcase size={40} className="stroke-1 opacity-20" />
+                                    <p className="text-xs italic">Select a client profile<br />to access project controls</p>
                                 </div>
-                            </motion.div>
-                        ) : (
-                            <div className="p-12 border-2 border-dashed border-neutral-200 flex flex-col items-center justify-center text-neutral-300 text-center space-y-4">
-                                <Briefcase size={40} className="stroke-1 opacity-20" />
-                                <p className="text-xs italic">Select a client profile<br />to access project controls</p>
-                            </div>
-                        )}
-                    </AnimatePresence>
+                            )}
+                        </AnimatePresence>
+                    </div>
                 </div>
             </div>
 
@@ -994,8 +1122,8 @@ export function Clients() {
                                     <h3 className="text-lg font-light italic">Manual Portfolio Entry</h3>
                                     <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest">Client & Project Initialization</p>
                                 </div>
-                                <button onClick={() => setShowManualModal(false)} className="text-neutral-400 hover:text-black">
-                                    <Settings size={20} className="animate-spin-slow" />
+                                <button onClick={() => setShowManualModal(false)} className="text-neutral-400 hover:text-black hover:rotate-90 transition-all duration-300">
+                                    <X size={20} />
                                 </button>
                             </div>
 
@@ -1057,8 +1185,71 @@ export function Clients() {
                                             type="text"
                                             value={manualForm.paid_amount}
                                             onChange={(e) => setManualForm({ ...manualForm, paid_amount: e.target.value })}
-                                            className="w-full p-3 border border-neutral-100 bg-neutral-50 focus:bg-white focus:border-black outline-none transition-all text-xs"
+                                            className="w-full p-3 border border-neutral-100 bg-neutral-50 focus:bg-white focus:border-black outline-none transition-all text-xs font-mono"
                                             placeholder="$2,500.00"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest">Payment Status</label>
+                                        <select
+                                            value={manualForm.payment_status}
+                                            onChange={(e) => setManualForm({ ...manualForm, payment_status: e.target.value as any })}
+                                            className="w-full p-3 border border-neutral-100 bg-neutral-50 focus:bg-white focus:border-black outline-none transition-all text-xs"
+                                        >
+                                            <option value="Pending">Pending / Unpaid</option>
+                                            <option value="Partial">Partial Payment</option>
+                                            <option value="Full">Fully Settled</option>
+                                        </select>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest">Payment Method</label>
+                                        <input
+                                            type="text"
+                                            value={manualForm.payment_method}
+                                            onChange={(e) => setManualForm({ ...manualForm, payment_method: e.target.value })}
+                                            className="w-full p-3 border border-neutral-100 bg-neutral-50 focus:bg-white focus:border-black outline-none transition-all text-xs"
+                                            placeholder="Bank Transfer, Stripe, Crypto..."
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest">Payment Date</label>
+                                        <input
+                                            type="date"
+                                            value={manualForm.payment_date}
+                                            onChange={(e) => setManualForm({ ...manualForm, payment_date: e.target.value })}
+                                            className="w-full p-3 border border-neutral-100 bg-neutral-50 focus:bg-white focus:border-black outline-none transition-all text-xs"
+                                        />
+                                    </div>
+                                    <div className="space-y-1 md:col-span-2">
+                                        <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest">Payment Receipt (Image/PDF)</label>
+                                        <div className="relative">
+                                            <input
+                                                type="file"
+                                                onChange={(e) => setReceiptFile(e.target.files?.[0] || null)}
+                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                                accept="image/*,.pdf"
+                                            />
+                                            <div className={cn(
+                                                "p-4 border border-dashed text-center transition-all text-xs",
+                                                receiptFile ? "bg-green-50 border-green-200 text-green-700" : "border-neutral-100 bg-neutral-50 hover:border-black"
+                                            )}>
+                                                {receiptFile ? (
+                                                    <div className="flex items-center justify-center gap-2">
+                                                        <CheckCircle2 size={14} /> {receiptFile.name}
+                                                    </div>
+                                                ) : (
+                                                    "Click to upload payment confirmation"
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-1 md:col-span-2">
+                                        <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest">Log Notes</label>
+                                        <textarea
+                                            value={manualForm.payment_notes}
+                                            onChange={(e) => setManualForm({ ...manualForm, payment_notes: e.target.value })}
+                                            placeholder="Additional internal notes regarding this transaction..."
+                                            className="w-full p-3 border border-neutral-100 bg-neutral-50 focus:bg-white focus:border-black outline-none transition-all text-xs h-20 resize-none"
                                         />
                                     </div>
                                 </div>
@@ -1090,7 +1281,7 @@ export function Clients() {
             {/* Invoice Generation Modal */}
             <AnimatePresence>
                 {showInvoiceModal && selectedClient && (
-                    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/60 backdrop-blur-lg overflow-y-auto print:bg-white print:p-0">
+                    <div className="fixed inset-0 z-[160] flex items-center justify-center p-4 bg-black/60 backdrop-blur-lg overflow-y-auto print:bg-white print:p-0">
                         <motion.div
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
@@ -1331,15 +1522,36 @@ export function Clients() {
                                                                 <Briefcase size={16} className="text-neutral-400" />
                                                                 <span className="text-sm">{selectedClient.company}</span>
                                                             </div>
+                                                            {selectedClient.onboarder_name && (
+                                                                <div className="flex items-center gap-3 pt-4 border-t border-neutral-100">
+                                                                    <Shield size={16} className="text-blue-500" />
+                                                                    <div>
+                                                                        <p className="text-[10px] font-bold uppercase text-neutral-400">Onboarded By</p>
+                                                                        <p className="text-sm font-semibold">{selectedClient.onboarder_name}</p>
+                                                                    </div>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </div>
 
-                                                    <div className="p-6 border border-yellow-100 bg-yellow-50/30">
-                                                        <p className="text-[10px] font-bold uppercase tracking-widest text-yellow-600 mb-2 flex items-center gap-2">
+                                                    <div className={cn(
+                                                        "p-6 border",
+                                                        milestones.some(m => m.status === 'Pending' && (new Date().getTime() - new Date(m.created_at).getTime()) > 7 * 24 * 60 * 60 * 1000)
+                                                            ? "border-rose-100 bg-rose-50/30"
+                                                            : "border-yellow-100 bg-yellow-50/30"
+                                                    )}>
+                                                        <p className={cn(
+                                                            "text-[10px] font-bold uppercase tracking-widest mb-2 flex items-center gap-2",
+                                                            milestones.some(m => m.status === 'Pending' && (new Date().getTime() - new Date(m.created_at).getTime()) > 7 * 24 * 60 * 60 * 1000)
+                                                                ? "text-rose-600"
+                                                                : "text-yellow-600"
+                                                        )}>
                                                             <Shield size={12} /> Compliance Status
                                                         </p>
                                                         <p className="text-xs italic text-neutral-600 leading-relaxed">
-                                                            All contractual milestones are currently synced with the master agreement. No flags detected.
+                                                            {milestones.some(m => m.status === 'Pending' && (new Date().getTime() - new Date(m.created_at).getTime()) > 7 * 24 * 60 * 60 * 1000)
+                                                                ? "FLAGGED: Delayed milestones detected in project roadmap. Review required."
+                                                                : "SYNCHRONIZED: All contractual milestones are currently within acceptable range. No flags detected."}
                                                         </p>
                                                     </div>
                                                 </div>
@@ -1350,9 +1562,9 @@ export function Clients() {
                                                         <div className="bg-neutral-900 text-white p-10 relative overflow-hidden">
                                                             <h4 className="text-3xl font-light italic mb-4">{selectedClient.project}</h4>
                                                             <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">
-                                                                <span>Active Development</span>
+                                                                <span className={cn(selectedClient.status === 'In Progress' ? "text-white" : "text-white/40")}>Active Development</span>
                                                                 <span className="w-1 h-1 bg-white/20 rounded-full"></span>
-                                                                <span>Provisioned</span>
+                                                                <span className={cn(['Launched', 'Completed'].includes(selectedClient.status) ? "text-white" : "text-white/40")}>Provisioned</span>
                                                             </div>
                                                             <Briefcase size={120} className="absolute -bottom-10 -right-10 opacity-5" />
                                                         </div>
@@ -1496,7 +1708,6 @@ export function Clients() {
                                                         <button
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
-                                                                setShowFullDetailsModal(false);
                                                                 setShowInvoiceModal(true);
                                                             }}
                                                             className="text-[10px] font-bold uppercase tracking-widest text-black flex items-center gap-2 hover:bg-neutral-100 px-3 py-1 transition-all"

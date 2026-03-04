@@ -26,6 +26,7 @@ export function AdminLayout() {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
     const [unreadCount, setUnreadCount] = useState(0);
+    const [userProfile, setUserProfile] = useState<{ role: string; permissions: string[] } | null>(null);
     const location = useLocation();
     const navigate = useNavigate();
     const { config } = useConfig();
@@ -49,6 +50,18 @@ export function AdminLayout() {
         if (!error && count !== null) setUnreadCount(count);
     };
 
+    const fetchUserProfile = async (userId: string) => {
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('role, permissions')
+            .eq('id', userId)
+            .single();
+
+        if (!error && data) {
+            setUserProfile(data);
+        }
+    };
+
     useEffect(() => {
         const checkAuth = async () => {
             const { data: { session } } = await supabase.auth.getSession();
@@ -63,6 +76,7 @@ export function AdminLayout() {
 
             if (session) {
                 fetchUnreadCount();
+                fetchUserProfile(session.user.id);
 
                 // Real-time listener for badge
                 const channel = supabase
@@ -86,16 +100,24 @@ export function AdminLayout() {
         setIsMobileMenuOpen(false);
     }, [location]);
 
-    const menuItems = [
-        { icon: <LayoutDashboard size={20} />, label: "Dashboard", path: "/admin" },
-        { icon: <MessageSquare size={20} />, label: "Leads & Projects", path: "/admin/leads" },
-        { icon: <Users size={20} />, label: "Clients", path: "/admin/clients" },
-        { icon: <DollarSign size={20} />, label: "Transactions", path: "/admin/transactions" },
-        { icon: <BarChart3 size={20} />, label: "Analytics Hub", path: "/admin/analytics" },
-        { icon: <Mail size={20} />, label: "Communications", path: "/admin/comms" },
-        { icon: <ShieldCheck size={20} />, label: "Team & Roles", path: "/admin/users" },
-        { icon: <Settings size={20} />, label: "Site Settings", path: "/admin/settings" },
+    const allItems = [
+        { icon: <LayoutDashboard size={20} />, label: "Dashboard", path: "/admin", permission: "Dashboard" },
+        { icon: <MessageSquare size={20} />, label: "Leads & Projects", path: "/admin/leads", permission: "Leads" },
+        { icon: <Users size={20} />, label: "Clients", path: "/admin/clients", permission: "Clients" },
+        { icon: <DollarSign size={20} />, label: "Transactions", path: "/admin/transactions", permission: "Transactions" },
+        { icon: <BarChart3 size={20} />, label: "Analytics Hub", path: "/admin/analytics", permission: "Intelligence" },
+        { icon: <Mail size={20} />, label: "Communications", path: "/admin/comms", permission: "Communications" },
+        { icon: <ShieldCheck size={20} />, label: "Team & Roles", path: "/admin/users", permission: "Personnel" },
+        { icon: <Settings size={20} />, label: "Site Settings", path: "/admin/settings", permission: "Settings" },
     ];
+
+    const menuItems = allItems.filter(item => {
+        if (!userProfile) return false;
+        if (userProfile.role === 'Superadmin' || userProfile.role === 'Admin') return true;
+
+        // Match against explicit permissions
+        return userProfile.permissions?.includes(item.permission);
+    });
 
     const handleLogout = () => {
         localStorage.removeItem("admin_auth");

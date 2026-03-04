@@ -31,6 +31,9 @@ export function ServerErrors() {
     const [isLoading, setIsLoading] = useState(true);
     const [selectedError, setSelectedError] = useState<ServerError | null>(null);
     const [filter, setFilter] = useState<'All' | 'Unresolved' | 'Investigating' | 'Resolved'>('Unresolved');
+    const [searchQuery, setSearchQuery] = useState("");
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 8;
 
     useEffect(() => {
         fetchErrors();
@@ -51,12 +54,24 @@ export function ServerErrors() {
             const { data, error } = await query;
             if (error) throw error;
             setErrors(data || []);
+            setCurrentPage(1); // Reset to first page on fetch/filter change
         } catch (err) {
             console.error("Failed to fetch error logs:", err);
         } finally {
             setIsLoading(false);
         }
     };
+
+    const filteredErrors = errors.filter(err =>
+        err.message.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        err.location.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    const totalPages = Math.ceil(filteredErrors.length / itemsPerPage);
+    const paginatedErrors = filteredErrors.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+    );
 
     const updateStatus = async (id: string, status: ServerError['status']) => {
         try {
@@ -115,7 +130,18 @@ export function ServerErrors() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                <div className="lg:col-span-5 space-y-4">
+                <div className="lg:col-span-5 space-y-6">
+                    <div className="relative group">
+                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+                        <input
+                            type="text"
+                            placeholder="Search logs (message, location)..."
+                            value={searchQuery}
+                            onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                            className="w-full pl-10 pr-4 py-3 bg-white border border-neutral-200 text-[10px] uppercase font-bold tracking-widest outline-none focus:border-black transition-all"
+                        />
+                    </div>
+
                     {isLoading && errors.length === 0 ? (
                         <div className="h-40 flex items-center justify-center font-mono text-[10px] text-neutral-300">
                             SCANNING_FOR_ANOMALIES...
@@ -126,31 +152,63 @@ export function ServerErrors() {
                             <p className="text-[10px] uppercase font-bold tracking-widest text-neutral-400">Atmosphere Clear</p>
                         </div>
                     ) : (
-                        <div className="max-h-[600px] overflow-y-auto pr-2 space-y-3 thin-scrollbar">
-                            {errors.map((error) => (
-                                <motion.div
-                                    key={error.id}
-                                    layoutId={error.id}
-                                    onClick={() => setSelectedError(error)}
-                                    className={`p-4 border transition-all cursor-pointer group ${selectedError?.id === error.id
+                        <div className="space-y-3">
+                            <div className="max-h-[600px] overflow-y-auto pr-2 space-y-3 thin-scrollbar">
+                                {paginatedErrors.map((error) => (
+                                    <motion.div
+                                        key={error.id}
+                                        layoutId={error.id}
+                                        onClick={() => setSelectedError(error)}
+                                        className={`p-4 border transition-all cursor-pointer group ${selectedError?.id === error.id
                                             ? "border-black bg-neutral-50"
                                             : "border-neutral-200 hover:border-neutral-400 bg-white"
-                                        }`}
-                                >
-                                    <div className="flex justify-between items-start mb-2">
-                                        <div className="flex items-center gap-2">
-                                            <div className={`w-1.5 h-1.5 rounded-full ${error.status === 'Unresolved' ? "bg-red-500" :
+                                            }`}
+                                    >
+                                        <div className="flex justify-between items-start mb-2">
+                                            <div className="flex items-center gap-2">
+                                                <div className={`w-1.5 h-1.5 rounded-full ${error.status === 'Unresolved' ? "bg-red-500" :
                                                     error.status === 'Investigating' ? "bg-amber-500" : "bg-green-500"
-                                                }`} />
-                                            <span className="text-[10px] font-mono text-neutral-400">@ {error.location}</span>
+                                                    }`} />
+                                                <span className="text-[10px] font-mono text-neutral-400">@ {error.location}</span>
+                                            </div>
+                                            <span className="text-[9px] font-bold text-neutral-300 uppercase tracking-tighter">
+                                                {format(new Date(error.created_at), 'HH:mm:ss')}
+                                            </span>
                                         </div>
-                                        <span className="text-[9px] font-bold text-neutral-300 uppercase tracking-tighter">
-                                            {format(new Date(error.created_at), 'HH:mm:ss')}
-                                        </span>
+                                        <p className="text-xs font-medium text-black line-clamp-2 leading-relaxed italic">{error.message}</p>
+                                    </motion.div>
+                                ))}
+
+                                {paginatedErrors.length === 0 && searchQuery && (
+                                    <div className="p-8 border border-dashed border-neutral-200 text-center">
+                                        <p className="text-[10px] uppercase font-bold tracking-widest text-neutral-300">No search matches found</p>
                                     </div>
-                                    <p className="text-xs font-medium text-black line-clamp-2 leading-relaxed italic">{error.message}</p>
-                                </motion.div>
-                            ))}
+                                )}
+                            </div>
+
+                            {totalPages > 1 && (
+                                <div className="pt-4 flex items-center justify-between border-t border-neutral-100">
+                                    <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-400">
+                                        Page {currentPage} of {totalPages}
+                                    </p>
+                                    <div className="flex gap-1">
+                                        <button
+                                            disabled={currentPage === 1}
+                                            onClick={() => setCurrentPage(prev => prev - 1)}
+                                            className="px-3 py-1 text-[10px] font-bold uppercase border border-neutral-200 disabled:opacity-30 hover:border-black transition-all"
+                                        >
+                                            Prev
+                                        </button>
+                                        <button
+                                            disabled={currentPage === totalPages}
+                                            onClick={() => setCurrentPage(prev => prev + 1)}
+                                            className="px-3 py-1 text-[10px] font-bold uppercase border border-neutral-200 disabled:opacity-30 hover:border-black transition-all"
+                                        >
+                                            Next
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

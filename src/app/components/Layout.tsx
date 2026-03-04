@@ -26,19 +26,25 @@ export function Layout() {
       const isAdminPath = location.pathname.startsWith('/admin');
       const isMaintenancePath = location.pathname === '/maintenance';
 
+      // 1. If maintenance is ACTIVE and user is NOT an admin/on admin path
       if (config.maintenanceMode && !isAdminPath && !isMaintenancePath) {
         try {
-          // Check for admin session
+          // Robust Admin verification
           const { data: { session } } = await supabase.auth.getSession();
-          const isAdmin = !!session || localStorage.getItem("admin_auth");
+          const isAdmin = !!session || localStorage.getItem("admin_auth") === "true";
 
           if (!isAdmin) {
             navigate('/maintenance', { replace: true });
           }
         } catch (err) {
-          console.error("Maintenance check error:", err);
+          // Fail secure: if check fails, redirect to maintenance
           navigate('/maintenance', { replace: true });
         }
+      }
+
+      // 2. If maintenance is INACTIVE but user is stuck on /maintenance page
+      if (!config.maintenanceMode && isMaintenancePath) {
+        navigate('/', { replace: true });
       }
     };
 
