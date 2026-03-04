@@ -508,38 +508,94 @@ export function Settings() {
                                                         </div>
                                                     </>
                                                 ) : (
-                                                    <>
-                                                        <div className="space-y-1">
-                                                            <label className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Public Key / Client ID</label>
-                                                            <input
-                                                                type="text"
-                                                                value={gatewayConfig.publicKey || ""}
-                                                                onChange={(e) => setGatewayConfig({ ...gatewayConfig, publicKey: e.target.value })}
-                                                                className="w-full p-4 border border-neutral-200 outline-none focus:border-black text-xs font-mono"
-                                                                placeholder="pk_test_..."
-                                                            />
+                                                    <div className="space-y-6">
+                                                        <div className="flex items-center justify-between p-4 bg-neutral-900 border border-neutral-800">
+                                                            <div className="space-y-1">
+                                                                <h4 className="text-[10px] font-bold uppercase tracking-widest text-white">Test Mode Environment</h4>
+                                                                <p className="text-[9px] text-neutral-400 italic">Toggle between Sandbox and Production</p>
+                                                            </div>
+                                                            <button
+                                                                onClick={() => setGatewayConfig({ ...gatewayConfig, isTestMode: !gatewayConfig.isTestMode })}
+                                                                className={`w-12 h-6 flex items-center px-1 transition-all ${gatewayConfig.isTestMode ? 'bg-orange-500' : 'bg-neutral-800'}`}
+                                                            >
+                                                                <div className={`w-4 h-4 bg-white transition-all transform ${gatewayConfig.isTestMode ? 'translate-x-6' : 'translate-x-0'}`} />
+                                                            </button>
                                                         </div>
-                                                        <div className="space-y-1">
-                                                            <label className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Secret Key / Secret ID</label>
-                                                            <div className="relative">
-                                                                <input
-                                                                    type="password"
-                                                                    value={gatewayConfig.secretKey || ""}
-                                                                    onChange={(e) => setGatewayConfig({ ...gatewayConfig, secretKey: e.target.value })}
-                                                                    className="w-full p-4 border border-neutral-200 outline-none focus:border-black text-xs font-mono pr-12"
-                                                                    placeholder="sk_test_..."
-                                                                />
-                                                                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-300">
-                                                                    <Lock size={14} />
+
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6 border-b border-neutral-100">
+                                                            <div className="space-y-4">
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className="h-px bg-neutral-200 flex-1" />
+                                                                    <span className="text-[8px] font-bold uppercase tracking-[0.2em] text-neutral-400">Live Credentials</span>
+                                                                    <div className="h-px bg-neutral-200 flex-1" />
+                                                                </div>
+                                                                <div className="space-y-1">
+                                                                    <label className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Public Key (Live)</label>
+                                                                    <input
+                                                                        type="text"
+                                                                        value={gatewayConfig.publicKey || ""}
+                                                                        onChange={(e) => setGatewayConfig({ ...gatewayConfig, publicKey: e.target.value })}
+                                                                        className="w-full p-4 border border-neutral-200 outline-none focus:border-black text-xs font-mono"
+                                                                        placeholder="pk_live_..."
+                                                                    />
+                                                                </div>
+                                                                <div className="space-y-1">
+                                                                    <label className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Secret Key (Live)</label>
+                                                                    <div className="relative">
+                                                                        <input
+                                                                            type="password"
+                                                                            value={gatewayConfig.secretKey || ""}
+                                                                            onChange={(e) => setGatewayConfig({ ...gatewayConfig, secretKey: e.target.value })}
+                                                                            className="w-full p-4 border border-neutral-200 outline-none focus:border-black text-xs font-mono pr-12"
+                                                                            placeholder="sk_live_..."
+                                                                        />
+                                                                        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-300">
+                                                                            <Lock size={14} />
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="space-y-4 opacity-75 grayscale hover:opacity-100 hover:grayscale-0 transition-all">
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className="h-px bg-orange-200/20 flex-1" />
+                                                                    <span className="text-[8px] font-bold uppercase tracking-[0.2em] text-orange-500/80">Test Credentials</span>
+                                                                    <div className="h-px bg-orange-200/20 flex-1" />
+                                                                </div>
+                                                                <div className="space-y-1">
+                                                                    <label className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Public Key (Test)</label>
+                                                                    <input
+                                                                        type="text"
+                                                                        value={gatewayConfig.testPublicKey || ""}
+                                                                        onChange={(e) => setGatewayConfig({ ...gatewayConfig, testPublicKey: e.target.value })}
+                                                                        className="w-full p-4 border border-orange-100 bg-orange-50/10 outline-none focus:border-orange-500 text-xs font-mono"
+                                                                        placeholder="pk_test_..."
+                                                                    />
+                                                                </div>
+                                                                <div className="space-y-1">
+                                                                    <label className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Secret Key (Test)</label>
+                                                                    <div className="relative">
+                                                                        <input
+                                                                            type="password"
+                                                                            value={gatewayConfig.testSecretKey || ""}
+                                                                            onChange={(e) => setGatewayConfig({ ...gatewayConfig, testSecretKey: e.target.value })}
+                                                                            className="w-full p-4 border border-orange-100 bg-orange-50/10 outline-none focus:border-orange-500 text-xs font-mono pr-12"
+                                                                            placeholder="sk_test_..."
+                                                                        />
+                                                                        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-orange-300">
+                                                                            <Zap size={14} />
+                                                                        </div>
+                                                                    </div>
                                                                 </div>
                                                             </div>
                                                         </div>
-                                                        <div className="p-4 bg-neutral-50 border border-neutral-100">
+
+                                                        <div className="p-4 bg-black border border-neutral-800">
                                                             <p className="text-[9px] text-neutral-400 uppercase tracking-widest leading-relaxed italic">
-                                                                Keys are encrypted at rest and transmitted over secure SSL/TLS.
+                                                                All credentials are encrypted and proxied through SSL/TLS logic.
                                                             </p>
                                                         </div>
-                                                    </>
+                                                    </div>
                                                 )}
                                             </div>
 

@@ -21,6 +21,8 @@ import {
     Landmark,
     Banknote
 } from "lucide-react";
+import { PaystackButton } from "react-paystack";
+import { useToast } from "../components/Toast";
 
 export function ProjectPublic() {
     const [email, setEmail] = useState("");
@@ -34,6 +36,8 @@ export function ProjectPublic() {
     const [showProjectPicker, setShowProjectPicker] = useState(false);
     const [selectedGateway, setSelectedGateway] = useState<any | null>(null);
     const [isSubmittingReceipt, setIsSubmittingReceipt] = useState(false);
+    const [paymentAmount, setPaymentAmount] = useState<string>("");
+    const { showToast } = useToast();
 
     // Fetch enabled gateways on load
     useEffect(() => {
@@ -69,7 +73,11 @@ export function ProjectPublic() {
                 setError("No tactical dossiers matched these coordinates.");
             } else {
                 setProjects(data);
-                if (data[0]) fetchDocuments(data[0].id);
+                if (data[0]) {
+                    fetchDocuments(data[0].id);
+                    const bal = calculateBalance(data[0].total_value, data[0].paid_amount).replace(/[^0-9.]/g, '');
+                    setPaymentAmount(bal);
+                }
             }
         } catch (err: any) {
             setError("Synchronization failure. Secure systems offline.");
@@ -177,6 +185,44 @@ export function ProjectPublic() {
         } finally {
             setIsSubmittingReceipt(false);
         }
+    };
+
+    const handlePaymentSuccess = async (reference: any) => {
+        if (!project || !selectedGateway) return;
+
+        const amountNum = parseFloat(paymentAmount) || 0;
+
+        try {
+            // Call secure API to verify and update
+            const response = await fetch('/api/payments/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    reference: reference.reference,
+                    projectId: project.id,
+                    gatewayId: selectedGateway.id,
+                    amount: amountNum
+                })
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) throw new Error(result.error || "Synchronization failure.");
+
+            // Clear selected gateway and show success
+            setSelectedGateway(null);
+            showToast("Digital Settlement Verified. Your project dossier has been updated in real-time.", "success");
+
+            // Refresh projects
+            handleSearch({ preventDefault: () => { } } as any);
+        } catch (err: any) {
+            console.error("Payment sync failed:", err);
+            showToast(err.message || "Payment successful but synchronization failed. Please contact support.", "error");
+        }
+    };
+
+    const handlePaymentClose = () => {
+        showToast("Settlement operation aborted by operator.", "warning");
     };
 
     const project = projects[selectedIndex];
@@ -441,9 +487,25 @@ export function ProjectPublic() {
                                                 initial={{ opacity: 0, height: 0 }}
                                                 animate={{ opacity: 1, height: "auto" }}
                                                 exit={{ opacity: 0, height: 0 }}
-                                                className="overflow-hidden"
                                             >
                                                 <div className="p-6 bg-white border border-black space-y-6">
+                                                    <div className="space-y-4 pb-6 border-b border-neutral-100">
+                                                        <div className="space-y-1">
+                                                            <p className="text-[8px] font-bold uppercase tracking-widest text-neutral-400">Payment Amount (USD)</p>
+                                                            <div className="relative">
+                                                                <input
+                                                                    type="number"
+                                                                    value={paymentAmount}
+                                                                    onChange={(e) => setPaymentAmount(e.target.value)}
+                                                                    className="w-full p-4 pl-10 border border-black text-sm font-bold focus:bg-neutral-50 outline-none transition-all"
+                                                                    placeholder="0.00"
+                                                                />
+                                                                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400 text-xs font-bold leading-none">$</div>
+                                                            </div>
+                                                            <p className="text-[9px] text-neutral-400 italic">Adjust if you wish to make a partial deposit.</p>
+                                                        </div>
+                                                    </div>
+
                                                     <header className="flex justify-between items-start">
                                                         <div className="space-y-1">
                                                             <p className="text-[8px] font-bold uppercase tracking-widest text-neutral-400">Selected Gateway</p>
@@ -494,16 +556,35 @@ export function ProjectPublic() {
                                                             </div>
                                                         </div>
                                                     ) : (
-                                                        <div className="space-y-4">
-                                                            <div className="p-6 text-center border border-dashed border-neutral-100 bg-neutral-50">
-                                                                <p className="text-[10px] text-neutral-400 uppercase tracking-widest italic">
-                                                                    Redirecting to secure {selectedGateway.name} checkout...
-                                                                </p>
+                                                        selectedGateway.id === 'paystack' ? (
+                                                            <div className="space-y-4">
+                                                                <div className="p-6 text-center border border-dashed border-neutral-100 bg-neutral-50">
+                                                                    <p className="text-[10px] text-neutral-400 uppercase tracking-widest italic leading-relaxed">
+                                                                        You are about to settle the balance for <span className="text-black font-bold">{project.project_name}</span> using our secure Paystack interface.
+                                                                    </p>
+                                                                </div>
+                                                                <PaystackButton
+                                                                    className="w-full py-4 bg-black text-white text-[10px] font-bold uppercase tracking-[0.3em] hover:bg-neutral-800 transition-all flex items-center justify-center gap-3"
+                                                                    publicKey={selectedGateway.config?.isTestMode ? selectedGateway.config?.testPublicKey : selectedGateway.config?.publicKey || ""}
+                                                                    email={project.email}
+                                                                    amount={Math.round((parseFloat(paymentAmount) || 0) * 100)}
+                                                                    text="Execute Settlement"
+                                                                    onSuccess={handlePaymentSuccess}
+                                                                    onClose={handlePaymentClose}
+                                                                />
                                                             </div>
-                                                            <button className="w-full py-4 bg-black text-white text-[10px] font-bold uppercase tracking-[0.3em] hover:bg-neutral-800 transition-all flex items-center justify-center gap-3">
-                                                                Launch Settlement <ArrowRight size={14} />
-                                                            </button>
-                                                        </div>
+                                                        ) : (
+                                                            <div className="space-y-4">
+                                                                <div className="p-6 text-center border border-dashed border-neutral-100 bg-neutral-50">
+                                                                    <p className="text-[10px] text-neutral-400 uppercase tracking-widest italic">
+                                                                        Redirecting to secure {selectedGateway.name} checkout...
+                                                                    </p>
+                                                                </div>
+                                                                <button className="w-full py-4 bg-black text-white text-[10px] font-bold uppercase tracking-[0.3em] hover:bg-neutral-800 transition-all flex items-center justify-center gap-3">
+                                                                    Launch Settlement <ArrowRight size={14} />
+                                                                </button>
+                                                            </div>
+                                                        )
                                                     )}
                                                 </div>
                                             </motion.div>
