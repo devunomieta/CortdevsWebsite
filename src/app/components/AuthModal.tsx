@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Lock, Mail, ArrowRight, ShieldCheck, Loader2 } from "lucide-react";
-import { supabase } from "../lib/supabase";
-import { errorService } from "../lib/ErrorService";
+import { supabase } from "../../lib/supabase";
+import { errorService } from "../../lib/ErrorService";
 
 interface AuthModalProps {
     isOpen: boolean;
