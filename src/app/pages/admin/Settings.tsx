@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "react-router";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Upload,
@@ -21,7 +22,6 @@ import {
 import { useConfig, BrandingConfig } from "../../context/ConfigContext";
 import { supabase } from "../../../lib/supabase";
 import { useToast } from "../../components/Toast";
-import { useRef, useEffect } from "react";
 import { ServerErrors } from "./ServerErrors";
 
 export function Settings() {
@@ -34,6 +34,24 @@ export function Settings() {
     const footerLogoRef = useRef<HTMLInputElement>(null);
     const faviconRef = useRef<HTMLInputElement>(null);
     const [activeTab, setActiveTab] = useState<"branding" | "intelligence" | "meta" | "records" | "commerce">("branding");
+    const [searchParams, setSearchParams] = useSearchParams();
+
+    // Sync tab with URL param
+    useEffect(() => {
+        const viewParam = searchParams.get('view') as any;
+        if (viewParam && ["branding", "intelligence", "meta", "records", "commerce", "intel", "billing"].includes(viewParam)) {
+            // Map intel to intelligence, billing to commerce for consistency
+            const mappedTab = viewParam === 'intel' ? 'intelligence' :
+                viewParam === 'billing' ? 'commerce' :
+                    viewParam;
+            setActiveTab(mappedTab);
+        }
+    }, [searchParams]);
+
+    const handleTabChange = (newTab: string) => {
+        setSearchParams({ view: newTab });
+        setActiveTab(newTab as any);
+    };
     const [isUnlocked, setIsUnlocked] = useState(false);
     const [unlockPassword, setUnlockPassword] = useState("");
     const [isVerifying, setIsVerifying] = useState(false);
@@ -230,7 +248,7 @@ export function Settings() {
                 {tabs.map((tab) => (
                     <button
                         key={tab.id}
-                        onClick={() => setActiveTab(tab.id as any)}
+                        onClick={() => handleTabChange(tab.id as any)}
                         className={`px-6 py-3 text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 transition-all relative ${activeTab === tab.id ? "text-white" : "text-neutral-500 hover:text-black"
                             }`}
                     >

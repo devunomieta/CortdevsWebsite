@@ -7,7 +7,7 @@ import {
     Search, Filter, Mail, Phone, Calendar, Clock, ChevronRight, ChevronLeft,
     MoreHorizontal, CheckCircle2, AlertCircle, Trash2, UserPlus, User,
     ExternalLink, Download, FileText, Send, Eye, RefreshCw, X, MessageSquare, Plus,
-    ArrowLeft
+    ArrowLeft, Shield
 } from "lucide-react";
 import { errorService } from "../../../lib/ErrorService";
 import { format } from "date-fns";
@@ -70,15 +70,27 @@ export function Leads() {
     const fetchLeads = async () => {
         setIsLoading(true);
         try {
-            const { data, error } = await supabase
+            // First attempt with join
+            let { data, error } = await supabase
                 .from('leads')
                 .select('*, onboarder:onboarded_by(full_name)')
                 .order('created_at', { ascending: false });
 
-            if (error) throw error;
+            // If it fails, fallback to basic select
+            if (error) {
+                console.warn("Retrying fetch without relationship join...");
+                const fallback = await supabase
+                    .from('leads')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                if (fallback.error) throw fallback.error;
+                data = fallback.data;
+            }
+
             const mappedData = data?.map(item => ({
                 ...item,
-                onboarder_name: item.onboarder?.full_name
+                onboarder_name: item.onboarder?.full_name || 'System'
             }));
             setLeads(mappedData || []);
             if (data) checkAndNotifyPendingLeads(data);

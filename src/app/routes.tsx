@@ -29,6 +29,7 @@ import { Maintenance } from "./pages/Maintenance";
 import { ProjectPublic } from "./pages/ProjectPublic";
 import { DocsPortal } from "./pages/DocsPortal";
 import { AdminIssueManagement } from "./pages/admin/IssueManagement";
+import { AdminSubmissions } from "./pages/admin/AdminSubmissions";
 
 export const router = createBrowserRouter([
   {
@@ -60,7 +61,7 @@ export const router = createBrowserRouter([
         element: <Contact />,
       },
       {
-        path: "docs",
+        path: "knowledge-base",
         element: <DocsPortal />,
       },
       {
@@ -132,6 +133,10 @@ export const router = createBrowserRouter([
       {
         path: "issues",
         element: <AdminIssueManagement />,
+      },
+      {
+        path: "submissions",
+        element: <AdminSubmissions />,
       },
     ],
   },

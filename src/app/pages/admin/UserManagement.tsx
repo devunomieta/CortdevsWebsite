@@ -20,7 +20,13 @@ import {
     DollarSign,
     ArrowUpRight,
     ArrowDownLeft,
-    Banknote
+    Banknote,
+    Activity,
+    FileText,
+    Ban,
+    UserCheck,
+    History,
+    Search,
 } from "lucide-react";
 
 interface AdminUser {
@@ -29,7 +35,9 @@ interface AdminUser {
     email: string;
     role: "Superadmin" | "Admin" | "CTO" | "Devs" | "Operations Officer" | "Sales Officer" | "Client";
     permissions: string[];
-    status: "Active" | "Pending" | "Suspended";
+    status: "Active" | "Pending" | "Suspended" | "Banned";
+    suspended_until?: string;
+    banned_at?: string;
     avatar_url?: string;
     wallet_balance?: number;
     wallet_type?: 'Central' | 'Personnel';
@@ -69,6 +77,7 @@ export function UserManagement() {
     const [isProvisionModalOpen, setIsProvisionModalOpen] = useState(false);
     const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
     const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+    const [filteredAuditLogs, setFilteredAuditLogs] = useState<AuditLog[]>([]);
     const [pendingRequests, setPendingRequests] = useState<AdminUser[]>([]);
     const [provisionData, setProvisionData] = useState({
         email: "",
@@ -77,11 +86,17 @@ export function UserManagement() {
     });
     const [isProcessing, setIsProcessing] = useState(false);
     const [duplicateInvite, setDuplicateInvite] = useState<any>(null);
-    const [selectedUserForWallet, setSelectedUserForWallet] = useState<AdminUser | null>(null);
-    const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
     const [disburseAmount, setDisburseAmount] = useState("");
     const [disburseDescription, setDisburseDescription] = useState("");
     const [walletHistory, setWalletHistory] = useState<WalletTransaction[]>([]);
+    const [commsData, setCommsData] = useState<any[]>([]);
+    const [commsSearch, setCommsSearch] = useState("");
+    const [commsPage, setCommsPage] = useState(1);
+    const [hasMoreComms, setHasMoreComms] = useState(true);
+    const [selectedUserManagement, setSelectedUserManagement] = useState<AdminUser | null>(null);
+    const [isManagementModalOpen, setIsManagementModalOpen] = useState(false);
+    const [managementTab, setManagementTab] = useState("Overview");
+    const [suspensionDuration, setSuspensionDuration] = useState("24h");
 
     const fetchUsers = async () => {
         setIsLoading(true);
@@ -99,17 +114,22 @@ export function UserManagement() {
 
                 const mappedUsers: AdminUser[] = data.map((u: any) => {
                     const userWallet = wallets?.find(w => w.user_id === u.id || w.email === u.email);
+                    const isSuspended = u.suspended_until && new Date(u.suspended_until) > new Date();
+                    const status = isSuspended ? "Suspended" : (u.status as AdminUser["status"]) || "Active";
+
                     return {
                         id: u.id,
                         name: u.full_name || "New User",
                         email: u.email,
                         role: (u.role as AdminUser["role"]) || "Client",
                         permissions: u.permissions || [],
-                        status: (u.status as AdminUser["status"]) || "Pending",
+                        status: status,
                         avatar_url: u.avatar_url,
                         wallet_balance: userWallet?.balance || 0,
                         wallet_type: userWallet?.type || 'Personnel',
-                        commission_rate: u.commission_rate || 0
+                        commission_rate: u.commission_rate || 0,
+                        suspended_until: u.suspended_until,
+                        banned_at: u.banned_at
                     };
                 });
                 setUsers(mappedUsers.filter(u => u.status !== 'Pending'));
@@ -122,14 +142,46 @@ export function UserManagement() {
         }
     };
 
-    const fetchAuditLogs = async () => {
-        const { data, error } = await supabase
-            .from('audit_logs')
-            .select('*')
-            .order('created_at', { ascending: false })
-            .limit(50);
+    const fetchAuditLogs = async (userEmail?: string) => {
+        let query = supabase.from('audit_logs').select('*').order('created_at', { ascending: false });
 
-        if (!error && data) setAuditLogs(data);
+        if (userEmail) {
+            query = query.filter('details->>email', 'eq', userEmail);
+        }
+
+        const { data, error } = await query.limit(50);
+
+        if (!error && data) {
+            const mappedLogs = data.map((log: any) => ({
+                ...log,
+                severity: (log.action.includes('BANNED') || log.action.includes('PURGE') || log.action.includes('ROLE_ELEVATED')) ? 'High' : 'Normal'
+            }));
+
+            if (userEmail) setFilteredAuditLogs(mappedLogs);
+            else setAuditLogs(mappedLogs);
+        }
+    };
+
+    const fetchComms = async (userEmail: string, page: number = 1, search: string = "") => {
+        const offset = (page - 1) * 10;
+        let query = supabase
+            .from('messages')
+            .select('*', { count: 'exact' })
+            .eq('to', userEmail)
+            .order('created_at', { ascending: false })
+            .range(offset, offset + 9);
+
+        if (search) {
+            query = query.or(`subject.ilike.%${search}%,body.ilike.%${search}%`);
+        }
+
+        const { data, count, error } = await query;
+
+        if (!error && data) {
+            if (page === 1) setCommsData(data);
+            else setCommsData(prev => [...prev, ...data]);
+            setHasMoreComms(count ? (offset + data.length < count) : false);
+        }
     };
 
     const handleProvisionUser = async (forceResend: boolean = false) => {
@@ -221,11 +273,29 @@ export function UserManagement() {
 
             showToast(forceResend ? "Invitation resent successfully." : "User provisioned successfully. Invitation transmitted.", "success");
             setIsProvisionModalOpen(false);
-            setProvisionData({ email: "", role: "Editor", permissions: ["Settings"] });
+            setProvisionData({ email: "", role: "Admin", permissions: ["Settings"] });
             setDuplicateInvite(null);
             fetchUsers();
         } catch (err: any) {
             showToast(err.message || "Failed to provision user.", "error");
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    const handleApproveUser = async (userId: string) => {
+        setIsProcessing(true);
+        try {
+            const { error } = await supabase
+                .from('profiles')
+                .update({ status: 'Active' })
+                .eq('id', userId);
+
+            if (error) throw error;
+            showToast("User access authorized.", "success");
+            fetchUsers();
+        } catch (err: any) {
+            showToast(err.message || "Authorization failed.", "error");
         } finally {
             setIsProcessing(false);
         }
@@ -280,8 +350,9 @@ export function UserManagement() {
         }
     };
 
-    const handleDisburse = async () => {
-        if (!selectedUserForWallet || !disburseAmount) return;
+    const handleDisburse = async (targetUser?: AdminUser) => {
+        const user = targetUser || selectedUserForWallet;
+        if (!user || !disburseAmount) return;
         setIsProcessing(true);
 
         try {
@@ -292,13 +363,12 @@ export function UserManagement() {
             const { data: wallet } = await supabase
                 .from('wallets')
                 .select('id, balance')
-                .eq('user_id', selectedUserForWallet.id)
+                .eq('user_id', user.id)
                 .maybeSingle();
 
             if (!wallet) throw new Error("Target wallet synchronization failed.");
 
-            // 2. Perform Transaction (In a real app, this should be a DB function/transaction)
-            // Credit target
+            // 2. Perform Transaction
             const { error: txError } = await supabase.from('wallet_transactions').insert([{
                 wallet_id: wallet.id,
                 amount: amount,
@@ -312,7 +382,7 @@ export function UserManagement() {
             // Update balance
             const { error: balError } = await supabase
                 .from('wallets')
-                .update({ balance: wallet.balance + amount })
+                .update({ balance: wallet.balance + (amount) })
                 .eq('id', wallet.id);
 
             if (balError) throw balError;
@@ -321,16 +391,18 @@ export function UserManagement() {
             await supabase.from('audit_logs').insert([{
                 action: 'WALLET_DISBURSEMENT',
                 target_type: 'Wallet',
-                details: { to: selectedUserForWallet.email, amount, description: disburseDescription }
+                details: { to: user.email, amount, description: disburseDescription }
             }]);
 
-            showToast(`Dossier funded: $${amount} successfully disbursed.`, "success");
-            setIsWalletModalOpen(false);
+            showToast(`Transmission of $${amount} to ${user.name} finalized.`, "success");
             setDisburseAmount("");
             setDisburseDescription("");
             fetchUsers();
+            if (selectedUserManagement?.id === user.id) {
+                fetchWalletHistory(user.id);
+            }
         } catch (err: any) {
-            showToast(err.message || "Funds transmission failed.", "error");
+            showToast(err.message || "Fiscal transmission failed.", "error");
         } finally {
             setIsProcessing(false);
         }
@@ -349,38 +421,171 @@ export function UserManagement() {
         }
     };
 
+    const handleDeleteUser = async (user: AdminUser) => {
+        if (user.role === 'Superadmin') {
+            showToast("Critical security protocol prevents the deletion of Superadmin identities.", "error");
+            return;
+        }
+
+        if (!confirm(`Are you certain you wish to purge ${user.email} from the tactical registry? This action is irreversible.`)) {
+            return;
+        }
+
+        setIsProcessing(true);
+        try {
+            const { error } = await supabase.from('profiles').delete().eq('id', user.id);
+            if (error) throw error;
+
+            await supabase.from('audit_logs').insert([{
+                action: 'USER_DELETED',
+                target_type: 'User',
+                details: { email: user.email, name: user.name }
+            }]);
+
+            showToast("User successfully purged from the registry.", "success");
+            fetchUsers();
+        } catch (err: any) {
+            showToast(err.message || "Failed to purge user.", "error");
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    const handleSuspend = async (user: AdminUser, duration: string) => {
+        setIsProcessing(true);
+        try {
+            let until = new Date();
+            if (duration === "24h") until.setHours(until.getHours() + 24);
+            else if (duration === "1w") until.setDate(until.getDate() + 7);
+            else if (duration === "30d") until.setDate(until.getDate() + 30);
+
+            const { error } = await supabase
+                .from('profiles')
+                .update({
+                    status: 'Suspended',
+                    suspended_until: until.toISOString()
+                })
+                .eq('id', user.id);
+
+            if (error) throw error;
+
+            await supabase.from('audit_logs').insert([{
+                action: 'USER_SUSPENDED',
+                target_type: 'User',
+                details: { email: user.email, duration, until: until.toISOString() }
+            }]);
+
+            showToast(`User suspended until ${until.toLocaleString()}.`, "success");
+            fetchUsers();
+            if (selectedUserManagement?.id === user.id) {
+                setSelectedUserManagement({ ...selectedUserManagement, status: 'Suspended', suspended_until: until.toISOString() });
+            }
+        } catch (err: any) {
+            showToast(err.message || "Failed to suspend user.", "error");
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    const handleBan = async (user: AdminUser) => {
+        if (!confirm("Are you ABSOLUTELY certain? This will permanently revoke all access. This action, while reversible by a Superadmin, triggers high-level security alerts.")) return;
+
+        setIsProcessing(true);
+        try {
+            const { error } = await supabase
+                .from('profiles')
+                .update({
+                    status: 'Banned',
+                    banned_at: new Date().toISOString()
+                })
+                .eq('id', user.id);
+
+            if (error) throw error;
+
+            await supabase.from('audit_logs').insert([{
+                action: 'USER_BANNED',
+                target_type: 'User',
+                details: { email: user.email }
+            }]);
+
+            showToast("User identity has been permanently banned.", "success");
+            fetchUsers();
+            if (selectedUserManagement?.id === user.id) {
+                setSelectedUserManagement({ ...selectedUserManagement, status: 'Banned', banned_at: new Date().toISOString() });
+            }
+        } catch (err: any) {
+            showToast(err.message || "Failed to ban user.", "error");
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    const handleReactivate = async (user: AdminUser) => {
+        setIsProcessing(true);
+        try {
+            const { error } = await supabase
+                .from('profiles')
+                .update({
+                    status: 'Active',
+                    suspended_until: null,
+                    banned_at: null
+                })
+                .eq('id', user.id);
+
+            if (error) throw error;
+
+            await supabase.from('audit_logs').insert([{
+                action: 'USER_REACTIVATED',
+                target_type: 'User',
+                details: { email: user.email }
+            }]);
+
+            showToast("User access has been restored.", "success");
+            fetchUsers();
+            if (selectedUserManagement?.id === user.id) {
+                setSelectedUserManagement({ ...selectedUserManagement, status: 'Active', suspended_until: undefined, banned_at: undefined });
+            }
+        } catch (err: any) {
+            showToast(err.message || "Failed to restore access.", "error");
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
     useEffect(() => {
         fetchUsers();
     }, []);
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <div className="flex justify-between items-end">
-                <div>
+            <div className="flex justify-between items-end gap-6 flex-wrap">
+                <div className="flex-1 min-w-[300px]">
                     <h2 className="text-2xl font-light tracking-tight italic">Administrative Intelligence</h2>
                     <p className="text-sm text-neutral-500">Manage access levels and operational permissions for your squad.</p>
                 </div>
-                <button
-                    onClick={() => { fetchAuditLogs(); setIsAuditModalOpen(true); }}
-                    className="p-3 border border-neutral-200 hover:bg-neutral-50 transition-colors"
-                    title="Security Audit"
-                >
-                    <Lock size={18} className="text-neutral-500" />
-                </button>
-                <button
-                    onClick={fetchUsers}
-                    disabled={isLoading}
-                    className="p-3 border border-neutral-200 hover:bg-neutral-50 transition-colors disabled:opacity-50"
-                    title="Refresh Users"
-                >
-                    <RefreshCw size={18} className={`text-neutral-500 ${isLoading ? "animate-spin" : ""}`} />
-                </button>
-                <button
-                    onClick={() => setIsProvisionModalOpen(true)}
-                    className="bg-black text-white px-6 py-3 text-[10px] font-bold uppercase tracking-[0.2em] flex items-center gap-2 hover:bg-neutral-800 transition-all shadow-xl shadow-black/10"
-                >
-                    Provision User <UserPlus size={14} />
-                </button>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => { fetchAuditLogs(); setIsAuditModalOpen(true); }}
+                        className="p-3 border border-neutral-200 hover:bg-neutral-50 transition-colors"
+                        title="Security Audit"
+                    >
+                        <Lock size={18} className="text-neutral-500" />
+                    </button>
+                    <button
+                        onClick={fetchUsers}
+                        disabled={isLoading}
+                        className="p-3 border border-neutral-200 hover:bg-neutral-50 transition-colors disabled:opacity-50"
+                        title="Refresh Users"
+                    >
+                        <RefreshCw size={18} className={`text-neutral-500 ${isLoading ? "animate-spin" : ""}`} />
+                    </button>
+                    <button
+                        onClick={() => setIsProvisionModalOpen(true)}
+                        className="bg-black text-white px-6 py-3 text-[10px] font-bold uppercase tracking-[0.2em] flex items-center gap-2 hover:bg-neutral-800 transition-all shadow-xl shadow-black/10"
+                    >
+                        Provision User <UserPlus size={14} />
+                    </button>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
@@ -408,7 +613,6 @@ export function UserManagement() {
                                         <tr className="bg-neutral-50 text-[10px] uppercase tracking-widest text-neutral-400 font-bold">
                                             <th className="p-4">User</th>
                                             <th className="p-4">Authorization</th>
-                                            <th className="p-4">Wallet</th>
                                             <th className="p-4">Status</th>
                                             <th className="p-4 text-right">Settings</th>
                                         </tr>
@@ -432,7 +636,8 @@ export function UserManagement() {
                                                         <select
                                                             value={user.role}
                                                             onChange={(e) => handleUpdateRole(user.id, e.target.value as AdminUser["role"])}
-                                                            className="bg-transparent font-bold text-black outline-none cursor-pointer hover:underline"
+                                                            disabled={user.email === 'projects@cortdevs.com'}
+                                                            className={`bg-transparent font-bold text-black outline-none ${user.email === 'projects@cortdevs.com' ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:underline'}`}
                                                         >
                                                             <option value="Superadmin">Superadmin</option>
                                                             <option value="Admin">Admin</option>
@@ -459,47 +664,34 @@ export function UserManagement() {
                                                     </div>
                                                 </td>
                                                 <td className="p-4">
-                                                    <div className="flex flex-col gap-1">
-                                                        <div className="flex items-center gap-1.5 font-bold text-black">
-                                                            <Wallet size={12} className="text-neutral-400" />
-                                                            <span>${user.wallet_balance?.toLocaleString() || '0'}</span>
-                                                        </div>
-                                                        {user.wallet_type === 'Central' && (
-                                                            <span className="text-[7px] bg-black text-white px-1 py-0.5 uppercase tracking-widest w-fit font-bold">Treasury</span>
-                                                        )}
-                                                        <button
-                                                            onClick={() => {
-                                                                setSelectedUserForWallet(user);
-                                                                setIsWalletModalOpen(true);
-                                                                fetchWalletHistory(user.id);
-                                                            }}
-                                                            className="text-[8px] text-neutral-400 hover:text-black uppercase font-bold tracking-widest underline w-fit"
-                                                        >
-                                                            Disburse Funds
-                                                        </button>
-                                                        {user.role === 'Sales Officer' && (
-                                                            <div className="mt-2 flex items-center gap-2">
-                                                                <span className="text-[8px] font-bold uppercase text-neutral-400">Rate:</span>
-                                                                <input
-                                                                    type="number"
-                                                                    defaultValue={user.commission_rate}
-                                                                    onBlur={(e) => handleUpdateCommissionRate(user.id, parseFloat(e.target.value) || 0)}
-                                                                    className="w-10 bg-neutral-50 border border-neutral-100 px-1 py-0.5 text-[10px] font-bold text-center outline-none focus:border-black"
-                                                                />
-                                                                <span className="text-[10px] font-bold">%</span>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </td>
-                                                <td className="p-4">
                                                     <span className={`px-2 py-0.5 text-[9px] font-bold uppercase tracking-tighter ${user.status === 'Active' ? 'text-green-600' : 'text-orange-500'}`}>
                                                         {user.status}
                                                     </span>
                                                 </td>
                                                 <td className="p-4 text-right">
-                                                    <button className="p-2 text-neutral-300 hover:text-black transition-colors">
-                                                        <MoreVertical size={16} />
-                                                    </button>
+                                                    <div className="flex justify-end gap-2">
+                                                        {user.role !== 'Superadmin' && (
+                                                            <button
+                                                                onClick={() => handleDeleteUser(user)}
+                                                                className="p-2 text-neutral-300 hover:text-red-600 transition-colors"
+                                                                title="Purge User"
+                                                            >
+                                                                <Trash2 size={16} />
+                                                            </button>
+                                                        )}
+                                                        <button
+                                                            onClick={() => {
+                                                                setSelectedUserManagement(user);
+                                                                setIsManagementModalOpen(true);
+                                                                fetchWalletHistory(user.id);
+                                                                fetchAuditLogs(user.email);
+                                                                fetchComms(user.email, 1);
+                                                            }}
+                                                            className="p-2 text-neutral-300 hover:text-black transition-colors"
+                                                        >
+                                                            <MoreVertical size={16} />
+                                                        </button>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))}
@@ -723,100 +915,403 @@ export function UserManagement() {
                 )}
             </AnimatePresence>
 
-            {/* Wallet Disbursement Modal */}
+            {/* Account Management Console Modal */}
             <AnimatePresence>
-                {isWalletModalOpen && selectedUserForWallet && (
+                {isManagementModalOpen && selectedUserManagement && (
                     <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl">
                         <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: 20 }}
-                            className="bg-white w-full max-w-xl grid grid-cols-1 md:grid-cols-2 overflow-hidden shadow-2xl"
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-white w-full max-w-5xl h-[85vh] flex overflow-hidden shadow-2xl relative"
                         >
-                            {/* Left Side: Summary */}
-                            <div className="bg-neutral-900 text-white p-10 space-y-8 relative overflow-hidden">
-                                <header className="space-y-1">
-                                    <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-neutral-400">Fiscal Intelligence</p>
-                                    <h3 className="text-3xl font-light italic tracking-tight">{selectedUserForWallet.name}</h3>
-                                </header>
+                            <button
+                                onClick={() => setIsManagementModalOpen(false)}
+                                className="absolute top-8 right-8 z-50 text-neutral-400 hover:text-black transition-colors"
+                            >
+                                <X size={24} />
+                            </button>
 
-                                <div className="space-y-6">
-                                    <div className="p-6 border border-white/10 space-y-2">
-                                        <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-500">Current Liquidity</p>
-                                        <p className="text-3xl font-light">${selectedUserForWallet.wallet_balance?.toLocaleString()}</p>
-                                    </div>
-
-                                    <div className="space-y-4">
-                                        <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-500">Recent Registry Entries</p>
-                                        <div className="space-y-2">
-                                            {walletHistory.length === 0 ? (
-                                                <p className="text-[10px] text-white/30 italic">No recent tactical disbursements.</p>
-                                            ) : (
-                                                walletHistory.map(tx => (
-                                                    <div key={tx.id} className="flex justify-between items-center text-[10px] border-b border-white/5 pb-2">
-                                                        <span className="text-neutral-400">{new Date(tx.created_at).toLocaleDateString()}</span>
-                                                        <span className={tx.type === 'Credit' ? 'text-green-400' : 'text-red-400'}>
-                                                            {tx.type === 'Credit' ? '+' : '-'}${tx.amount}
-                                                        </span>
-                                                    </div>
-                                                ))
+                            {/* Sidebar - Quick Profile & Actions */}
+                            <div className="w-80 bg-neutral-900 text-white p-10 flex flex-col overflow-y-auto shrink-0">
+                                <div className="space-y-8">
+                                    <header className="space-y-4">
+                                        <div className="w-20 h-20 bg-white text-black flex items-center justify-center font-bold text-3xl rounded-sm">
+                                            {selectedUserManagement.name.charAt(0)}
+                                        </div>
+                                        <div>
+                                            <h3 className="text-2xl font-light italic tracking-tight leading-tight">{selectedUserManagement.name}</h3>
+                                            <p className="text-[10px] text-neutral-500 uppercase tracking-widest font-mono mt-1">{selectedUserManagement.email}</p>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className={`px-2 py-0.5 text-[8px] font-bold uppercase tracking-widest ${selectedUserManagement.status === 'Active' ? 'bg-green-500' :
+                                                selectedUserManagement.status === 'Suspended' ? 'bg-orange-500' :
+                                                    selectedUserManagement.status === 'Banned' ? 'bg-red-500' : 'bg-neutral-500'
+                                                } text-white`}>
+                                                {selectedUserManagement.status}
+                                            </span>
+                                            {selectedUserManagement.status === 'Suspended' && (
+                                                <span className="text-[8px] text-neutral-500 italic">
+                                                    Until {new Date(selectedUserManagement.suspended_until!).toLocaleDateString()}
+                                                </span>
                                             )}
                                         </div>
-                                    </div>
+                                    </header>
+
+                                    <nav className="space-y-1">
+                                        <p className="text-[8px] font-bold uppercase tracking-[0.2em] text-neutral-600 mb-4">Security Enforcement</p>
+
+                                        {selectedUserManagement.status === 'Active' ? (
+                                            <>
+                                                <div className="space-y-4 p-4 border border-white/5 bg-white/5">
+                                                    <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-400">Suspend Access</p>
+                                                    <div className="grid grid-cols-2 gap-2">
+                                                        {['24h', '1w', '30d'].map((d) => (
+                                                            <button
+                                                                key={d}
+                                                                onClick={() => handleSuspend(selectedUserManagement, d)}
+                                                                className="py-2 border border-white/10 text-[9px] font-bold hover:bg-white hover:text-black transition-all"
+                                                            >
+                                                                {d.toUpperCase()}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+
+                                                <button
+                                                    onClick={() => handleBan(selectedUserManagement)}
+                                                    className="w-full flex items-center gap-3 p-3 text-[10px] font-bold uppercase tracking-widest text-red-400 hover:bg-red-500/10 transition-all border border-transparent hover:border-red-500/20"
+                                                >
+                                                    <Ban size={14} /> Ban Permanent
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <button
+                                                onClick={() => handleReactivate(selectedUserManagement)}
+                                                className="w-full flex items-center gap-3 p-4 bg-white text-black text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-neutral-200 transition-all shadow-lg"
+                                            >
+                                                <UserCheck size={14} /> Restore Access
+                                            </button>
+                                        )}
+
+                                        {selectedUserManagement.role !== 'Superadmin' && (
+                                            <button
+                                                onClick={() => {
+                                                    if (confirm("FINAL WARNING: Purging this identity will eradicate all associated records. Proceed?")) {
+                                                        handleDeleteUser(selectedUserManagement);
+                                                        setIsManagementModalOpen(false);
+                                                    }
+                                                }}
+                                                className="w-full flex items-center gap-3 p-3 text-[10px] font-bold uppercase tracking-widest text-neutral-500 hover:text-red-500 transition-all"
+                                            >
+                                                <Trash2 size={14} /> Purge Registry
+                                            </button>
+                                        )}
+                                    </nav>
                                 </div>
 
-                                <div className="absolute bottom-0 right-0 p-8">
-                                    <Banknote size={80} className="text-white/5" />
+                                <div className="pt-8 border-t border-white/5">
+                                    <div className="flex items-center gap-3 text-neutral-500">
+                                        <Key size={14} />
+                                        <span className="text-[9px] font-bold uppercase tracking-widest">{selectedUserManagement.role} Account</span>
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* Right Side: Form */}
-                            <div className="p-10 space-y-8 relative">
-                                <button
-                                    onClick={() => setIsWalletModalOpen(false)}
-                                    className="absolute top-8 right-8 text-neutral-400 hover:text-black transition-colors"
-                                >
-                                    <X size={24} />
-                                </button>
+                            {/* Main Content Area */}
+                            <div className="flex-1 flex flex-col bg-neutral-50">
+                                {/* Tab Navigation */}
+                                <div className="bg-white border-b border-neutral-100 flex px-10">
+                                    {['Overview', 'Wallet', 'Security Logs', 'Communications'].map((tab) => (
+                                        <button
+                                            key={tab}
+                                            onClick={() => setManagementTab(tab)}
+                                            className={`px-6 py-6 text-[10px] font-bold uppercase tracking-[0.2em] relative transition-colors ${managementTab === tab ? 'text-black' : 'text-neutral-400 hover:text-black'}`}
+                                        >
+                                            {tab}
+                                            {managementTab === tab && (
+                                                <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-black" />
+                                            )}
+                                        </button>
+                                    ))}
+                                </div>
 
-                                <header className="space-y-1">
-                                    <h4 className="text-lg font-light tracking-tight italic">Disburse Funds</h4>
-                                    <p className="text-[10px] text-neutral-400 uppercase tracking-widest">Execute Commission or Salary Payment</p>
-                                </header>
+                                {/* Content Scrollable */}
+                                <div className="flex-1 overflow-y-auto p-12 space-y-12">
+                                    {managementTab === 'Overview' && (
+                                        <section className="space-y-12">
+                                            {/* Profile Grid */}
+                                            <div className="grid grid-cols-2 gap-12">
+                                                <div className="space-y-6">
+                                                    <div className="flex items-center gap-3">
+                                                        <FileText size={16} className="text-neutral-400" />
+                                                        <h4 className="text-[10px] font-bold uppercase tracking-[0.3em]">Identity Metadata</h4>
+                                                    </div>
+                                                    <div className="space-y-4 bg-white border border-neutral-100 p-6">
+                                                        <div className="flex justify-between border-b border-neutral-50 pb-2">
+                                                            <span className="text-[9px] font-bold text-neutral-400 uppercase">Full Name</span>
+                                                            <span className="text-[10px] font-bold">{selectedUserManagement.name}</span>
+                                                        </div>
+                                                        <div className="flex justify-between border-b border-neutral-50 pb-2">
+                                                            <span className="text-[9px] font-bold text-neutral-400 uppercase">Registry Email</span>
+                                                            <span className="text-[10px] font-bold">{selectedUserManagement.email}</span>
+                                                        </div>
+                                                        <div className="flex justify-between">
+                                                            <span className="text-[9px] font-bold text-neutral-400 uppercase">Access Group</span>
+                                                            <span className="text-[10px] font-bold">{selectedUserManagement.role}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
 
-                                <div className="space-y-4">
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Amount (USD)</label>
-                                        <div className="relative">
-                                            <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-300" size={16} />
-                                            <input
-                                                type="number"
-                                                value={disburseAmount}
-                                                onChange={(e) => setDisburseAmount(e.target.value)}
-                                                className="w-full bg-neutral-50 border border-neutral-100 p-4 pl-10 text-sm outline-none focus:border-black transition-all"
-                                                placeholder="0.00"
-                                            />
-                                        </div>
-                                    </div>
+                                                <div className="space-y-6">
+                                                    <div className="flex items-center gap-3">
+                                                        <Shield size={16} className="text-neutral-400" />
+                                                        <h4 className="text-[10px] font-bold uppercase tracking-[0.3em]">Authorization Parameters</h4>
+                                                    </div>
+                                                    <div className="bg-white border border-neutral-100 p-6 space-y-4">
+                                                        <select
+                                                            value={selectedUserManagement.role}
+                                                            onChange={(e) => handleUpdateRole(selectedUserManagement.id, e.target.value as AdminUser["role"])}
+                                                            disabled={selectedUserManagement.email === 'projects@cortdevs.com'}
+                                                            className="w-full bg-neutral-50 border border-neutral-100 p-3 text-sm font-bold outline-none focus:border-black disabled:opacity-50 disabled:cursor-not-allowed"
+                                                        >
+                                                            <option value="Superadmin">Superadmin</option>
+                                                            <option value="Admin">Admin</option>
+                                                            <option value="CTO">CTO</option>
+                                                            <option value="Operations Officer">Operations Officer</option>
+                                                            <option value="Sales Officer">Sales Officer</option>
+                                                            <option value="Devs">Devs</option>
+                                                            <option value="Client">Client</option>
+                                                        </select>
+                                                        <p className="text-[8px] text-neutral-400 font-mono leading-relaxed">
+                                                            Modifying the authorization domain impacts the collective intelligence visibility and transaction permissions for this identity.
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
 
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Description / Memo</label>
-                                        <textarea
-                                            value={disburseDescription}
-                                            onChange={(e) => setDisburseDescription(e.target.value)}
-                                            className="w-full bg-neutral-50 border border-neutral-100 p-4 text-sm outline-none focus:border-black transition-all h-24 resize-none"
-                                            placeholder="Quarterly Commission / Project Alpha Bonus"
-                                        />
-                                    </div>
+                                            {/* Commission Rate */}
+                                            <div className="bg-white border border-neutral-100 p-10 flex justify-between items-center">
+                                                <div className="space-y-1">
+                                                    <h5 className="text-[10px] font-bold uppercase tracking-widest">Revenue Commission Model</h5>
+                                                    <p className="text-[9px] text-neutral-400 font-mono italic">Primary model for Pipeline & Sales Officers.</p>
+                                                </div>
+                                                <div className="flex items-center gap-4">
+                                                    <div className="relative group">
+                                                        <div className="absolute -top-10 right-0 bg-neutral-900 text-white text-[8px] px-3 py-2 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 shadow-xl border border-white/10 uppercase tracking-widest">
+                                                            Personnel revenue share per project unit.
+                                                        </div>
+                                                        <input
+                                                            type="number"
+                                                            defaultValue={selectedUserManagement.commission_rate}
+                                                            onBlur={(e) => handleUpdateCommissionRate(selectedUserManagement.id, parseFloat(e.target.value) || 0)}
+                                                            className="w-20 bg-neutral-50 border border-neutral-100 p-3 text-2xl font-light outline-none focus:border-black text-center"
+                                                        />
+                                                    </div>
+                                                    <span className="text-2xl font-light text-neutral-300">%</span>
+                                                </div>
+                                            </div>
+                                        </section>
+                                    )}
 
-                                    <button
-                                        onClick={handleDisburse}
-                                        disabled={isProcessing || !disburseAmount}
-                                        className="w-full py-5 bg-black text-white text-[10px] font-bold uppercase tracking-[0.3em] flex items-center justify-center gap-3 hover:bg-neutral-800 transition-all shadow-xl shadow-black/10 disabled:opacity-50"
-                                    >
-                                        {isProcessing ? <RefreshCw size={16} className="animate-spin" /> : <ArrowUpRight size={16} />}
-                                        Execute Disbursement
-                                    </button>
+                                    {managementTab === 'Wallet' && (
+                                        <section className="space-y-12">
+                                            <header className="flex justify-between items-end">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="p-2 bg-black text-white rounded-sm">
+                                                        <Wallet size={16} />
+                                                    </div>
+                                                    <h4 className="text-[10px] font-bold uppercase tracking-[0.3em]">Fiscal Reservoir</h4>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-[9px] text-neutral-400 uppercase font-bold tracking-widest mb-1">Available Liquidity</p>
+                                                    <p className="text-4xl font-light italic">${selectedUserManagement.wallet_balance?.toLocaleString()}</p>
+                                                </div>
+                                            </header>
+
+                                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                                                {/* Transaction Feed */}
+                                                <div className="bg-white border border-neutral-200 p-8 space-y-6">
+                                                    <div className="flex justify-between items-center">
+                                                        <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-400 flex items-center gap-2">
+                                                            <History size={12} /> Tactical History
+                                                        </p>
+                                                        <button className="text-[8px] font-bold uppercase tracking-widest text-neutral-300 hover:text-black underline">Export XLS</button>
+                                                    </div>
+                                                    <div className="space-y-4">
+                                                        {walletHistory.length === 0 ? (
+                                                            <div className="py-12 flex flex-col items-center justify-center border border-dashed border-neutral-100 rounded-sm">
+                                                                <Clock className="text-neutral-100 mb-2" size={32} />
+                                                                <p className="text-[10px] text-neutral-300 italic">No historical disbursements found.</p>
+                                                            </div>
+                                                        ) : (
+                                                            walletHistory.map(tx => (
+                                                                <div key={tx.id} className="flex justify-between items-center text-[10px] border-b border-neutral-50 pb-4">
+                                                                    <div className="space-y-1">
+                                                                        <p className="font-bold text-black uppercase tracking-tight">{tx.description}</p>
+                                                                        <p className="text-neutral-400 text-[9px]">{new Date(tx.created_at).toLocaleDateString()} @ {new Date(tx.created_at).toLocaleTimeString()}</p>
+                                                                    </div>
+                                                                    <div className="text-right space-y-1">
+                                                                        <span className={`px-2 py-0.5 rounded-full text-[8px] font-bold ${tx.type === 'Credit' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
+                                                                            {tx.type.toUpperCase()}
+                                                                        </span>
+                                                                        <p className={`text-sm font-light ${tx.type === 'Credit' ? 'text-green-600' : 'text-red-600'}`}>
+                                                                            {tx.type === 'Credit' ? '+' : '-'}${tx.amount}
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                            ))
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* Inject Liquidity */}
+                                                <div className="bg-neutral-900 text-white p-10 space-y-8 flex flex-col justify-center">
+                                                    <div className="space-y-2">
+                                                        <h5 className="text-xs font-bold uppercase tracking-[0.2em]">Manual Fund Injection</h5>
+                                                        <p className="text-[9px] text-neutral-500 font-mono">This action will instantaneously update the user's available wallet balance.</p>
+                                                    </div>
+                                                    <div className="space-y-4">
+                                                        <div className="space-y-2">
+                                                            <label className="text-[8px] font-bold uppercase tracking-widest text-neutral-600 ml-1">Transmission Amount (USD)</label>
+                                                            <div className="relative">
+                                                                <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-500" size={16} />
+                                                                <input
+                                                                    type="number"
+                                                                    value={disburseAmount}
+                                                                    onChange={(e) => setDisburseAmount(e.target.value)}
+                                                                    className="w-full bg-white/5 border border-white/10 p-4 pl-12 text-lg outline-none focus:border-white/30 transition-all font-mono"
+                                                                    placeholder="0.00"
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                        <div className="space-y-2">
+                                                            <label className="text-[8px] font-bold uppercase tracking-widest text-neutral-600 ml-1">Internal Ledger Memo</label>
+                                                            <textarea
+                                                                value={disburseDescription}
+                                                                onChange={(e) => setDisburseDescription(e.target.value)}
+                                                                className="w-full bg-white/5 border border-white/10 p-4 text-xs outline-none focus:border-white/30 h-28 resize-none font-mono"
+                                                                placeholder="Operational Bonus / Project Commission Ref #..."
+                                                            />
+                                                        </div>
+                                                        <button
+                                                            onClick={() => handleDisburse(selectedUserManagement)}
+                                                            disabled={isProcessing || !disburseAmount}
+                                                            className="w-full py-5 bg-white text-black text-[10px] font-bold uppercase tracking-[0.3em] hover:bg-neutral-200 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                                                        >
+                                                            {isProcessing ? <RefreshCw className="animate-spin" size={14} /> : <ArrowUpRight size={14} />}
+                                                            Execute Protocol
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </section>
+                                    )}
+
+                                    {managementTab === 'Security Logs' && (
+                                        <section className="space-y-8">
+                                            <div className="flex items-center gap-3">
+                                                <div className="p-2 bg-neutral-900 text-white rounded-sm">
+                                                    <Activity size={16} />
+                                                </div>
+                                                <h4 className="text-[10px] font-bold uppercase tracking-[0.3em]">Internal Intelligence Trace</h4>
+                                            </div>
+
+                                            <div className="bg-white border border-neutral-200">
+                                                <div className="grid grid-cols-4 p-4 text-[8px] font-bold uppercase tracking-[0.2em] text-neutral-400 bg-neutral-50 px-8">
+                                                    <span>Action Code</span>
+                                                    <span className="col-span-2">Technical Summary</span>
+                                                    <span className="text-right">Timestamp</span>
+                                                </div>
+                                                <div className="divide-y divide-neutral-50">
+                                                    {filteredAuditLogs.length > 0 ? (
+                                                        filteredAuditLogs.map(log => (
+                                                            <div key={log.id} className="grid grid-cols-4 p-5 px-8 items-center text-[10px] hover:bg-neutral-50 transition-colors">
+                                                                <div className="flex items-center gap-2">
+                                                                    {log.severity === 'High' && <AlertCircle size={10} className="text-red-500" />}
+                                                                    <span className={`font-bold ${log.severity === 'High' ? 'text-red-600' : 'text-black'}`}>{log.action}</span>
+                                                                </div>
+                                                                <div className="col-span-2 text-neutral-500 font-mono text-[9px]">
+                                                                    {JSON.stringify(log.details)}
+                                                                </div>
+                                                                <div className="text-right text-neutral-400">
+                                                                    {new Date(log.created_at).toLocaleDateString()}
+                                                                </div>
+                                                            </div>
+                                                        ))
+                                                    ) : (
+                                                        <div className="p-12 text-center text-neutral-300 italic text-[10px]">
+                                                            No security events found for this identity trace.
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </section>
+                                    )}
+
+                                    {managementTab === 'Communications' && (
+                                        <section className="space-y-8">
+                                            <div className="flex justify-between items-center">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="p-2 bg-neutral-900 text-white rounded-sm">
+                                                        <Mail size={16} />
+                                                    </div>
+                                                    <h4 className="text-[10px] font-bold uppercase tracking-[0.3em]">Communication Trace</h4>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <div className="relative">
+                                                        <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Search logs..."
+                                                            value={commsSearch}
+                                                            onChange={(e) => {
+                                                                setCommsSearch(e.target.value);
+                                                                fetchComms(selectedUserManagement.email, 1, e.target.value);
+                                                            }}
+                                                            className="pl-8 pr-4 py-2 bg-white border border-neutral-200 text-[10px] outline-none focus:border-black w-48"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="bg-white border border-neutral-200 divide-y divide-neutral-50">
+                                                {commsData.length > 0 ? (
+                                                    commsData.map(msg => (
+                                                        <div key={msg.id} className="p-6 space-y-3 hover:bg-neutral-50 transition-colors">
+                                                            <div className="flex justify-between items-start">
+                                                                <h5 className="text-[11px] font-bold text-black">{msg.subject}</h5>
+                                                                <span className="text-[9px] text-neutral-400 font-mono">
+                                                                    {new Date(msg.created_at).toLocaleString()}
+                                                                </span>
+                                                            </div>
+                                                            <p className="text-[10px] text-neutral-500 italic leading-relaxed line-clamp-2">
+                                                                {msg.body.replace(/<[^>]*>?/gm, '')}
+                                                            </p>
+                                                        </div>
+                                                    ))
+                                                ) : (
+                                                    <div className="py-20 text-center space-y-4">
+                                                        <Mail className="mx-auto text-neutral-100" size={48} />
+                                                        <p className="text-[10px] text-neutral-400 italic">No communication history detected.</p>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {hasMoreComms && (
+                                                <button
+                                                    onClick={() => {
+                                                        const nextPage = commsPage + 1;
+                                                        setCommsPage(nextPage);
+                                                        fetchComms(selectedUserManagement.email, nextPage, commsSearch);
+                                                    }}
+                                                    className="w-full py-4 border border-neutral-200 text-[9px] font-bold uppercase tracking-widest hover:bg-neutral-50 transition-all"
+                                                >
+                                                    Trace Older Communications
+                                                </button>
+                                            )}
+                                        </section>
+                                    )}
                                 </div>
                             </div>
                         </motion.div>

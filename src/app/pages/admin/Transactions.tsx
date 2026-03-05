@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useSearchParams } from "react-router";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import jsPDF from 'jspdf';
@@ -78,6 +79,24 @@ export function Transactions() {
     const [treasuryBalance, setTreasuryBalance] = useState(0);
     const [walletTx, setWalletTx] = useState<any[]>([]);
     const [commissions, setCommissions] = useState<Commission[]>([]);
+    const [searchParams, setSearchParams] = useSearchParams();
+
+    // Sync view with URL param
+    useEffect(() => {
+        const viewParam = searchParams.get('view') as any;
+        if (viewParam && ["project", "treasury", "commission", "confirmations", "ledger", "commissions"].includes(viewParam)) {
+            // Map ledger to project, commissions to commission for consistency
+            const mappedView = viewParam === 'ledger' ? 'project' :
+                viewParam === 'commissions' ? 'commission' :
+                    viewParam;
+            setView(mappedView);
+        }
+    }, [searchParams]);
+
+    const handleViewChange = (newView: string) => {
+        setSearchParams({ view: newView });
+        setView(newView as any);
+    };
 
     // Form State
     const [newTx, setNewTx] = useState({
@@ -558,25 +577,25 @@ export function Transactions() {
 
                 <div className="flex gap-1 bg-neutral-100 p-1 border border-neutral-200 w-fit">
                     <button
-                        onClick={() => setView("project")}
+                        onClick={() => handleViewChange("project")}
                         className={`px-6 py-2 text-[10px] font-bold uppercase tracking-widest transition-all ${view === 'project' ? 'bg-black text-white' : 'text-neutral-400 hover:text-black'}`}
                     >
                         Project Ledger
                     </button>
                     <button
-                        onClick={() => setView("treasury")}
+                        onClick={() => handleViewChange("treasury")}
                         className={`px-6 py-2 text-[10px] font-bold uppercase tracking-widest transition-all ${view === 'treasury' ? 'bg-black text-white' : 'text-neutral-400 hover:text-black'}`}
                     >
                         Treasury Ledger
                     </button>
                     <button
-                        onClick={() => setView("commission")}
+                        onClick={() => handleViewChange("commission")}
                         className={`px-4 py-2 text-[10px] font-bold uppercase tracking-widest transition-all ${view === "commission" ? "bg-black text-white" : "text-neutral-400 hover:text-black"}`}
                     >
                         Commissions
                     </button>
                     <button
-                        onClick={() => setView("confirmations")}
+                        onClick={() => handleViewChange("confirmations")}
                         className={`px-4 py-2 text-[10px] font-bold uppercase tracking-widest transition-all ${view === "confirmations" ? "bg-black text-white" : "text-neutral-400 hover:text-black"}`}
                     >
                         Confirmations

@@ -18,10 +18,111 @@ import {
     BarChart3,
     Bell,
     BookOpen,
-    AlertCircle
+    AlertCircle,
+    ChevronDown
 } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
 import { useConfig } from "../../context/ConfigContext";
+
+function SidebarItem({ item, isSidebarOpen, pathname, isOpen, onToggle }: {
+    item: any,
+    isSidebarOpen: boolean,
+    pathname: string,
+    isOpen: boolean,
+    onToggle: () => void
+}) {
+    const hasChildren = item.children && item.children.length > 0;
+    const isActive = item.path === "/admin"
+        ? pathname === "/admin"
+        : item.path
+            ? pathname.startsWith(item.path)
+            : item.children?.some((child: any) => pathname.startsWith(child.path));
+
+    if (!hasChildren) {
+        return (
+            <Link
+                to={item.path}
+                className={`flex items-center gap-4 p-3 transition-all group relative ${isActive ? "bg-white text-black" : "text-neutral-400 hover:text-white"
+                    }`}
+            >
+                <span className="shrink-0">{item.icon}</span>
+                {isSidebarOpen && (
+                    <motion.span
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="text-sm tracking-wide"
+                    >
+                        {item.label}
+                    </motion.span>
+                )}
+                {isActive && (
+                    <motion.div
+                        layoutId="active-desktop"
+                        className="absolute inset-0 bg-white -z-10"
+                    />
+                )}
+            </Link>
+        );
+    }
+
+    return (
+        <div className="space-y-1">
+            <button
+                onClick={onToggle}
+                className={`w-full flex items-center justify-between p-3 transition-all group relative ${isActive ? "text-white" : "text-neutral-400 hover:text-white"
+                    }`}
+            >
+                <div className="flex items-center gap-4">
+                    <span className="shrink-0">{item.icon}</span>
+                    {isSidebarOpen && (
+                        <motion.span
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            className="text-sm tracking-wide"
+                        >
+                            {item.label}
+                        </motion.span>
+                    )}
+                </div>
+                {isSidebarOpen && (
+                    <motion.div
+                        animate={{ rotate: isOpen ? 180 : 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="text-neutral-500 group-hover:text-white"
+                    >
+                        <ChevronDown size={14} />
+                    </motion.div>
+                )}
+            </button>
+
+            <AnimatePresence>
+                {isOpen && isSidebarOpen && (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden space-y-1 ml-4 border-l border-white/10 pl-4"
+                    >
+                        {item.children.map((child: any) => {
+                            const isChildActive = pathname === child.path;
+                            return (
+                                <Link
+                                    key={child.path}
+                                    to={child.path}
+                                    className={`flex items-center gap-3 p-2 text-xs transition-all ${isChildActive ? "text-white font-bold" : "text-neutral-500 hover:text-white"
+                                        }`}
+                                >
+                                    <div className={`w-1 h-1 rounded-full ${isChildActive ? "bg-white" : "bg-neutral-800"}`} />
+                                    {child.label}
+                                </Link>
+                            );
+                        })}
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+    );
+}
 
 export function AdminLayout() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 1024);
@@ -32,6 +133,9 @@ export function AdminLayout() {
     const location = useLocation();
     const navigate = useNavigate();
     const { config } = useConfig();
+    const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+
+    const pathname = location.pathname + location.search;
 
     useEffect(() => {
         const handleResize = () => {
@@ -100,26 +204,71 @@ export function AdminLayout() {
     useEffect(() => {
         // Auto-close mobile menu on route change
         setIsMobileMenuOpen(false);
-    }, [location]);
 
-    const allItems = [
+        // Auto-open dropdown containing the active route
+        const activeGroup = filteredMenu.find(item =>
+            item.children?.some((child: any) => pathname.startsWith(child.path))
+        );
+        if (activeGroup) {
+            setOpenDropdown(activeGroup.label);
+        }
+    }, [location.pathname]);
+
+    const menuStructure = [
         { icon: <LayoutDashboard size={20} />, label: "Dashboard", path: "/admin", permission: "Dashboard" },
         { icon: <MessageSquare size={20} />, label: "Leads & Projects", path: "/admin/leads", permission: "Leads" },
         { icon: <Users size={20} />, label: "Clients", path: "/admin/clients", permission: "Clients" },
-        { icon: <DollarSign size={20} />, label: "Transactions", path: "/admin/transactions", permission: "Transactions" },
-        { icon: <BarChart3 size={20} />, label: "Analytics Hub", path: "/admin/analytics", permission: "Intelligence" },
-        { icon: <Mail size={20} />, label: "Communications", path: "/admin/comms", permission: "Communications" },
+        {
+            label: "Financials",
+            icon: <DollarSign size={20} />,
+            permission: "Transactions",
+            children: [
+                { label: "Project Ledger", path: "/admin/transactions?view=ledger" },
+                { label: "Treasury", path: "/admin/transactions?view=treasury" },
+                { label: "Commissions", path: "/admin/transactions?view=commissions" },
+                { label: "Settlements", path: "/admin/transactions?view=confirmations" },
+            ]
+        },
+        {
+            label: "Communications",
+            icon: <Mail size={20} />,
+            permission: "Communications",
+            children: [
+                { label: "Mailbox", path: "/admin/comms?tab=mailbox" },
+                { label: "Newsletter", path: "/admin/comms?tab=newsletter" },
+                { label: "Templates", path: "/admin/comms?tab=templates" },
+                { label: "Secure Relay", path: "/admin/comms?tab=smtp" },
+            ]
+        },
+        {
+            label: "Intelligence Hub",
+            icon: <BarChart3 size={20} />,
+            permission: "Intelligence",
+            children: [
+                { label: "Analytics Hub", path: "/admin/analytics" },
+                { label: "Knowledge Base", path: "/knowledge-base" },
+                { label: "Intel Submissions", path: "/admin/submissions" },
+                { label: "Issue Reports", path: "/admin/issues" },
+            ]
+        },
         { icon: <ShieldCheck size={20} />, label: "Team & Roles", path: "/admin/users", permission: "Personnel" },
-        { icon: <BookOpen size={20} />, label: "Knowledge Base", path: "/docs", permission: "Intelligence" },
-        { icon: <AlertCircle size={20} />, label: "Issue Reports", path: "/admin/issues", permission: "Superadmin" },
-        { icon: <Settings size={20} />, label: "Site Settings", path: "/admin/settings", permission: "Settings" },
+        {
+            label: "Site Settings",
+            icon: <Settings size={20} />,
+            permission: "Settings",
+            children: [
+                { label: "Platform Branding", path: "/admin/settings?view=branding" },
+                { label: "Operational Intel", path: "/admin/settings?view=intel" },
+                { label: "Global Commerce", path: "/admin/settings?view=billing" },
+                { label: "Search Meta", path: "/admin/settings?view=meta" },
+                { label: "Manage Records", path: "/admin/settings?view=records" },
+            ]
+        },
     ];
 
-    const menuItems = allItems.filter(item => {
+    const filteredMenu = menuStructure.filter(item => {
         if (!userProfile) return false;
         if (userProfile.role === 'Superadmin' || userProfile.role === 'Admin') return true;
-
-        // Match against explicit permissions
         return userProfile.permissions?.includes(item.permission);
     });
 
@@ -149,35 +298,17 @@ export function AdminLayout() {
                     </div>
                 </div>
 
-                <nav className="flex-1 mt-6 px-4 space-y-2 overflow-y-auto custom-scrollbar">
-                    {menuItems.map((item) => {
-                        const isActive = location.pathname === item.path;
-                        return (
-                            <Link
-                                key={item.path}
-                                to={item.path}
-                                className={`flex items-center gap-4 p-3 transition-all group relative ${isActive ? "bg-white text-black" : "text-neutral-400 hover:text-white"
-                                    }`}
-                            >
-                                <span className="shrink-0">{item.icon}</span>
-                                {isSidebarOpen && (
-                                    <motion.span
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        className="text-sm tracking-wide"
-                                    >
-                                        {item.label}
-                                    </motion.span>
-                                )}
-                                {isActive && (
-                                    <motion.div
-                                        layoutId="active-desktop"
-                                        className="absolute inset-0 bg-white -z-10"
-                                    />
-                                )}
-                            </Link>
-                        );
-                    })}
+                <nav className="flex-1 mt-6 px-4 space-y-1 overflow-y-auto custom-scrollbar">
+                    {filteredMenu.map((item) => (
+                        <SidebarItem
+                            key={item.label}
+                            item={item}
+                            isSidebarOpen={isSidebarOpen}
+                            pathname={pathname}
+                            isOpen={openDropdown === item.label}
+                            onToggle={() => setOpenDropdown(openDropdown === item.label ? null : item.label)}
+                        />
+                    ))}
                 </nav>
 
                 <div className="p-4 border-t border-white/10">
@@ -226,19 +357,16 @@ export function AdminLayout() {
                             </div>
 
                             <nav className="flex-1 mt-6 px-4 space-y-2 overflow-y-auto">
-                                {menuItems.map((item) => {
-                                    const isActive = location.pathname === item.path;
-                                    return (
-                                        <Link
-                                            key={item.path}
-                                            to={item.path}
-                                            className={`flex items-center gap-4 p-4 transition-all ${isActive ? "bg-white text-black" : "text-neutral-400"}`}
-                                        >
-                                            <span className="shrink-0">{item.icon}</span>
-                                            <span className="text-sm font-medium tracking-wide">{item.label}</span>
-                                        </Link>
-                                    );
-                                })}
+                                {filteredMenu.map((item) => (
+                                    <SidebarItem
+                                        key={item.label}
+                                        item={item}
+                                        isSidebarOpen={true}
+                                        pathname={pathname}
+                                        isOpen={openDropdown === item.label}
+                                        onToggle={() => setOpenDropdown(openDropdown === item.label ? null : item.label)}
+                                    />
+                                ))}
                             </nav>
 
                             <div className="p-6 border-t border-white/10">
@@ -267,7 +395,9 @@ export function AdminLayout() {
                             <Menu size={24} />
                         </button>
                         <h1 className="text-lg font-light text-neutral-500 truncate max-w-[150px] md:max-w-none">
-                            {menuItems.find(m => m.path === location.pathname)?.label || "Dashboard"}
+                            {filteredMenu.find(m => m.path === location.pathname)?.label ||
+                                filteredMenu.find(m => m.children?.some((c: any) => c.path === location.pathname + location.search))?.label ||
+                                "Dashboard"}
                         </h1>
                     </div>
                     <div className="flex items-center gap-6">

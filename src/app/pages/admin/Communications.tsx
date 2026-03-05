@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useSearchParams } from "react-router";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../../lib/supabase";
 import { useToast } from "../../components/Toast";
@@ -13,6 +14,20 @@ import { RichTextEditor } from "../../components/RichTextEditor";
 export function Communications() {
     const { showToast } = useToast();
     const [activeTab, setActiveTab] = useState<"smtp" | "newsletter" | "templates" | "mailbox">("mailbox");
+    const [searchParams, setSearchParams] = useSearchParams();
+
+    // Sync tab with URL param
+    useEffect(() => {
+        const tabParam = searchParams.get('tab') as any;
+        if (tabParam && ["smtp", "newsletter", "templates", "mailbox"].includes(tabParam)) {
+            setActiveTab(tabParam);
+        }
+    }, [searchParams]);
+
+    const handleTabChange = (newTab: string) => {
+        setSearchParams({ tab: newTab });
+        setActiveTab(newTab as any);
+    };
     const [isSaving, setIsSaving] = useState(false);
     const [isLoadingData, setIsLoadingData] = useState(true); // Renamed from isLoading
 
@@ -474,7 +489,7 @@ export function Communications() {
                 ].map(tab => (
                     <button
                         key={tab.id}
-                        onClick={() => setActiveTab(tab.id as any)}
+                        onClick={() => handleTabChange(tab.id as any)}
                         className={`pb-4 text-[10px] font-bold uppercase tracking-[0.2em] flex items-center gap-2 transition-all relative ${activeTab === tab.id ? "text-black" : "text-neutral-400 hover:text-black"
                             }`}
                     >

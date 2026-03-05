@@ -511,12 +511,23 @@ export function Clients() {
     const fetchClients = async () => {
         setIsLoading(true);
         try {
-            const { data, error } = await supabase
+            // First attempt with join
+            let { data, error } = await supabase
                 .from('clients')
                 .select('*, onboarder:onboarded_by(full_name)')
                 .order('created_at', { ascending: false });
 
-            if (error) throw error;
+            // If it fails, likely due to missing onboarded_by column or relation
+            if (error) {
+                console.warn("Retrying fetch without relationship join...");
+                const fallback = await supabase
+                    .from('clients')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                if (fallback.error) throw fallback.error;
+                data = fallback.data;
+            }
 
             if (data) {
                 const mappedClients: Client[] = data.map((item: any) => ({
@@ -529,7 +540,7 @@ export function Clients() {
                     status: item.status as Client["status"],
                     email: item.email || '',
                     review: item.review,
-                    onboarder_name: item.onboarder?.full_name
+                    onboarder_name: item.onboarder?.full_name || 'System'
                 }));
                 setClients(mappedClients);
             }
