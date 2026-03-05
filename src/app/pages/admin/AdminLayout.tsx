@@ -16,7 +16,9 @@ import {
     Database,
     DollarSign,
     BarChart3,
-    Bell
+    Bell,
+    BookOpen,
+    AlertCircle
 } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
 import { useConfig } from "../../context/ConfigContext";
@@ -108,6 +110,8 @@ export function AdminLayout() {
         { icon: <BarChart3 size={20} />, label: "Analytics Hub", path: "/admin/analytics", permission: "Intelligence" },
         { icon: <Mail size={20} />, label: "Communications", path: "/admin/comms", permission: "Communications" },
         { icon: <ShieldCheck size={20} />, label: "Team & Roles", path: "/admin/users", permission: "Personnel" },
+        { icon: <BookOpen size={20} />, label: "Knowledge Base", path: "/docs", permission: "Intelligence" },
+        { icon: <AlertCircle size={20} />, label: "Issue Reports", path: "/admin/issues", permission: "Superadmin" },
         { icon: <Settings size={20} />, label: "Site Settings", path: "/admin/settings", permission: "Settings" },
     ];
 

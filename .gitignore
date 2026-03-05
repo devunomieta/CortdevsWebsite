@@ -152,3 +152,6 @@ tmp/
 # Custom scripts with credentials
 test-smtp.js
 test-smtp.mjs
+
+# Documentation
+/docs

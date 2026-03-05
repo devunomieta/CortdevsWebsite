@@ -27,6 +27,8 @@ import { ResetPassword as AdminReset } from "./pages/admin/ResetPassword";
 import { NotFound } from "./pages/NotFound";
 import { Maintenance } from "./pages/Maintenance";
 import { ProjectPublic } from "./pages/ProjectPublic";
+import { DocsPortal } from "./pages/DocsPortal";
+import { AdminIssueManagement } from "./pages/admin/IssueManagement";
 
 export const router = createBrowserRouter([
   {
@@ -56,6 +58,10 @@ export const router = createBrowserRouter([
       {
         path: "contact",
         element: <Contact />,
+      },
+      {
+        path: "docs",
+        element: <DocsPortal />,
       },
       {
         path: "success",
@@ -122,6 +128,10 @@ export const router = createBrowserRouter([
       {
         path: "errors",
         element: <AdminErrors />,
+      },
+      {
+        path: "issues",
+        element: <AdminIssueManagement />,
       },
     ],
   },
