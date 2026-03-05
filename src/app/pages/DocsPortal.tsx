@@ -23,6 +23,8 @@ import { format } from "date-fns";
 import { DocUploadModal } from "../components/DocUploadModal";
 import { DocInteractionPanel } from "../components/DocInteractionPanel";
 import { DocUpdateBanner } from "../components/DocUpdateBanner";
+import { AuthModal } from "../components/AuthModal";
+import { Key } from "lucide-react";
 
 type DocCategory = 'Public Docs' | 'Tech Docs' | 'Analysis' | 'Employment Docs' | 'Brand Docs';
 
@@ -48,6 +50,7 @@ export function DocsPortal() {
     const [isLoading, setIsLoading] = useState(true);
     const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
     const [showUploadModal, setShowUploadModal] = useState(false);
+    const [showAuthModal, setShowAuthModal] = useState(false);
     const [editingDoc, setEditingDoc] = useState<any | null>(null);
     const [docToDelete, setDocToDelete] = useState<any | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -131,6 +134,11 @@ export function DocsPortal() {
         setEditingDoc(null);
     };
 
+    const handleAuthSuccess = () => {
+        fetchData();
+        setShowAuthModal(false);
+    };
+
     const categories = [
         { name: "All", icon: <FolderOpen size={16} />, visibleTo: ['*'] },
         { name: "Public Docs", icon: <FileText size={16} />, visibleTo: ['*'] },
@@ -179,6 +187,15 @@ export function DocsPortal() {
                                 {cat.icon} {cat.name}
                             </button>
                         ))}
+                        {!user && (
+                            <button
+                                onClick={() => setShowAuthModal(true)}
+                                className="flex items-center gap-2 px-4 py-2 text-[10px] font-bold uppercase tracking-widest whitespace-nowrap transition-all border bg-neutral-50 text-neutral-400 border-neutral-200 hover:bg-black hover:text-white hover:border-black group"
+                                title="Unlock Administrative Access"
+                            >
+                                <Key size={16} className="group-hover:rotate-12 transition-transform" />
+                            </button>
+                        )}
                     </div>
                     <div className="relative w-full lg:w-96">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400" size={18} />
@@ -316,6 +333,12 @@ export function DocsPortal() {
                     mode={showInteraction.mode}
                 />
             )}
+
+            <AuthModal
+                isOpen={showAuthModal}
+                onClose={() => setShowAuthModal(false)}
+                onSuccess={handleAuthSuccess}
+            />
         </div>
     );
 }
