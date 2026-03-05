@@ -422,6 +422,10 @@ export function UserManagement() {
     };
 
     const handleDeleteUser = async (user: AdminUser) => {
+        if (user.email === 'projects@cortdevs.com') {
+            showToast("Security override: Root identity cannot be purged from the registry.", "error");
+            return;
+        }
         if (user.role === 'Superadmin') {
             showToast("Critical security protocol prevents the deletion of Superadmin identities.", "error");
             return;
@@ -452,6 +456,10 @@ export function UserManagement() {
     };
 
     const handleSuspend = async (user: AdminUser, duration: string) => {
+        if (user.email === 'projects@cortdevs.com') {
+            showToast("Security override: Root identity is immune to suspension protocols.", "error");
+            return;
+        }
         setIsProcessing(true);
         try {
             let until = new Date();
@@ -488,6 +496,10 @@ export function UserManagement() {
     };
 
     const handleBan = async (user: AdminUser) => {
+        if (user.email === 'projects@cortdevs.com') {
+            showToast("Security override: Root identity is immune to permanent revocation.", "error");
+            return;
+        }
         if (!confirm("Are you ABSOLUTELY certain? This will permanently revoke all access. This action, while reversible by a Superadmin, triggers high-level security alerts.")) return;
 
         setIsProcessing(true);
@@ -963,7 +975,7 @@ export function UserManagement() {
 
                                         {selectedUserManagement.status === 'Active' ? (
                                             <>
-                                                <div className="space-y-4 p-4 border border-white/5 bg-white/5">
+                                                <div className={`space-y-4 p-4 border border-white/5 bg-white/5 ${selectedUserManagement.email === 'projects@cortdevs.com' ? 'opacity-30 grayscale pointer-events-none' : ''}`}>
                                                     <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-400">Suspend Access</p>
                                                     <div className="grid grid-cols-2 gap-2">
                                                         {['24h', '1w', '30d'].map((d) => (
@@ -980,7 +992,8 @@ export function UserManagement() {
 
                                                 <button
                                                     onClick={() => handleBan(selectedUserManagement)}
-                                                    className="w-full flex items-center gap-3 p-3 text-[10px] font-bold uppercase tracking-widest text-red-400 hover:bg-red-500/10 transition-all border border-transparent hover:border-red-500/20"
+                                                    disabled={selectedUserManagement.email === 'projects@cortdevs.com'}
+                                                    className={`w-full flex items-center gap-3 p-3 text-[10px] font-bold uppercase tracking-widest text-red-400 hover:bg-red-500/10 transition-all border border-transparent hover:border-red-500/20 ${selectedUserManagement.email === 'projects@cortdevs.com' ? 'opacity-30 grayscale cursor-not-allowed' : ''}`}
                                                 >
                                                     <Ban size={14} /> Ban Permanent
                                                 </button>
