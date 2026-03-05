@@ -77,6 +77,8 @@ typings/
 
 # dotenv environment variable files
 .env
+.env.*
+!.env.example
 .env.development.local
 .env.test.local
 .env.production.local
@@ -144,14 +146,26 @@ build_log.txt
 
 # Database dumps and schemas (Security)
 *.sql
+!docs_portal_schema.sql
+!rbac_schema.sql
+!wallet_schema.sql
+!sales_commission_schema.sql
+!create_audit_logs.sql
+!payment_confirmations_schema.sql
+!docs_portal_broadcast_schema.sql
 
 # Temporary files
 tmp/
 *.tmp
+tmp_*.js
+temp_*.js
 
 # Custom scripts with credentials
 test-smtp.js
 test-smtp.mjs
+apply_db_fix.js
+init-smtp.ts
+check-prod-errors.ts
 
 # Documentation
 /docs
