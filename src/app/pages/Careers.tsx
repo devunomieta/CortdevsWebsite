@@ -160,9 +160,6 @@ export function Careers() {
                         <h3 className="text-2xl lg:text-3xl font-light tracking-tight mb-1">
                           {job.title.replace(/\\"/g, '"')}
                         </h3>
-                        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-400">
-                          CortDevs
-                        </p>
                       </div>
 
                       <div className="flex flex-wrap items-center gap-4">
@@ -171,7 +168,7 @@ export function Careers() {
                         </p>
                       </div>
 
-                      <p className="text-neutral-400 text-sm font-light leading-relaxed max-w-2xl line-clamp-1">
+                      <p className="text-neutral-400 text-sm font-light leading-relaxed max-w-2xl line-clamp-2">
                         {job.about.replace(/\\"/g, '"')}
                       </p>
                     </div>
