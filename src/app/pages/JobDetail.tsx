@@ -126,16 +126,16 @@ export function JobDetail() {
       const fileExt = cvFile.name.split('.').pop();
       const jobSlug = job.slug || job.id;
       const fileName = `${jobSlug}-${Math.random().toString(36).substring(2, 8)}-${Date.now()}.${fileExt}`;
-      const filePath = fileName;
+      const filePath = `cv-uploads/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
-        .from('cv-uploads')
+        .from('assets')
         .upload(filePath, cvFile);
 
       if (uploadError) throw uploadError;
 
       const { data: { publicUrl } } = supabase.storage
-        .from('cv-uploads')
+        .from('assets')
         .getPublicUrl(filePath);
 
       // 2. Save application record (Only if job.id is a valid UUID)
@@ -154,7 +154,7 @@ export function JobDetail() {
       }
 
       // 3. Notify Admin via Email
-      const adminEmail = "projects@cortdevs.com";
+      const adminEmail = ["projects@cortdevs.com", "cortdevs@gmail.com"];
       const subject = `New Application: ${job.title}`;
       const body = `
         <h3>A new candidate has applied for ${job.title}</h3>
@@ -162,7 +162,7 @@ export function JobDetail() {
         <p><strong>Candidate CV:</strong> <a href="${publicUrl}">Download / View CV</a></p>
         <p><strong>Job Detail:</strong> <a href="${window.location.origin}/careers/${job.id}">${job.title}</a></p>
         <hr/>
-        <p>You can find the application record in the Admin Dashboard (if the job exists in the DB).</p>
+        <p>You can find the application record in the Admin Dashboard.</p>
       `;
 
       const emailResponse = await fetch('/api/send-email', {
