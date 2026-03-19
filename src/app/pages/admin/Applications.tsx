@@ -96,17 +96,23 @@ export function AdminApplications() {
   const confirmDelete = async () => {
     if (deleteMode === "single" && targetId) {
       try {
-        const { error } = await supabase
+        const { error, count } = await supabase
           .from('job_applications')
-          .delete()
+          .delete({ count: 'exact' })
           .eq('id', targetId);
 
         if (error) throw error;
         
-        showToast("Application record purged successfully.", "success");
-        setApplications(prev => prev.filter(app => app.id !== targetId));
-        setSelectedIds(prev => prev.filter(id => id !== targetId));
+        if (count === 0) {
+          console.warn("Delete appeared successful but 0 rows were affected. Check RLS policies.");
+          showToast("Warning: No record was deleted. Check RLS.", "warning");
+        } else {
+          showToast("Application record purged successfully.", "success");
+          setApplications(prev => prev.filter(app => app.id !== targetId));
+          setSelectedIds(prev => prev.filter(id => id !== targetId));
+        }
       } catch (err: any) {
+        console.error("Deletion Error:", err);
         showToast(err.message || "Failed to purge record.", "error");
       }
     } else if (deleteMode === "batch") {
