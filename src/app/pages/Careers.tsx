@@ -1,13 +1,14 @@
 import { motion } from "framer-motion";
-import { ArrowRight, MapPin, Briefcase, Users, Star, Target, Shield, RefreshCw } from "lucide-react";
+import { ArrowRight, MapPin, Briefcase, Users, Star, Target, Shield, RefreshCw, Clock } from "lucide-react";
 import { Link } from "react-router";
 import { useState, useEffect } from "react";
 import { jobs as staticJobs, Job } from "../data/jobs";
 import { SEO } from "../components/SEO";
 import { supabase } from "../../lib/supabase";
+import { DeadlineCountdown } from "../components/DeadlineCountdown";
 
 export function Careers() {
-  const [jobs, setJobs] = useState<Job[]>(staticJobs);
+  const [jobs, setJobs] = useState<Job[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -18,18 +19,33 @@ export function Careers() {
           .select('*')
           .order('created_at', { ascending: false });
 
-        if (error) throw error;
-        
-        if (data && data.length > 0) {
-          // Normalize property naming (DB uses apply_url, static uses applyUrl)
+        if (error) {
+          console.error("Supabase Career Fetch Error:", error);
+          // provide more detailed info for debugging
+          if (error.code === '42P01') console.error("Table 'careers' not found. Check schema.");
+          if (error.message.includes('policy')) console.error("RLS Policy violation. Check 'fix_visibility.sql'.");
+          setJobs([]);
+          return;
+        }
+
+        if (data) {
           const normalizedData = data.map(j => ({
             ...j,
             applyUrl: j.apply_url || j.applyUrl
           }));
-          setJobs(normalizedData as Job[]);
+
+          // Sort: Open first, then by date
+          const sortedData = [...normalizedData].sort((a, b) => {
+            if (a.status === 'open' && b.status !== 'open') return -1;
+            if (a.status !== 'open' && b.status === 'open') return 1;
+            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+          });
+
+          setJobs(sortedData as Job[]);
         }
       } catch (err) {
-        console.error("Failed to fetch fresh jobs, using fallback:", err);
+        console.error("Critical error fetching jobs:", err);
+        setJobs([]);
       } finally {
         setIsLoading(false);
       }
@@ -56,11 +72,11 @@ export function Careers() {
 
   return (
     <div className="bg-white min-h-screen">
-      <SEO 
-        title="Careers | Join Our Team" 
-        description="Explore career opportunities at CortDevs. Join our mission to deliver 'Quality Above All' in web development." 
+      <SEO
+        title="Careers | Join Our Team"
+        description="Explore career opportunities at CortDevs. Join our mission to deliver 'Quality Above All' in web development."
       />
-      
+
       {/* Hero Section */}
       <section className="pt-32 pb-20 lg:pt-48 lg:pb-32 bg-neutral-50 border-b border-neutral-100">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
@@ -69,11 +85,11 @@ export function Careers() {
               Careers at CortDevs
             </div>
             <h1 className="text-5xl lg:text-7xl font-light tracking-tight mb-8 leading-[1.1]">
-              Join the pursuit of 
+              Join the pursuit of
               <span className="block italic">digital perfection.</span>
             </h1>
             <p className="text-lg lg:text-xl text-neutral-600 max-w-2xl leading-relaxed">
-              We are a team of precision engineers and growth specialists dedicated to crafting 
+              We are a team of precision engineers and growth specialists dedicated to crafting
               exceptional digital experiences. Join us in building the future of the web.
             </p>
           </motion.div>
@@ -90,7 +106,7 @@ export function Careers() {
             </div>
           </div>
 
-          <motion.div 
+          <motion.div
             variants={staggerChildren}
             initial="initial"
             whileInView="animate"
@@ -98,54 +114,75 @@ export function Careers() {
             className="grid grid-cols-1 gap-6"
           >
             {isLoading ? (
-              <div className="py-20 flex flex-col items-center justify-center border border-neutral-100 bg-neutral-50/50">
-                <RefreshCw className="w-8 h-8 text-neutral-300 animate-spin mb-4" />
-                <p className="text-sm text-neutral-400 italic">Loading opportunities...</p>
+              <div className="py-32 flex flex-col items-center justify-center border border-neutral-100 bg-neutral-50/30 backdrop-blur-sm">
+                <RefreshCw className="w-10 h-10 text-neutral-200 animate-spin mb-6" />
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-400">Synchronizing Opportunities</p>
               </div>
             ) : jobs.length === 0 ? (
-              <div className="py-20 text-center border border-neutral-200 border-dashed bg-white">
-                <Briefcase className="w-12 h-12 text-neutral-100 mx-auto mb-4" />
-                <p className="text-neutral-500 italic">No open positions at the moment. Check back soon!</p>
+              <div className="py-32 text-center border border-neutral-200 border-dashed bg-white">
+                <Briefcase className="w-16 h-16 text-neutral-100 mx-auto mb-6" />
+                <p className="text-xl font-light italic text-neutral-400">No open positions at the moment.</p>
+                <div className="mt-4 text-[10px] font-bold uppercase tracking-widest text-neutral-300">Check back for the next wave</div>
               </div>
             ) : (
               jobs.map((job) => (
                 <motion.div
                   key={job.id}
                   variants={fadeInUp}
-                  className="group relative border border-neutral-200 p-8 lg:p-10 hover:border-black transition-all duration-500 bg-white"
+                  className="group relative border border-neutral-100 p-6 lg:p-8 hover:border-black transition-all duration-500 bg-white hover:bg-neutral-50/50"
                 >
                   <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-4 mb-4">
+                    <div className="flex-1 space-y-4">
+                      <div className="flex flex-wrap items-center gap-4 mb-2">
                         {job.status === 'open' ? (
-                          <span className="px-3 py-1 bg-green-50 text-green-700 text-[10px] font-bold uppercase tracking-widest border border-green-100">
-                            Active Role
+                          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-black">
+                            Active Opening
                           </span>
                         ) : (
-                          <span className="px-3 py-1 bg-neutral-100 text-neutral-500 text-[10px] font-bold uppercase tracking-widest border border-neutral-200">
+                          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-300">
                             Closed
                           </span>
                         )}
-                        <div className="flex items-center gap-1.5 text-neutral-400 text-xs">
-                          <MapPin size={14} />
+                        <span className="w-1 h-1 bg-neutral-200 rounded-full" />
+                        <div className="flex items-center gap-2 text-neutral-400 text-[10px] uppercase font-bold tracking-widest">
+                          <MapPin size={10} className="text-neutral-300" />
                           {job.location}
                         </div>
+                        {job.status === 'open' && job.deadline && (
+                          <>
+                            <span className="w-1 h-1 bg-neutral-200 rounded-full" />
+                            <DeadlineCountdown deadline={job.deadline} minimal />
+                          </>
+                        )}
                       </div>
-                      <h3 className="text-2xl lg:text-3xl font-light tracking-tight mb-4 group-hover:pl-2 transition-all duration-300">
-                        {job.title}
-                      </h3>
-                      <p className="text-neutral-500 line-clamp-2 max-w-3xl">
-                        {job.about}
+
+                      <div>
+                        <h3 className="text-2xl lg:text-3xl font-light tracking-tight mb-1">
+                          {job.title.replace(/\\"/g, '"')}
+                        </h3>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-400">
+                          CortDevs
+                        </p>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-4">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-neutral-500 bg-neutral-50 px-2 py-0.5 rounded">
+                          {job.compensation}
+                        </p>
+                      </div>
+
+                      <p className="text-neutral-400 text-sm font-light leading-relaxed max-w-2xl line-clamp-1">
+                        {job.about.replace(/\\"/g, '"')}
                       </p>
                     </div>
-                    
-                    <div className="flex items-center gap-4">
+
+                    <div className="shrink-0">
                       <Link
                         to={`/careers/${job.id}`}
-                        className="inline-flex items-center justify-center gap-3 px-8 py-4 border border-neutral-200 text-sm tracking-widest uppercase hover:border-black hover:bg-black hover:text-white transition-all duration-300 group/btn whitespace-nowrap"
+                        className="inline-flex items-center justify-center gap-3 px-8 py-4 bg-black text-white text-[10px] font-bold tracking-[0.2em] uppercase hover:bg-neutral-800 transition-all duration-300 group/btn"
                       >
                         View Details
-                        <ArrowRight size={18} className="group-hover/btn:translate-x-1 transition-transform" />
+                        <ArrowRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
                       </Link>
                     </div>
                   </div>
@@ -164,14 +201,14 @@ export function Careers() {
                 <div>
                   <h4 className="text-lg font-medium mb-3 text-neutral-400">Quality Above All</h4>
                   <p className="text-neutral-400 text-sm leading-relaxed">
-                    We don't settle for "good enough". Every line of code and every client interaction 
+                    We don't settle for "good enough". Every line of code and every client interaction
                     must meet our 3 Rounds of Perfection standards.
                   </p>
                 </div>
                 <div>
                   <h4 className="text-lg font-medium mb-3 text-neutral-400">Remote Excellence</h4>
                   <p className="text-neutral-400 text-sm leading-relaxed">
-                    Work from anywhere. We value results, autonomy, and clear communication 
+                    Work from anywhere. We value results, autonomy, and clear communication
                     over office presence.
                   </p>
                 </div>

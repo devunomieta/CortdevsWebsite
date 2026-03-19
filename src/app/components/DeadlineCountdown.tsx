@@ -3,9 +3,10 @@ import { Clock } from "lucide-react";
 
 interface CountdownProps {
   deadline: string | Date;
+  minimal?: boolean;
 }
 
-export function DeadlineCountdown({ deadline }: CountdownProps) {
+export function DeadlineCountdown({ deadline, minimal = false }: CountdownProps) {
   const [timeLeft, setTimeLeft] = useState<{
     days: number;
     hours: number;
@@ -40,6 +41,15 @@ export function DeadlineCountdown({ deadline }: CountdownProps) {
   }, [deadline]);
 
   if (!timeLeft) return null;
+
+  if (minimal) {
+    return (
+      <div className="flex items-center gap-2 text-rose-500 font-mono text-[10px] uppercase font-bold tracking-widest whitespace-nowrap">
+        <Clock size={12} className="animate-pulse" />
+        <span>{timeLeft.days}d {timeLeft.hours}h {timeLeft.minutes}m {timeLeft.seconds}s</span>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-neutral-900/40 backdrop-blur-sm border border-neutral-800 p-6 mb-8 mt-4">

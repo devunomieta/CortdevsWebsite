@@ -12,7 +12,8 @@ import {
   Instagram,
   Twitter,
   Youtube,
-  RefreshCw
+  RefreshCw,
+  Shield
 } from "lucide-react";
 import { Link, useParams, Navigate } from "react-router";
 import { useState, useRef, useEffect } from "react";
@@ -69,13 +70,12 @@ export function JobDetail() {
           };
           setJob(normalizedJob as Job);
         } else {
-          // Fallback to static data
-          const staticJob = staticJobs.find((j) => j.id === jobId);
-          if (staticJob) setJob(staticJob);
+          console.warn("Job not found in DB:", jobId);
+          setJob(null);
         }
       } catch (err) {
-        const staticJob = staticJobs.find((j) => j.id === jobId);
-        if (staticJob) setJob(staticJob);
+        console.error("Error retrieving job details:", err);
+        setJob(null);
       } finally {
         setIsLoading(false);
       }
@@ -164,7 +164,7 @@ export function JobDetail() {
         <p>You can find the application record in the Admin Dashboard (if the job exists in the DB).</p>
       `;
 
-      await fetch('/api/send-email', {
+      const emailResponse = await fetch('/api/send-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -174,6 +174,13 @@ export function JobDetail() {
           type: 'Application'
         })
       });
+
+      if (!emailResponse.ok) {
+        const errorData = await emailResponse.json();
+        console.error("Email dispatch failed:", errorData);
+        // We still proceed because the file is uploaded, but we warn the user
+        toast.warning("Application recorded, but contact relay was delayed. Please proceed to schedule.");
+      }
 
       setCvUploaded(true);
       toast.success("CV submitted! Redirecting to interview scheduler...");
@@ -211,249 +218,197 @@ export function JobDetail() {
         description={job.about}
       />
 
-      {/* Header */}
-      <section className="pt-32 pb-16 lg:pt-48 lg:pb-24 border-b border-neutral-100 bg-neutral-50">
-        <div className="max-w-4xl mx-auto px-6 lg:px-8">
+      {/* Hero Header */}
+      <section className="pt-32 pb-20 lg:pt-48 lg:pb-24 bg-neutral-50 border-b border-neutral-100">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <Link 
+            to="/careers" 
+            className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-neutral-400 hover:text-black transition-colors mb-12"
+          >
+            <ArrowLeft size={14} /> Back to Open Positions
+          </Link>
+          
           <motion.div {...fadeInUp}>
-            <Link 
-              to="/careers" 
-              className="inline-flex items-center gap-2 text-xs tracking-widest uppercase text-neutral-500 hover:text-black transition-colors mb-12 group"
-            >
-              <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform" />
-              Back to Careers
-            </Link>
-            
-            <div className="flex flex-wrap items-center gap-4 mb-6">
-              <span className={`px-3 py-1 text-[10px] font-bold uppercase tracking-widest border ${
-                job.status === 'open' 
-                  ? "bg-green-50 text-green-700 border-green-100" 
-                  : "bg-neutral-100 text-neutral-500 border-neutral-200"
+            <div className="flex flex-wrap items-center gap-4 mb-8">
+              <span className={`px-4 py-1.5 text-[9px] font-bold uppercase tracking-[0.2em] ${
+                job.status === 'open' ? 'bg-black text-white' : 'bg-neutral-200 text-neutral-500'
               }`}>
-                {job.status === 'open' ? "Current Opening" : "Closed"}
+                {job.status === 'open' ? 'Active Opportunity' : 'Closed Role'}
               </span>
-              <div className="flex items-center gap-1.5 text-neutral-500 text-sm">
-                <MapPin size={16} />
+              <div className="flex items-center gap-2 text-neutral-400 text-[10px] uppercase font-bold tracking-widest">
+                <MapPin size={12} className="text-neutral-300" />
                 {job.location}
               </div>
             </div>
-
-            <h1 className="text-4xl lg:text-6xl font-light tracking-tight mb-8">
+            
+            <h1 className="text-5xl lg:text-8xl font-light tracking-tighter mb-10 leading-[1] max-w-4xl">
               {job.title}
             </h1>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 border border-neutral-200 bg-white">
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 bg-neutral-50 flex items-center justify-center flex-shrink-0">
-                  <Briefcase size={20} className="text-neutral-400" />
-                </div>
-                <div>
-                  <p className="text-[10px] uppercase tracking-widest text-neutral-400 font-bold mb-1">Role Type</p>
-                  <p className="text-sm font-medium">{job.role}</p>
-                </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-12 pt-12 border-t border-neutral-200">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 mb-2">Primary Architecture</p>
+                <p className="text-lg font-light italic">{job.role}</p>
               </div>
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 bg-neutral-50 flex items-center justify-center flex-shrink-0">
-                  <DollarSign size={20} className="text-neutral-400" />
-                </div>
-                <div>
-                  <p className="text-[10px] uppercase tracking-widest text-neutral-400 font-bold mb-1">Compensation</p>
-                  <p className="text-sm font-medium leading-relaxed">{job.compensation}</p>
-                </div>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 mb-2">Compensation Structure</p>
+                <p className="text-sm font-medium leading-relaxed max-w-xs">{job.compensation}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 mb-2">Assignment Type</p>
+                <p className="text-sm font-medium uppercase tracking-widest text-[10px]">Remote / Global Engagement</p>
               </div>
             </div>
           </motion.div>
         </div>
       </section>
 
-      {/* Content */}
-      <section className="py-20 lg:py-32">
-        <div className="max-w-4xl mx-auto px-6 lg:px-8">
-          <div className="space-y-20">
-            {/* About the Role */}
-            <motion.div 
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              viewport={{ once: true }}
-            >
-              <h2 className="text-2xl font-light tracking-tight mb-8 border-l-4 border-black pl-6 uppercase text-[14px] font-bold tracking-widest">
-                The Mission
-              </h2>
-              <p className="text-lg text-neutral-600 leading-relaxed whitespace-pre-wrap">
-                {job.about}
-              </p>
-            </motion.div>
-
-            {/* Responsibilities */}
-            <motion.div 
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              viewport={{ once: true }}
-            >
-              <h2 className="text-2xl font-light tracking-tight mb-8 border-l-4 border-black pl-6 uppercase text-[14px] font-bold tracking-widest">
-                Key Responsibilities
-              </h2>
-              <ul className="grid grid-cols-1 gap-6">
-                {job.responsibilities.map((item, idx) => (
-                  <li key={idx} className="flex items-start gap-4 group">
-                    <div className="mt-1.5 w-5 h-5 bg-black text-white flex items-center justify-center flex-shrink-0 text-[10px]">
-                      {idx + 1}
-                    </div>
-                    <span className="text-neutral-600 leading-relaxed group-hover:text-black transition-colors">
-                      {item}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </motion.div>
-
-            {/* Requirements */}
-            <motion.div 
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              viewport={{ once: true }}
-            >
-              <h2 className="text-2xl font-light tracking-tight mb-8 border-l-4 border-black pl-6 uppercase text-[14px] font-bold tracking-widest">
-                Candidate Requirements
-              </h2>
-              <ul className="space-y-4">
-                {job.requirements.map((req, idx) => (
-                  <li key={idx} className="flex items-center gap-4 text-neutral-600">
-                    <CheckCircle2 size={20} className="text-black flex-shrink-0" />
-                    {req}
-                  </li>
-                ))}
-              </ul>
-            </motion.div>
-
-            {/* CTA */}
-            {job.status === 'open' ? (
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                className="pt-12 border-t border-neutral-100"
-              >
-                <div className="bg-black p-12 text-center text-white">
-                  <h3 className="text-3xl font-light mb-4">Ready to reach out?</h3>
-                  <p className="text-neutral-400 mb-8 max-w-md mx-auto">
-                    Please upload your CV to unlock the interview scheduler.
-                  </p>
-
-                  {job.deadline && <DeadlineCountdown deadline={job.deadline} />}
-
-                  <div className="max-w-xs mx-auto mb-8">
-                    <input 
-                      type="file" 
-                      ref={fileInputRef}
-                      onChange={handleFileChange}
-                      className="hidden"
-                      accept=".pdf,.doc,.docx"
-                    />
-                    <button
-                      onClick={() => !cvUploaded && fileInputRef.current?.click()}
-                      disabled={isUploading || cvUploaded}
-                      className={`w-full py-4 px-6 border border-dashed flex items-center justify-center gap-3 transition-all ${
-                        cvUploaded 
-                          ? "bg-green-900/20 border-green-500/50 text-green-400 cursor-default" 
-                          : cvFile 
-                            ? "bg-neutral-900/50 border-neutral-600 text-white"
-                            : "border-neutral-700 hover:border-white text-neutral-400 hover:text-white"
-                      }`}
-                    >
-                      {cvUploaded ? (
-                        <><CheckCircle2 size={20} /> CV Submitted</>
-                      ) : cvFile ? (
-                        <><CheckCircle2 size={20} /> CV Selected</>
-                      ) : (
-                        <><Upload size={20} /> Upload CV (PDF/Word)</>
-                      )}
-                    </button>
-                    
-                    {cvFile && !isUploading && (
-                      <div className="flex flex-col items-center">
-                        <div className="flex items-center justify-center gap-4 mt-4">
-                          <button 
-                            onClick={() => {
-                              setCvUploaded(false);
-                              setCvFile(null);
-                              if (fileInputRef.current) fileInputRef.current.value = "";
-                            }}
-                            className="text-[10px] font-bold uppercase tracking-widest text-neutral-500 hover:text-white flex items-center gap-1.5 transition-colors"
-                          >
-                            <RefreshCw size={12} /> {cvUploaded ? "Edit / Change" : "Re-select"}
-                          </button>
-                          <div className="w-px h-3 bg-neutral-800" />
-                          <button 
-                            onClick={() => {
-                              if (cvFile) {
-                                const url = URL.createObjectURL(cvFile);
-                                window.open(url, '_blank');
-                              }
-                            }}
-                            className="text-[10px] font-bold uppercase tracking-widest text-neutral-500 hover:text-white flex items-center gap-1.5 transition-colors"
-                          >
-                            <FileText size={12} /> Preview
-                          </button>
-                        </div>
-                        <p className="text-[10px] text-neutral-500 mt-4 truncate font-mono max-w-xs">
-                          Selected: {cvFile.name}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                  <button
-                    onClick={handleScheduleInterview}
-                    disabled={!cvFile || isUploading || cvUploaded}
-                    className={`inline-flex items-center justify-center gap-3 px-12 py-5 text-sm tracking-widest uppercase transition-all font-bold group ${
-                      cvFile && !isUploading && !cvUploaded
-                        ? "bg-white text-black hover:bg-neutral-100 cursor-pointer" 
-                        : "bg-neutral-800 text-neutral-500 cursor-not-allowed"
-                    }`}
-                  >
-                    {isUploading ? (
-                      <div className="flex items-center gap-3">
-                        <RefreshCw className="animate-spin" size={18} />
-                        Submitting...
-                      </div>
-                    ) : (
-                      <>
-                        {cvUploaded ? "Interview Requested" : "Schedule Interview"}
-                        <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
-                      </>
-                    )}
-                  </button>
-                </div>
+      {/* Main Content */}
+      <section className="py-24 lg:py-32">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-20">
+            {/* Left Column: Details */}
+            <div className="lg:col-span-7 space-y-20">
+              <motion.div {...fadeInUp} className="prose prose-neutral max-w-none">
+                <h2 className="text-3xl font-light tracking-tight mb-8 italic text-neutral-400">The Objective</h2>
+                <p className="text-xl font-light text-neutral-600 leading-relaxed">
+                  {job.about.replace(/\\"/g, '"')}
+                </p>
               </motion.div>
-            ) : (
-              <div className="pt-12 border-t border-neutral-100">
-                <div className="bg-neutral-50 p-12 text-center border border-neutral-200">
-                  <h3 className="text-2xl font-light mb-4">This position is closed.</h3>
-                  <p className="text-neutral-500 mb-8 max-w-md mx-auto text-sm">
-                    We're not currently hiring for this role, but we'd love to stay connected. 
-                    Follow us for future updates.
-                  </p>
-                  
-                  <div className="flex justify-center gap-4">
-                    {socials.map((social, idx) => (
-                      <a 
-                        key={idx}
-                        href={social.href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="w-12 h-12 flex items-center justify-center border border-neutral-200 text-neutral-400 hover:border-black hover:text-black transition-all"
-                        aria-label={social.label}
-                      >
-                        {social.icon}
-                      </a>
-                    ))}
+
+              <motion.div {...fadeInUp}>
+                <h2 className="text-[10px] font-bold uppercase tracking-[0.3em] text-neutral-400 mb-10 border-b border-neutral-100 pb-4">Key Responsibilities</h2>
+                <ul className="space-y-6">
+                  {job.responsibilities.map((item, idx) => (
+                    <li key={idx} className="flex gap-6 group">
+                      <span className="text-neutral-300 font-mono text-xs pt-1 group-hover:text-black transition-colors">0{idx + 1}</span>
+                      <p className="text-neutral-600 leading-relaxed font-light">{item}</p>
+                    </li>
+                  ))}
+                </ul>
+              </motion.div>
+
+              <motion.div {...fadeInUp}>
+                <h2 className="text-[10px] font-bold uppercase tracking-[0.3em] text-neutral-400 mb-10 border-b border-neutral-100 pb-4">Structural Requirements</h2>
+                <ul className="space-y-6">
+                  {job.requirements.map((item, idx) => (
+                    <li key={idx} className="flex gap-4 items-start">
+                      <div className="mt-2 w-1.5 h-1.5 bg-black rotate-45 shrink-0" />
+                      <p className="text-neutral-600 leading-relaxed font-light">{item}</p>
+                    </li>
+                  ))}
+                </ul>
+              </motion.div>
+            </div>
+
+            {/* Right Column: CTA */}
+            <div className="lg:col-span-5 relative">
+              <div className="sticky top-32">
+                {job.status === 'open' ? (
+                  <motion.div 
+                    {...fadeInUp}
+                    className="bg-black text-white p-10 lg:p-14 shadow-3xl relative overflow-hidden"
+                  >
+                    <div className="relative z-10">
+                      <h2 className="text-3xl font-light tracking-tight mb-4 italic">Application Form</h2>
+                      <p className="text-neutral-400 font-light mb-10 text-sm leading-relaxed">
+                        Please upload your CV and proceed to book interview slot
+                      </p>
+
+                      {job.deadline && <DeadlineCountdown deadline={job.deadline} />}
+
+                      <div className="space-y-6">
+                        <div className="relative group">
+                          <input 
+                            type="file" 
+                            accept=".pdf"
+                            onChange={handleFileChange}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
+                            id="cv-upload-input"
+                          />
+                          <div className={`w-full py-10 border border-neutral-800 flex flex-col items-center justify-center gap-4 transition-all duration-500 border-dashed ${
+                            cvFile ? "bg-neutral-900 border-neutral-600 text-white" : "hover:bg-neutral-900 text-neutral-500 hover:text-white"
+                          }`}>
+                            <RefreshCw size={24} className={isUploading ? "animate-spin" : ""} />
+                            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-center px-4">
+                              {cvUploaded 
+                                ? "Transmission Confirmed" 
+                                : cvFile 
+                                  ? `Selected: ${cvFile.name}` 
+                                  : "Drop CV or Click to Upload"}
+                            </span>
+                          </div>
+                        </div>
+
+                        <button 
+                          onClick={handleScheduleInterview}
+                          disabled={!cvFile || isUploading || cvUploaded}
+                          className="w-full py-6 bg-white text-black text-[10px] font-bold uppercase tracking-[0.3em] flex items-center justify-center gap-4 hover:bg-neutral-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-500 shadow-xl shadow-black/20"
+                        >
+                          {isUploading ? (
+                            <>
+                              <RefreshCw size={16} className="animate-spin" />
+                              Synchronizing...
+                            </>
+                          ) : cvUploaded ? (
+                            "Success: Session Locked"
+                          ) : (
+                            <>
+                              Schedule Interview
+                              <ArrowRight size={16} />
+                            </>
+                          )}
+                        </button>
+                      </div>
+                      
+                      <div className="mt-10 pt-10 border-t border-neutral-900">
+                        <p className="text-[8px] font-bold uppercase tracking-[0.2em] text-neutral-500 mb-6">Stay Connected</p>
+                        <div className="flex gap-6">
+                          {socials.map((social, idx) => (
+                            <a 
+                              key={idx}
+                              href={social.href}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-neutral-500 hover:text-white transition-all"
+                              aria-label={social.label}
+                            >
+                              {social.icon}
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 blur-[100px] rounded-full translate-x-32 -translate-y-32" />
+                  </motion.div>
+                ) : (
+                  <div className="p-10 border border-neutral-100 bg-neutral-50 text-center space-y-4">
+                    <p className="text-xl font-light italic text-neutral-400">Position Closed</p>
+                    <p className="text-[10px] text-neutral-300 font-bold uppercase tracking-widest">Internal selection in progress</p>
+                    <Link to="/careers" className="inline-block mt-4 text-[10px] font-bold uppercase tracking-widest text-black hover:underline underline-offset-4">Check Other Openings</Link>
+                    
+                    <div className="pt-10 mt-10 border-t border-neutral-100 flex flex-col items-center">
+                      <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-neutral-400 mb-6">Stay Connected for Updates</p>
+                      <div className="flex justify-center gap-6">
+                        {socials.map((social, idx) => (
+                          <a 
+                            key={idx}
+                            href={social.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-neutral-300 hover:text-black transition-all"
+                            aria-label={social.label}
+                          >
+                            {social.icon}
+                          </a>
+                        ))}
+                      </div>
+                    </div>
                   </div>
-                  <p className="mt-6 text-[10px] uppercase tracking-[0.2em] text-neutral-400 font-bold">
-                    @hirecortdevs
-                  </p>
-                </div>
+                )}
               </div>
-            )}
+            </div>
           </div>
         </div>
       </section>
