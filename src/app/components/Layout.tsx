@@ -75,6 +75,7 @@ export function Layout() {
     { to: "/services", label: "Services" },
     { to: "/work", label: "Work" },
     { to: "/about", label: "About" },
+    { to: "/careers", label: "Careers" },
     { to: "/contact", label: "Contact" },
   ];
 

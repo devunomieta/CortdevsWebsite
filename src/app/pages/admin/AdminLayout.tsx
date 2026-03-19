@@ -19,7 +19,8 @@ import {
     Bell,
     BookOpen,
     AlertCircle,
-    ChevronDown
+    ChevronDown,
+    Briefcase
 } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
 import { useConfig } from "../../context/ConfigContext";
@@ -252,6 +253,15 @@ export function AdminLayout() {
             ]
         },
         { icon: <ShieldCheck size={20} />, label: "Team & Roles", path: "/admin/users", permission: "Personnel" },
+        { 
+            label: "Careers",
+            icon: <Briefcase size={20} />,
+            permission: "Personnel",
+            children: [
+                { label: "Job Postings", path: "/admin/careers" },
+                { label: "Applications", path: "/admin/applications" },
+            ]
+        },
         {
             label: "Site Settings",
             icon: <Settings size={20} />,

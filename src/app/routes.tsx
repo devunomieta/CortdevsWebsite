@@ -5,12 +5,16 @@ import { About } from "./pages/About";
 import { Services } from "./pages/Services";
 import { Work } from "./pages/Work";
 import { Contact } from "./pages/Contact";
+import { Careers } from "./pages/Careers";
+import { JobDetail } from "./pages/JobDetail";
 import { Success } from "./pages/Success";
 import { Privacy } from "./pages/Privacy";
 import { Terms } from "./pages/Terms";
 import { AdminLayout } from "./pages/admin/AdminLayout";
 import { Dashboard } from "./pages/admin/Dashboard";
 import { Leads } from "./pages/admin/Leads";
+import { AdminCareers } from "./pages/admin/Careers";
+import { AdminApplications } from "./pages/admin/Applications";
 import { Clients } from "./pages/admin/Clients";
 import { Communications as AdminComms } from "./pages/admin/Communications";
 import { UserManagement as AdminUsers } from "./pages/admin/UserManagement";
@@ -76,6 +80,14 @@ export const router = createBrowserRouter([
         path: "terms",
         element: <Terms />,
       },
+      {
+        path: "careers",
+        element: <Careers />,
+      },
+      {
+        path: "careers/:jobId",
+        element: <JobDetail />,
+      },
     ],
   },
   {
@@ -89,6 +101,14 @@ export const router = createBrowserRouter([
       {
         path: "leads",
         element: <Leads />,
+      },
+      {
+        path: "careers",
+        element: <AdminCareers />,
+      },
+      {
+        path: "applications",
+        element: <AdminApplications />,
       },
       {
         path: "clients",
