@@ -9,6 +9,7 @@ export interface Job {
   requirements: string[];
   applyUrl: string;
   status: 'open' | 'closed';
+  slug?: string;
   deadline?: string;
 }
 

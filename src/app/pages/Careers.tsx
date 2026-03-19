@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { ArrowRight, MapPin, Briefcase, Users, Star, Target, Shield, RefreshCw, Clock } from "lucide-react";
+import { ArrowRight, MapPin, Briefcase, RefreshCw, Clock } from "lucide-react";
 import { Link } from "react-router";
 import { useState, useEffect } from "react";
 import { jobs as staticJobs, Job } from "../data/jobs";
@@ -175,7 +175,7 @@ export function Careers() {
 
                     <div className="shrink-0">
                       <Link
-                        to={`/careers/${job.id}`}
+                        to={`/careers/${job.slug || job.id}`}
                         className="inline-flex items-center justify-center gap-3 px-8 py-4 bg-black text-white text-[10px] font-bold tracking-[0.2em] uppercase hover:bg-neutral-800 transition-all duration-300 group/btn"
                       >
                         View Details

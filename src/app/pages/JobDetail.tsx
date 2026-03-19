@@ -124,8 +124,9 @@ export function JobDetail() {
     try {
       // 1. Upload to Supabase Storage
       const fileExt = cvFile.name.split('.').pop();
-      const fileName = `${job.id}-${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
-      const filePath = `cv-uploads/${fileName}`;
+      const jobSlug = job.slug || job.id;
+      const fileName = `${jobSlug}-${Math.random().toString(36).substring(2, 8)}-${Date.now()}.${fileExt}`;
+      const filePath = fileName;
 
       const { error: uploadError } = await supabase.storage
         .from('cv-uploads')
@@ -183,7 +184,7 @@ export function JobDetail() {
       }
 
       setCvUploaded(true);
-      toast.success("CV submitted! Redirecting to interview scheduler...");
+      toast.success("Upload Successful, Redirecting to Booking Page!");
 
       // 4. Redirect to Calendly (Same tab)
       setTimeout(() => {
@@ -337,6 +338,33 @@ export function JobDetail() {
                                   ? `Selected: ${cvFile.name}` 
                                   : "Drop CV or Click to Upload"}
                             </span>
+                            
+                            {cvFile && !isUploading && !cvUploaded && (
+                              <div className="flex gap-4 mt-2 relative z-30">
+                                <button 
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    const url = URL.createObjectURL(cvFile);
+                                    window.open(url, '_blank');
+                                  }}
+                                  className="text-[8px] font-bold uppercase tracking-widest text-neutral-400 hover:text-white underline underline-offset-4"
+                                >
+                                  Preview CV
+                                </button>
+                                <button 
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setCvFile(null);
+                                    if (fileInputRef.current) fileInputRef.current.value = "";
+                                  }}
+                                  className="text-[8px] font-bold uppercase tracking-widest text-rose-500 hover:text-rose-400 underline underline-offset-4"
+                                >
+                                  Edit / Remove
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </div>
 
@@ -351,7 +379,7 @@ export function JobDetail() {
                               Synchronizing...
                             </>
                           ) : cvUploaded ? (
-                            "Success: Session Locked"
+                            "Upload Successful, Redirecting..."
                           ) : (
                             <>
                               Schedule Interview
