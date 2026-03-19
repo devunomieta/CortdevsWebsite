@@ -1,6 +1,8 @@
 import net from 'net';
+import dotenv from 'dotenv';
+dotenv.config();
 
-const host = '216.198.79.1';
+const host = process.env.SMTP_HOST || '127.0.0.1';
 const ports = [465, 587, 25];
 
 console.log(`Starting RAW socket tests to ${host}...`);

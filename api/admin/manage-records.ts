@@ -1,15 +1,17 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabase } from '../_lib/supabase.js';
+import { verifyAdmin } from '../_lib/auth.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    const { action } = req.body;
+    // Security: Verify the JWT and check for Administrative privileges
+    const admin = await verifyAdmin(req, res);
+    if (!admin) return; // verifyAdmin handles the error response
 
-    // Security: In a real app, we'd verify the JWT and check for Super Admin role here.
-    // For this implementation, we assume the frontend has already verified the password.
+    const { action } = req.body;
 
     try {
         let result;

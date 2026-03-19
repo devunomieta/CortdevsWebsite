@@ -1,10 +1,15 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabase } from '../_lib/supabase.js';
+import { verifyAuth } from '../_lib/auth.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
     }
+
+    // Security: Verify the JWT
+    const user = await verifyAuth(req, res);
+    if (!user) return; // verifyAuth handles the error response
 
     const { reference, projectId, gatewayId, amount } = req.body;
 
