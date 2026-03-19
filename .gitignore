@@ -146,13 +146,11 @@ build_log.txt
 
 # Database dumps and schemas (Security)
 *.sql
-!docs_portal_schema.sql
-!rbac_schema.sql
-!wallet_schema.sql
-!sales_commission_schema.sql
-!create_audit_logs.sql
-!payment_confirmations_schema.sql
-!docs_portal_broadcast_schema.sql
+
+# Sensitive files
+build_output.txt
+clients_columns.txt
+clients_security.txt
 
 # Temporary files
 tmp/
