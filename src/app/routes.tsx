@@ -34,6 +34,7 @@ import { ProjectPublic } from "./pages/ProjectPublic";
 import { DocsPortal } from "./pages/DocsPortal";
 import { AdminIssueManagement } from "./pages/admin/IssueManagement";
 import { AdminSubmissions } from "./pages/admin/AdminSubmissions";
+import { Navigate } from "react-router";
 
 export const router = createBrowserRouter([
   {
@@ -67,6 +68,10 @@ export const router = createBrowserRouter([
       {
         path: "knowledge-base",
         element: <DocsPortal />,
+      },
+      {
+        path: "docs",
+        element: <Navigate to="/knowledge-base" replace />,
       },
       {
         path: "success",

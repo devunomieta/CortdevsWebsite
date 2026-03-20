@@ -36,9 +36,9 @@ export function NotFound() {
     }, [navigate, isAdmin]);
 
     return (
-        <div className="min-h-screen bg-white flex items-center justify-center p-6 relative overflow-hidden">
+        <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-6 relative overflow-hidden transition-colors duration-300">
             {/* Background Decorative Element */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-neutral-50 rounded-full blur-3xl opacity-50 z-0" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-secondary/20 rounded-full blur-3xl opacity-50 z-0" />
 
             <div className="max-w-md w-full text-center relative z-10 space-y-8">
                 <motion.div
@@ -48,26 +48,26 @@ export function NotFound() {
                     className="flex justify-center"
                 >
                     <div className="relative">
-                        <h1 className="text-[12rem] font-light leading-none tracking-tighter text-neutral-100 select-none">404</h1>
+                        <h1 className="text-[12rem] font-light leading-none tracking-tighter text-muted/10 select-none">404</h1>
                         <div className="absolute inset-0 flex items-center justify-center pt-8">
-                            <ShieldAlert size={64} className="text-black" strokeWidth={1} />
+                            <ShieldAlert size={64} className="text-foreground" strokeWidth={1} />
                         </div>
                     </div>
                 </motion.div>
 
                 <div className="space-y-2">
                     <h2 className="text-3xl font-light italic tracking-tight">Coordinate Mismatch</h2>
-                    <p className="text-sm text-neutral-500 uppercase tracking-widest font-bold">The requested intelligence does not exist</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-[0.2em] font-bold">The requested intelligence does not exist</p>
                 </div>
 
-                <div className="p-8 bg-neutral-50 border border-neutral-100 space-y-4">
-                    <p className="text-xs text-neutral-400 leading-relaxed italic">
+                <div className="p-8 bg-secondary/30 border border-border space-y-4">
+                    <p className="text-[10px] text-muted-foreground leading-relaxed italic uppercase tracking-widest">
                         The transmission path you followed points to a decommissioned or non-existent sector.
                         To maintain system integrity, we are initiating a tactical retreat.
                     </p>
                     <div className="flex items-center justify-center gap-3">
                         <BrandLoader size="sm" />
-                        <span className="text-[10px] uppercase tracking-[0.2em] font-bold text-black italic">
+                        <span className="text-[10px] uppercase tracking-[0.2em] font-bold text-foreground italic">
                             Redirecting to {isAdmin ? 'Command Center' : 'Public Portal'} in {countdown}s
                         </span>
                     </div>
@@ -76,13 +76,13 @@ export function NotFound() {
                 <div className="flex flex-col gap-3">
                     <button
                         onClick={() => navigate(isAdmin ? "/admin" : "/")}
-                        className="w-full py-4 bg-black text-white text-[10px] font-bold uppercase tracking-[0.3em] flex items-center justify-center gap-3 hover:bg-neutral-800 transition-all shadow-xl shadow-black/10"
+                        className="w-full py-4 bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-[0.3em] flex items-center justify-center gap-3 hover:opacity-90 transition-all shadow-xl shadow-black/10"
                     >
                         {isAdmin ? 'Return to Command' : 'Return Home'} <Home size={14} />
                     </button>
                     <button
                         onClick={() => navigate(-1)}
-                        className="w-full py-4 border border-neutral-200 text-[10px] font-bold uppercase tracking-widest text-neutral-400 hover:text-black transition-all"
+                        className="w-full py-4 border border-border text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground transition-all"
                     >
                         <ArrowLeft size={12} className="inline mr-2" /> Resume Previous Path
                     </button>

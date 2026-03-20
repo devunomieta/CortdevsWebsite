@@ -245,14 +245,14 @@ export function ProjectPublic() {
     };
 
     return (
-        <div className="min-h-screen bg-white text-black font-sans pt-32 pb-20 px-6">
+        <div className="min-h-screen bg-background text-foreground transition-colors duration-300 font-sans pt-32 pb-20 px-6">
             <div className="max-w-4xl mx-auto space-y-12">
                 {/* Header */}
                 <header className="text-center space-y-4">
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="inline-flex items-center gap-2 px-3 py-1 bg-black text-white text-[10px] font-bold uppercase tracking-[0.3em]"
+                        className="inline-flex items-center gap-2 px-3 py-1 bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-[0.3em]"
                     >
                         <Shield size={12} /> Strategic Portal
                     </motion.div>
@@ -285,7 +285,7 @@ export function ProjectPublic() {
                         <button
                             type="submit"
                             disabled={isLoading}
-                            className="absolute right-2 top-2 bottom-2 bg-black text-white px-6 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest hover:bg-neutral-800 transition-all disabled:opacity-50"
+                            className="absolute right-2 top-2 bottom-2 bg-primary text-primary-foreground px-6 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-50"
                         >
                             {isLoading ? <RefreshCw size={14} className="animate-spin" /> : <Search size={14} />}
                             Sync
@@ -312,7 +312,7 @@ export function ProjectPublic() {
                         >
                             <button
                                 onClick={() => setShowProjectPicker(!showProjectPicker)}
-                                className="w-full flex items-center justify-between p-4 bg-white border border-neutral-100 text-[10px] font-bold uppercase tracking-widest hover:border-black transition-all"
+                                className="w-full flex items-center justify-between p-4 bg-card border border-border text-[10px] font-bold uppercase tracking-widest hover:border-foreground transition-all"
                             >
                                 <span className="flex items-center gap-2">
                                     <Layers size={14} /> {project.project_name}
@@ -326,7 +326,7 @@ export function ProjectPublic() {
                                         initial={{ opacity: 0, y: 5 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         exit={{ opacity: 0, y: 5 }}
-                                        className="absolute top-full left-0 right-0 mt-1 bg-white border border-neutral-100 shadow-2xl overflow-hidden max-h-60 overflow-y-auto"
+                                        className="absolute top-full left-0 right-0 mt-1 bg-card border border-border shadow-2xl overflow-hidden max-h-60 overflow-y-auto"
                                     >
                                         {projects.map((p, idx) => (
                                             <button
@@ -360,7 +360,7 @@ export function ProjectPublic() {
                         >
                             {/* Project Overview */}
                             <div className="lg:col-span-2 space-y-8">
-                                <section className="bg-neutral-900 text-white p-10 space-y-8 relative overflow-hidden group">
+                                <section className="bg-primary text-primary-foreground p-10 space-y-8 relative overflow-hidden group border border-border">
                                     <div className="space-y-2">
                                         <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-neutral-400">Tactical ID: {project.id.slice(0, 8).toUpperCase()}</p>
                                         <h2 className="text-4xl font-light italic tracking-tight">{project.project_name}</h2>
@@ -398,13 +398,13 @@ export function ProjectPublic() {
                                 </section>
 
                                 {/* Asset Upload & Documents */}
-                                <div className="p-8 border border-neutral-100 space-y-8">
+                                <div className="p-8 border border-border space-y-8 bg-card">
                                     <header className="flex justify-between items-center">
                                         <div className="space-y-1">
                                             <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Project Assets</p>
                                             <h3 className="text-xl font-light italic">Technical Documentation</h3>
                                         </div>
-                                        <label className="cursor-pointer bg-black text-white px-6 py-3 text-[9px] font-bold uppercase tracking-widest hover:bg-neutral-800 transition-all flex items-center gap-2">
+                                        <label className="cursor-pointer bg-foreground text-background px-6 py-3 text-[9px] font-bold uppercase tracking-widest hover:opacity-90 transition-all flex items-center gap-2">
                                             {isUploading ? <RefreshCw size={14} className="animate-spin" /> : <Upload size={14} />}
                                             Upload Asset
                                             <input type="file" className="hidden" onChange={handleFileUpload} disabled={isUploading} />
@@ -413,22 +413,22 @@ export function ProjectPublic() {
 
                                     <div className="space-y-2">
                                         {projectDocuments.length === 0 ? (
-                                            <div className="p-8 text-center border border-dashed border-neutral-100">
-                                                <p className="text-[10px] text-neutral-400 uppercase tracking-widest italic">No assets registered to this initiative.</p>
+                                            <div className="p-8 text-center border border-dashed border-border bg-secondary/10">
+                                                <p className="text-[10px] text-muted-foreground uppercase tracking-widest italic">No assets registered to this initiative.</p>
                                             </div>
                                         ) : (
                                             projectDocuments.map(doc => (
-                                                <div key={doc.id} className="p-4 bg-neutral-50 border border-neutral-100 flex items-center justify-between group">
+                                                <div key={doc.id} className="p-4 bg-secondary/30 border border-border flex items-center justify-between group">
                                                     <div className="flex items-center gap-3">
-                                                        <div className="p-2 bg-white text-neutral-400">
+                                                        <div className="p-2 bg-card text-muted-foreground">
                                                             <FileText size={16} />
                                                         </div>
                                                         <div>
                                                             <p className="text-[10px] font-bold uppercase">{doc.name}</p>
-                                                            <p className="text-[9px] text-neutral-400 font-mono">{(doc.size / 1024 / 1024).toFixed(2)} MB • {new Date(doc.created_at).toLocaleDateString()}</p>
+                                                            <p className="text-[9px] text-muted-foreground font-mono">{(doc.size / 1024 / 1024).toFixed(2)} MB • {new Date(doc.created_at).toLocaleDateString()}</p>
                                                         </div>
                                                     </div>
-                                                    <a href={doc.file_url} target="_blank" rel="noreferrer" className="p-2 hover:bg-black hover:text-white transition-all text-neutral-400">
+                                                    <a href={doc.file_url} target="_blank" rel="noreferrer" className="p-2 hover:bg-foreground hover:text-background transition-all text-muted-foreground">
                                                         <ExternalLink size={14} />
                                                     </a>
                                                 </div>
@@ -440,19 +440,19 @@ export function ProjectPublic() {
 
                             {/* Payment/Sidebar */}
                             <div className="space-y-6">
-                                <div className="p-8 bg-neutral-50 border border-neutral-100 space-y-8">
+                                <div className="p-8 bg-secondary/30 border border-border space-y-8">
                                     <header className="space-y-2">
-                                        <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Financial Clearance</p>
+                                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Financial Clearance</p>
                                         <h3 className="text-2xl font-light tracking-tight italic">Secure Settlement</h3>
                                     </header>
 
                                     <div className="space-y-2">
-                                        <div className="p-4 bg-white border border-neutral-100 flex items-center justify-between">
-                                            <span className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Settled</span>
+                                        <div className="p-4 bg-card border border-border flex items-center justify-between">
+                                            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Settled</span>
                                             <span className="text-sm font-light text-green-600">{project.paid_amount}</span>
                                         </div>
-                                        <div className="p-4 bg-white border border-black flex items-center justify-between">
-                                            <span className="text-[10px] font-bold uppercase tracking-widest text-black">Balance Due</span>
+                                        <div className="p-4 bg-card border border-primary flex items-center justify-between">
+                                            <span className="text-[10px] font-bold uppercase tracking-widest text-primary">Balance Due</span>
                                             <span className="text-lg font-light">{calculateBalance(project.total_value, project.paid_amount)}</span>
                                         </div>
                                     </div>
@@ -464,17 +464,17 @@ export function ProjectPublic() {
                                                 <button
                                                     key={gw.id}
                                                     onClick={() => setSelectedGateway(gw)}
-                                                    className={`p-3 border transition-all flex flex-col items-center gap-2 group ${selectedGateway?.id === gw.id ? "bg-black text-white border-black" : "bg-white border-neutral-100 hover:border-black"}`}
+                                                    className={`p-3 border transition-all flex flex-col items-center gap-2 group ${selectedGateway?.id === gw.id ? "bg-foreground text-background border-foreground" : "bg-card border-border hover:border-foreground"}`}
                                                 >
-                                                    <div className={`p-2 transition-colors ${selectedGateway?.id === gw.id ? "bg-white/10" : "bg-neutral-50 group-hover:bg-black group-hover:text-white"}`}>
+                                                    <div className={`p-2 transition-colors ${selectedGateway?.id === gw.id ? "bg-background/10" : "bg-secondary/50 group-hover:bg-foreground group-hover:text-background"}`}>
                                                         {getGatewayIcon(gw.id)}
                                                     </div>
                                                     <span className="text-[8px] font-bold uppercase tracking-widest">{gw.name}</span>
                                                 </button>
                                             ))}
                                             {gateways.length === 0 && (
-                                                <div className="col-span-2 p-4 text-center border border-dashed border-neutral-200">
-                                                    <p className="text-[9px] text-neutral-400 uppercase tracking-widest italic">Digital gateways synchronizing...</p>
+                                                <div className="col-span-2 p-4 text-center border border-dashed border-border">
+                                                    <p className="text-[9px] text-muted-foreground uppercase tracking-widest italic">Digital gateways synchronizing...</p>
                                                 </div>
                                             )}
                                         </div>
@@ -488,37 +488,37 @@ export function ProjectPublic() {
                                                 animate={{ opacity: 1, height: "auto" }}
                                                 exit={{ opacity: 0, height: 0 }}
                                             >
-                                                <div className="p-6 bg-white border border-black space-y-6">
-                                                    <div className="space-y-4 pb-6 border-b border-neutral-100">
+                                                <div className="p-6 bg-card border border-primary space-y-6">
+                                                    <div className="space-y-4 pb-6 border-b border-border">
                                                         <div className="space-y-1">
-                                                            <p className="text-[8px] font-bold uppercase tracking-widest text-neutral-400">Payment Amount (USD)</p>
+                                                            <p className="text-[8px] font-bold uppercase tracking-widest text-muted-foreground">Payment Amount (USD)</p>
                                                             <div className="relative">
                                                                 <input
                                                                     type="number"
                                                                     value={paymentAmount}
                                                                     onChange={(e) => setPaymentAmount(e.target.value)}
-                                                                    className="w-full p-4 pl-10 border border-black text-sm font-bold focus:bg-neutral-50 outline-none transition-all"
+                                                                    className="w-full p-4 pl-10 border border-primary bg-background text-sm font-bold focus:bg-secondary/30 outline-none transition-all"
                                                                     placeholder="0.00"
                                                                 />
-                                                                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400 text-xs font-bold leading-none">$</div>
+                                                                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground text-xs font-bold leading-none">$</div>
                                                             </div>
-                                                            <p className="text-[9px] text-neutral-400 italic">Adjust if you wish to make a partial deposit.</p>
+                                                            <p className="text-[9px] text-muted-foreground italic">Adjust if you wish to make a partial deposit.</p>
                                                         </div>
                                                     </div>
 
                                                     <header className="flex justify-between items-start">
                                                         <div className="space-y-1">
-                                                            <p className="text-[8px] font-bold uppercase tracking-widest text-neutral-400">Selected Gateway</p>
+                                                            <p className="text-[8px] font-bold uppercase tracking-widest text-muted-foreground">Selected Gateway</p>
                                                             <h4 className="text-sm font-bold uppercase">{selectedGateway.name}</h4>
                                                         </div>
-                                                        <button onClick={() => setSelectedGateway(null)} className="text-neutral-400 hover:text-black">
+                                                        <button onClick={() => setSelectedGateway(null)} className="text-muted-foreground hover:text-foreground">
                                                             <AlertCircle size={14} className="rotate-45" />
                                                         </button>
                                                     </header>
 
                                                     {selectedGateway.id === 'bank_transfer' ? (
                                                         <div className="space-y-6">
-                                                            <div className="space-y-4 p-4 bg-neutral-50 border border-neutral-100">
+                                                            <div className="space-y-4 p-4 bg-secondary/30 border border-border">
                                                                 <div className="grid grid-cols-1 gap-3">
                                                                     <div>
                                                                         <p className="text-[8px] font-bold uppercase text-neutral-400 tracking-tighter">Bank Name</p>
@@ -534,22 +534,22 @@ export function ProjectPublic() {
                                                                     </div>
                                                                 </div>
                                                                 {selectedGateway.config?.instructions && (
-                                                                    <p className="text-[9px] text-neutral-500 italic border-t border-neutral-200 pt-3">
+                                                                    <p className="text-[9px] text-muted-foreground italic border-t border-border pt-3">
                                                                         {selectedGateway.config.instructions}
                                                                     </p>
                                                                 )}
                                                             </div>
 
                                                             <div className="space-y-3">
-                                                                <p className="text-[9px] font-bold uppercase tracking-widest text-black">Upload Settlement Receipt</p>
+                                                                <p className="text-[9px] font-bold uppercase tracking-widest text-foreground">Upload Settlement Receipt</p>
                                                                 <label className="block w-full cursor-pointer group">
-                                                                    <div className="p-4 border border-dashed border-neutral-300 group-hover:border-black transition-all flex flex-col items-center gap-2">
+                                                                    <div className="p-4 border border-dashed border-border group-hover:border-foreground transition-all flex flex-col items-center gap-2">
                                                                         {isSubmittingReceipt ? (
-                                                                            <RefreshCw size={20} className="animate-spin text-neutral-400" />
+                                                                            <RefreshCw size={20} className="animate-spin text-muted-foreground" />
                                                                         ) : (
-                                                                            <Upload size={20} className="text-neutral-400 group-hover:text-black" />
+                                                                            <Upload size={20} className="text-muted-foreground group-hover:text-foreground" />
                                                                         )}
-                                                                        <span className="text-[8px] font-bold uppercase tracking-[0.2em] text-neutral-500">Attach Proof of Payment (PDF/Image)</span>
+                                                                        <span className="text-[8px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Attach Proof of Payment (PDF/Image)</span>
                                                                     </div>
                                                                     <input type="file" className="hidden" accept="image/*,.pdf" onChange={handleReceiptUpload} disabled={isSubmittingReceipt} />
                                                                 </label>
@@ -558,13 +558,13 @@ export function ProjectPublic() {
                                                     ) : (
                                                         selectedGateway.id === 'paystack' ? (
                                                             <div className="space-y-4">
-                                                                <div className="p-6 text-center border border-dashed border-neutral-100 bg-neutral-50">
-                                                                    <p className="text-[10px] text-neutral-400 uppercase tracking-widest italic leading-relaxed">
-                                                                        You are about to settle the balance for <span className="text-black font-bold">{project.project_name}</span> using our secure Paystack interface.
+                                                                <div className="p-6 text-center border border-dashed border-border bg-secondary/30">
+                                                                    <p className="text-[10px] text-muted-foreground uppercase tracking-widest italic leading-relaxed">
+                                                                        You are about to settle the balance for <span className="text-foreground font-bold">{project.project_name}</span> using our secure Paystack interface.
                                                                     </p>
                                                                 </div>
                                                                 <PaystackButton
-                                                                    className="w-full py-4 bg-black text-white text-[10px] font-bold uppercase tracking-[0.3em] hover:bg-neutral-800 transition-all flex items-center justify-center gap-3"
+                                                                    className="w-full py-4 bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-[0.3em] hover:opacity-90 transition-all flex items-center justify-center gap-3"
                                                                     publicKey={selectedGateway.config?.isTestMode ? selectedGateway.config?.testPublicKey : selectedGateway.config?.publicKey || ""}
                                                                     email={project.email}
                                                                     amount={Math.round((parseFloat(paymentAmount) || 0) * 100)}
@@ -575,12 +575,12 @@ export function ProjectPublic() {
                                                             </div>
                                                         ) : (
                                                             <div className="space-y-4">
-                                                                <div className="p-6 text-center border border-dashed border-neutral-100 bg-neutral-50">
-                                                                    <p className="text-[10px] text-neutral-400 uppercase tracking-widest italic">
+                                                                <div className="p-6 text-center border border-dashed border-border bg-secondary/30">
+                                                                    <p className="text-[10px] text-muted-foreground uppercase tracking-widest italic">
                                                                         Redirecting to secure {selectedGateway.name} checkout...
                                                                     </p>
                                                                 </div>
-                                                                <button className="w-full py-4 bg-black text-white text-[10px] font-bold uppercase tracking-[0.3em] hover:bg-neutral-800 transition-all flex items-center justify-center gap-3">
+                                                                <button className="w-full py-4 bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-[0.3em] hover:opacity-90 transition-all flex items-center justify-center gap-3">
                                                                     Launch Settlement <ArrowRight size={14} />
                                                                 </button>
                                                             </div>
@@ -596,8 +596,8 @@ export function ProjectPublic() {
                                     </p>
                                 </div>
 
-                                <div className="p-8 border border-neutral-100 space-y-4 shadow-sm">
-                                    <div className="flex items-center gap-2 text-neutral-400">
+                                <div className="p-8 border border-border space-y-4 shadow-sm bg-card">
+                                    <div className="flex items-center gap-2 text-muted-foreground">
                                         <AlertCircle size={14} />
                                         <h4 className="text-[10px] font-bold uppercase tracking-widest">Support Protocol</h4>
                                     </div>

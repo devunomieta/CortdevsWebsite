@@ -69,14 +69,14 @@ export function Contact() {
   ];
 
   return (
-    <div className="bg-white pt-20 lg:pt-24">
+    <div className="bg-background text-foreground transition-colors duration-300 pt-20 lg:pt-24">
       <SEO
         title="Contact Us | Get a Web Development Quote"
         description="Ready to start your project? Contact CortDevs for a free consultation on WordPress, Shopify, GHL, or custom coding solutions."
         keywords="web developer contact, build websites consultation, wordpress quote, shopify expert contact"
       />
       {/* Hero */}
-      <section className="py-20 lg:py-32 bg-neutral-50">
+      <section className="py-20 lg:py-32 bg-secondary/30">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -87,13 +87,13 @@ export function Contact() {
               Let's Start Your
               <span className="block mt-2">Success Story</span>
             </h1>
-            <p className="text-lg lg:text-xl text-neutral-600 leading-relaxed mb-8">
+            <p className="text-lg lg:text-xl text-muted-foreground leading-relaxed mb-8">
               Every exceptional project begins with a conversation. Share your vision,
               challenges, and goals—we'll show you exactly how we can help you achieve them.
             </p>
-            <div className="flex flex-wrap gap-4 justify-center text-sm">
+            <div className="flex flex-wrap gap-4 justify-center text-[10px] font-bold uppercase tracking-widest">
               {benefits.map((benefit, index) => (
-                <div key={index} className="flex items-center gap-2 px-4 py-2 bg-white">
+                <div key={index} className="flex items-center gap-2 px-4 py-2 bg-card border border-border">
                   {benefit.icon}
                   <span>{benefit.title}</span>
                 </div>
@@ -116,7 +116,7 @@ export function Contact() {
               <h2 className="text-3xl lg:text-4xl font-light tracking-tight mb-4">
                 Tell Us About Your Project
               </h2>
-              <p className="text-neutral-600 leading-relaxed mb-8">
+              <p className="text-muted-foreground leading-relaxed mb-8">
                 The more details you share, the better we can tailor our approach to your needs.
                 All information is confidential and protected.
               </p>
@@ -125,11 +125,11 @@ export function Contact() {
                 <motion.div
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  className="bg-green-50 border border-green-200 p-8 text-center"
+                  className="bg-secondary/30 border border-border p-8 text-center"
                 >
-                  <CheckCircle2 className="w-16 h-16 text-green-600 mx-auto mb-4" />
+                  <CheckCircle2 className="w-16 h-16 text-foreground/20 mx-auto mb-4" />
                   <h3 className="text-2xl font-light mb-2">Thank You!</h3>
-                  <p className="text-neutral-600">
+                  <p className="text-muted-foreground italic">
                     We've received your inquiry and will respond within 24 hours.
                     Check your email for confirmation.
                   </p>
@@ -149,7 +149,7 @@ export function Contact() {
                 <h2 className="text-3xl lg:text-4xl font-light tracking-tight mb-4">
                   Get In Touch
                 </h2>
-                <p className="text-neutral-600 leading-relaxed mb-12">
+                <p className="text-muted-foreground leading-relaxed mb-12">
                   Prefer a different way to connect? We're here and ready to help.
                 </p>
 
@@ -157,20 +157,20 @@ export function Contact() {
                   {contactMethods.map((method, index) => {
                     const CardContent = (
                       <div className="flex gap-4">
-                        <div className={`flex-shrink-0 w-12 h-12 ${(method as any).urgent ? "bg-red-600 shadow-lg shadow-red-200" : "bg-black"} text-white flex items-center justify-center`}>
+                        <div className={`flex-shrink-0 w-12 h-12 ${(method as any).urgent ? "bg-primary shadow-lg shadow-black/20" : "bg-primary text-primary-foreground"} flex items-center justify-center`}>
                           {method.icon}
                         </div>
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                            <h3 className="font-light">{method.title}</h3>
+                            <h3 className="font-bold tracking-tight">{method.title}</h3>
                             {(method as any).urgent && (
-                              <span className="text-[10px] bg-red-600 text-white px-2 py-0.5 font-bold uppercase tracking-tighter rounded-full animate-pulse">
+                              <span className="text-[10px] bg-primary text-primary-foreground px-2 py-0.5 font-bold uppercase tracking-widest rounded-full animate-pulse">
                                 Urgent
                               </span>
                             )}
                           </div>
-                          <p className="text-sm mb-1">{method.detail}</p>
-                          <p className="text-xs text-neutral-500">{method.description}</p>
+                          <p className="text-sm mb-1 font-medium">{method.detail}</p>
+                          <p className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground/60">{method.description}</p>
                         </div>
                       </div>
                     );
@@ -199,38 +199,38 @@ export function Contact() {
                   })}
                 </div>
 
-                <div className="bg-neutral-900 text-white p-8">
+                <div className="bg-primary text-primary-foreground p-8 border border-border">
                   <h3 className="text-xl font-light mb-4">What Happens Next?</h3>
                   <ol className="space-y-4 text-sm">
                     <li className="flex gap-3">
-                      <span className="flex-shrink-0 w-6 h-6 bg-white text-black flex items-center justify-center text-xs">
+                      <span className="flex-shrink-0 w-6 h-6 bg-primary-foreground text-primary flex items-center justify-center text-[10px] font-bold">
                         1
                       </span>
-                      <span className="text-neutral-300">
+                      <span className="text-primary-foreground/70">
                         We'll review your inquiry and respond within 24 hours
                       </span>
                     </li>
                     <li className="flex gap-3">
-                      <span className="flex-shrink-0 w-6 h-6 bg-white text-black flex items-center justify-center text-xs">
+                      <span className="flex-shrink-0 w-6 h-6 bg-primary-foreground text-primary flex items-center justify-center text-[10px] font-bold">
                         2
                       </span>
-                      <span className="text-neutral-300">
+                      <span className="text-primary-foreground/70">
                         Schedule a discovery call to dive deep into your needs
                       </span>
                     </li>
                     <li className="flex gap-3">
-                      <span className="flex-shrink-0 w-6 h-6 bg-white text-black flex items-center justify-center text-xs">
+                      <span className="flex-shrink-0 w-6 h-6 bg-primary-foreground text-primary flex items-center justify-center text-[10px] font-bold">
                         3
                       </span>
-                      <span className="text-neutral-300">
+                      <span className="text-primary-foreground/70">
                         Receive a detailed proposal with timeline and pricing
                       </span>
                     </li>
                     <li className="flex gap-3">
-                      <span className="flex-shrink-0 w-6 h-6 bg-white text-black flex items-center justify-center text-xs">
+                      <span className="flex-shrink-0 w-6 h-6 bg-primary-foreground text-primary flex items-center justify-center text-[10px] font-bold">
                         4
                       </span>
-                      <span className="text-neutral-300">
+                      <span className="text-primary-foreground/70">
                         Kick off your project with our dedicated team
                       </span>
                     </li>
@@ -238,11 +238,10 @@ export function Contact() {
                 </div>
 
                 {isNigerian && (
-                  <div className="mt-8 bg-neutral-50 p-6 border-l-4 border-black">
-                    <p className="text-sm text-neutral-700 leading-relaxed">
-                      <strong className="font-normal">Urgent project?</strong> Call us directly at
-                      <span className="block mt-1">+2348156841952</span>
-                      and we'll prioritize your inquiry.
+                  <div className="mt-8 bg-secondary/30 p-6 border-l-4 border-primary">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-1">Urgent project?</p>
+                    <p className="text-sm font-medium">
+                      Call us directly at <span className="text-foreground">+2348156841952</span> and we'll prioritize your inquiry.
                     </p>
                   </div>
                 )}
@@ -253,7 +252,7 @@ export function Contact() {
       </section>
 
       {/* FAQ Section */}
-      <section id="faq" className="py-20 lg:py-32 bg-neutral-50">
+      <section id="faq" className="py-20 lg:py-32 bg-secondary/30 border-t border-border">
         <div className="max-w-4xl mx-auto px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -264,7 +263,7 @@ export function Contact() {
             <h2 className="text-4xl lg:text-5xl font-light tracking-tight mb-6">
               Common Questions
             </h2>
-            <p className="text-lg text-neutral-600">
+            <p className="text-lg text-muted-foreground">
               Quick answers to help you get started faster.
             </p>
           </motion.div>
@@ -298,10 +297,10 @@ export function Contact() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.1 }}
-                className="bg-white p-6 border border-neutral-200"
+                className="bg-card p-6 border border-border"
               >
-                <h3 className="font-light mb-2">{faq.q}</h3>
-                <p className="text-sm text-neutral-600 leading-relaxed">{faq.a}</p>
+                <h3 className="font-bold tracking-tight mb-2">{faq.q}</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed italic">{faq.a}</p>
               </motion.div>
             ))}
           </div>

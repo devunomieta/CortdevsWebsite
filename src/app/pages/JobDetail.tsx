@@ -282,7 +282,7 @@ export function JobDetail() {
                 <ul className="space-y-6">
                   {job.responsibilities.map((item, idx) => (
                     <li key={idx} className="flex gap-6 group">
-                      <span className="text-muted-foreground/30 font-mono text-xs pt-1 group-hover:text-foreground transition-colors">0{idx + 1}</span>
+                      <span className="text-muted/30 font-mono text-xs pt-1 group-hover:text-foreground transition-colors">0{idx + 1}</span>
                       <p className="text-muted-foreground leading-relaxed font-light">{item}</p>
                     </li>
                   ))}

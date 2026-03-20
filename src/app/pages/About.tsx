@@ -118,7 +118,7 @@ export function About() {
   ];
 
   return (
-    <div className="bg-white pt-20 lg:pt-24">
+    <div className="bg-background text-foreground transition-colors duration-300 pt-20 lg:pt-24">
       <SEO
         title="About CortDevs | Elite Digital Agency"
         description="Learn about CortDevs, a premium web development agency. We combine artistry with human-centric engineering to deliver high-performance digital solutions."
@@ -139,22 +139,22 @@ export function About() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.2 }}
-              className="inline-block px-4 py-2 bg-black text-white text-xs tracking-widest mb-8"
+              className="inline-block px-4 py-2 bg-primary text-primary-foreground text-[10px] font-bold tracking-[0.3em] mb-8 uppercase"
             >
               OUR STORY
             </motion.div>
 
-            <h1 className="text-5xl lg:text-7xl font-light tracking-tight mb-8 leading-[1.1] text-black">
+            <h1 className="text-5xl lg:text-7xl font-light tracking-tight mb-8 leading-[1.1]">
               Where Craft Meets
               <span className="block mt-2 font-normal">Execution</span>
             </h1>
-            <p className="text-lg lg:text-xl text-neutral-600 leading-relaxed mb-12">
+            <p className="text-lg lg:text-xl text-muted-foreground leading-relaxed mb-12">
               CortDevs was founded on a simple belief: exceptional web development
               should be accessible to businesses of all sizes. We combine the artistry
               of premium design with the science of human-centric engineering to create
               digital experiences that don't just look good—they perform.
             </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-neutral-600 text-sm leading-relaxed">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-muted-foreground text-sm leading-relaxed">
               <p>
                 Since our inception, we've partnered with startups, scale-ups, and
                 established enterprises across the globe, delivering solutions that drive
@@ -183,7 +183,7 @@ export function About() {
             <h2 className="text-4xl lg:text-5xl font-light tracking-tight mb-6">
               Our Core Values
             </h2>
-            <p className="text-lg text-neutral-400 max-w-3xl mx-auto">
+            <p className="text-lg text-primary-foreground/60 max-w-3xl mx-auto">
               The principles that guide every decision, every project, every client relationship.
             </p>
           </motion.div>
@@ -198,11 +198,11 @@ export function About() {
                 transition={{ delay: index * 0.1 }}
                 className="text-center"
               >
-                <div className="inline-flex items-center justify-center w-14 h-14 border border-white mb-6">
+                <div className="inline-flex items-center justify-center w-14 h-14 border border-primary-foreground mb-6">
                   {value.icon}
                 </div>
                 <h3 className="text-xl font-light mb-3">{value.title}</h3>
-                <p className="text-sm text-neutral-400 leading-relaxed">{value.description}</p>
+                <p className="text-sm text-primary-foreground/60 leading-relaxed">{value.description}</p>
               </motion.div>
             ))}
           </div>
@@ -221,7 +221,7 @@ export function About() {
             <h2 className="text-4xl lg:text-5xl font-light tracking-tight mb-6">
               Why Top Brands Trust Us
             </h2>
-            <p className="text-lg text-neutral-600 max-w-3xl mx-auto">
+            <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
               Excellence isn't claimed—it's demonstrated through consistent delivery and measurable results.
             </p>
           </motion.div>
@@ -234,10 +234,10 @@ export function About() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.1 }}
-                className="border border-neutral-200 p-8"
+                className="border border-border p-8 bg-card"
               >
                 <h3 className="text-2xl font-light mb-4 tracking-tight">{item.title}</h3>
-                <p className="text-neutral-600 leading-relaxed mb-6">{item.description}</p>
+                <p className="text-muted-foreground leading-relaxed mb-6">{item.description}</p>
                 <div className="space-y-3">
                   {item.stats.map((stat, idx) => (
                     <div key={idx} className="flex items-center gap-2 text-sm">
@@ -264,7 +264,7 @@ export function About() {
             <h2 className="text-4xl lg:text-5xl font-light tracking-tight mb-6">
               The Team Behind Your Success
             </h2>
-            <p className="text-lg text-neutral-600 max-w-3xl mx-auto leading-relaxed">
+            <p className="text-lg text-muted-foreground max-w-3xl mx-auto leading-relaxed">
               A carefully assembled team of specialists, each a master of their craft.
               When you work with CortDevs, you get the collective expertise of industry veterans.
             </p>
@@ -278,10 +278,10 @@ export function About() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.1 }}
-                className="bg-white p-6 border border-neutral-200"
+                className="bg-card p-6 border border-border"
               >
                 <h3 className="text-lg font-light mb-3">{member.role}</h3>
-                <p className="text-sm text-neutral-600 leading-relaxed">{member.description}</p>
+                <p className="text-sm text-muted-foreground leading-relaxed">{member.description}</p>
               </motion.div>
             ))}
           </div>
@@ -292,7 +292,7 @@ export function About() {
             viewport={{ once: true }}
             className="text-center mt-12"
           >
-            <p className="text-neutral-600 mb-6">
+            <p className="text-muted-foreground mb-6">
               Every project is assigned a dedicated team with the exact expertise needed for your success.
             </p>
             <Link
@@ -317,7 +317,7 @@ export function About() {
             <h2 className="text-4xl lg:text-5xl font-light tracking-tight mb-6">
               Why Start Now?
             </h2>
-            <p className="text-lg text-neutral-600 max-w-3xl mx-auto">
+            <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
               The digital landscape waits for no one. Here's why leading businesses
               are investing in premium web solutions today.
             </p>
@@ -334,13 +334,13 @@ export function About() {
                 className="flex gap-6"
               >
                 <div className="flex-shrink-0">
-                  <div className="w-12 h-12 bg-black text-white flex items-center justify-center">
+                  <div className="w-12 h-12 bg-primary text-primary-foreground flex items-center justify-center">
                     {item.icon}
                   </div>
                 </div>
                 <div>
                   <h3 className="text-xl font-light mb-3">{item.title}</h3>
-                  <p className="text-neutral-600 leading-relaxed">{item.description}</p>
+                  <p className="text-muted-foreground leading-relaxed">{item.description}</p>
                 </div>
               </motion.div>
             ))}
@@ -349,11 +349,11 @@ export function About() {
       </section>
 
       {/* Parent Company Section */}
-      <section className="py-20 lg:py-32 bg-neutral-50 border-y border-neutral-100">
-        <div className="max-w-4xl mx-auto px-6 lg:px-8 text-center text-sm text-neutral-500">
+      <section className="py-20 lg:py-32 bg-secondary/30 border-y border-border">
+        <div className="max-w-4xl mx-auto px-6 lg:px-8 text-center text-sm text-muted-foreground">
           <p className="leading-relaxed">
             CortDevs proudly operates as the dedicated technical and development subsidiary of
-            <strong className="text-black font-medium ml-1">HachStacks Technologies</strong>.
+            <strong className="text-foreground font-bold ml-1">HachStacks Technologies</strong>.
             This strategic partnership allows us to leverage deep enterprise insights while
             delivering specialized, high-performance digital crafting.
           </p>
@@ -361,7 +361,7 @@ export function About() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 lg:py-32 bg-white">
+      <section className="py-20 lg:py-32 bg-background">
         <div className="max-w-4xl mx-auto px-6 lg:px-8 text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -371,21 +371,21 @@ export function About() {
             <h2 className="text-4xl lg:text-6xl font-light tracking-tight mb-6">
               Ready to Experience the Difference?
             </h2>
-            <p className="text-lg text-neutral-600 mb-12 leading-relaxed">
+            <p className="text-lg text-muted-foreground mb-12 leading-relaxed">
               Join the hundreds of businesses that have transformed their digital presence
               with CortDevs. Let's start your success story today.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
                 to="/contact"
-                className="inline-flex items-center justify-center gap-3 px-10 py-5 bg-black text-white tracking-wide hover:bg-neutral-800 transition-all group"
+                className="inline-flex items-center justify-center gap-3 px-10 py-5 bg-primary text-primary-foreground tracking-widest text-[10px] font-bold uppercase hover:opacity-90 transition-all group"
               >
                 Start Your Project
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Link>
               <Link
                 to="/work"
-                className="inline-flex items-center justify-center gap-3 px-10 py-5 border border-neutral-300 text-black tracking-wide hover:border-black transition-colors"
+                className="inline-flex items-center justify-center gap-3 px-10 py-5 border border-border text-foreground tracking-widest text-[10px] font-bold uppercase hover:bg-muted transition-colors"
               >
                 View Our Work
               </Link>

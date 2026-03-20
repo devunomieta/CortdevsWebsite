@@ -87,10 +87,10 @@ export function Layout() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground font-sans">
+    <div className="min-h-screen bg-background text-foreground font-sans transition-colors duration-300">
       {/* Navigation */}
       <nav
-        className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-500 ${scrolled || isMenuOpen ? "bg-background/95 backdrop-blur-md border-b border-border py-4" : "py-6"
+        className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-500 ${scrolled || isMenuOpen ? "bg-nav-fallback backdrop-blur-md border-b border-border py-4" : "py-6"
           }`}
       >
         <div className="max-w-7xl mx-auto px-6 lg:px-8 flex items-center justify-between">
@@ -103,7 +103,7 @@ export function Layout() {
                 <Link
                   key={link.to}
                   to={link.to}
-                  className={`text-sm tracking-widest uppercase transition-colors relative group ${location.pathname === link.to ? "text-foreground font-semibold" : "text-muted-foreground hover:text-foreground"
+                  className={`text-xs tracking-[0.2em] uppercase transition-colors relative group ${location.pathname === link.to ? "text-foreground font-bold" : "text-muted-foreground hover:text-foreground"
                     }`}
                 >
                   {link.label}
@@ -112,7 +112,7 @@ export function Layout() {
               ))}
             <button
               onClick={() => setIsDialogOpen(true)}
-              className="bg-primary text-primary-foreground px-8 py-3 text-xs tracking-widest uppercase hover:opacity-90 transition-all shadow-xl shadow-black/10"
+              className="bg-primary text-primary-foreground px-8 py-3 text-[10px] font-bold tracking-[0.2em] uppercase hover:opacity-90 transition-all shadow-xl shadow-black/10"
             >
               Start Project
             </button>
@@ -248,7 +248,7 @@ export function Layout() {
                 <li className="pt-2">
                   <Link
                     to="/work?review=true"
-                    className="group flex items-center gap-2 px-4 py-2 bg-secondary/10 border border-border text-xs font-bold uppercase tracking-widest text-foreground hover:bg-foreground hover:text-background transition-all"
+                    className="group flex items-center gap-2 px-4 py-2 bg-secondary/10 border border-border text-xs font-bold uppercase tracking-widest text-neutral-300 hover:bg-foreground hover:text-background transition-all"
                   >
                     <Star size={12} className="group-hover:fill-current transition-all" />
                     Leave a Review

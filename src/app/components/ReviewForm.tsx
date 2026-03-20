@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Star, Send, Shield, User, AlertCircle, CheckCircle2, Globe, Zap, Info, Quote } from "lucide-react";
 import { BrandLoader } from "./BrandLoader";
 import { useToast } from "./Toast";
+import { errorService } from "../../lib/ErrorService";
 
 interface ReviewFormProps {
     onComplete: () => void;
@@ -101,7 +102,7 @@ export function ReviewForm({ onComplete }: ReviewFormProps) {
                     <CheckCircle2 className="w-16 h-16 text-white mb-6" />
                 </motion.div>
                 <h3 className="text-2xl font-light mb-2 tracking-tight text-center">Submission Received 🚀</h3>
-                <p className="text-neutral-400 text-center max-w-sm mb-6 text-sm">
+                <p className="text-foreground/60 text-center max-w-sm mb-6 text-sm">
                     Thank you for your valuable feedback. It helps us maintain our standard of excellence.
                 </p>
                 <div className="w-48 h-[2px] bg-white/10 overflow-hidden">
@@ -124,14 +125,14 @@ export function ReviewForm({ onComplete }: ReviewFormProps) {
                         <h2 className="text-3xl font-light text-black tracking-tight mb-2">
                             Voice Your <span className="font-normal italic">Experience</span>
                         </h2>
-                        <p className="text-neutral-500 text-[10px] tracking-[0.2em] uppercase">
+                        <p className="text-foreground/50 text-[10px] tracking-[0.2em] uppercase">
                             Help us maintain the CortDevs standard.
                         </p>
                     </div>
-                    <div className="flex bg-neutral-200/50 p-1 rounded-full w-fit">
+                    <div className="flex bg-secondary/30 p-1 rounded-full w-fit">
                         <button
                             onClick={() => setFormData({ ...formData, type: "review" })}
-                            className={`px-8 py-2.5 rounded-full text-[10px] tracking-widest uppercase transition-all duration-300 ${formData.type === "review" ? "bg-black text-white shadow-lg" : "text-neutral-500 hover:text-black"
+                            className={`px-8 py-2.5 rounded-full text-[10px] tracking-widest uppercase transition-all duration-300 ${formData.type === "review" ? "bg-primary text-primary-foreground shadow-lg" : "text-foreground/50 hover:text-foreground"
                                 }`}
                         >
                             Review
@@ -148,9 +149,9 @@ export function ReviewForm({ onComplete }: ReviewFormProps) {
 
                 <form onSubmit={handleSubmit} className="space-y-8">
                     {/* Identity Section */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-6 bg-white border border-neutral-100 rounded-2xl relative">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-6 bg-card border border-border rounded-2xl relative">
                         <div className="space-y-2">
-                            <label className="text-[10px] tracking-widest uppercase text-neutral-400 flex items-center gap-2">
+                            <label className="text-[10px] tracking-widest uppercase text-foreground/50 flex items-center gap-2">
                                 <User className="w-3 h-3" /> Full Name
                             </label>
                             <input
@@ -159,11 +160,11 @@ export function ReviewForm({ onComplete }: ReviewFormProps) {
                                 placeholder="How should we address you?"
                                 value={formData.name}
                                 onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                className="w-full bg-transparent border-b border-neutral-200 py-2 text-sm focus:border-black outline-none transition-all"
+                                className="w-full bg-transparent border-b border-border py-2 text-sm focus:border-foreground outline-none transition-all"
                             />
                         </div>
                         <div className="space-y-2">
-                            <label className="text-[10px] tracking-widest uppercase text-neutral-400 flex items-center gap-2">
+                            <label className="text-[10px] tracking-widest uppercase text-foreground/50 flex items-center gap-2">
                                 <Globe className="w-3 h-3" /> Email Address
                             </label>
                             <input
@@ -172,7 +173,7 @@ export function ReviewForm({ onComplete }: ReviewFormProps) {
                                 placeholder="For internal follow-up only"
                                 value={formData.email}
                                 onChange={e => setFormData({ ...formData, email: e.target.value })}
-                                className="w-full bg-transparent border-b border-neutral-200 py-2 text-sm focus:border-black outline-none transition-all"
+                                className="w-full bg-transparent border-b border-border py-2 text-sm focus:border-foreground outline-none transition-all"
                             />
                         </div>
 
@@ -187,9 +188,9 @@ export function ReviewForm({ onComplete }: ReviewFormProps) {
                                 autoComplete="off"
                             />
                         </div>
-                        <div className="md:col-span-2 flex items-start gap-3 bg-neutral-50 p-4 rounded-xl border border-neutral-100 mt-2">
-                            <Shield className="w-4 h-4 text-neutral-400 shrink-0 mt-0.5" />
-                            <p className="text-[11px] text-neutral-500 leading-relaxed">
+                        <div className="md:col-span-2 flex items-start gap-3 bg-secondary/20 p-4 rounded-xl border border-border mt-2">
+                            <Shield className="w-4 h-4 text-foreground/40 shrink-0 mt-0.5" />
+                            <p className="text-[11px] text-foreground/60 leading-relaxed">
                                 <span className="text-black font-semibold">Privacy Guarantee:</span> Your contact details are collected strictly for internal verification and follow-up.
                                 {formData.isAnonymous
                                     ? " As you have selected anonymity, these details will NEVER be displayed or used publicly for any reason."
@@ -201,32 +202,32 @@ export function ReviewForm({ onComplete }: ReviewFormProps) {
                     {/* Context Section */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div className="space-y-2">
-                            <label className="text-[10px] tracking-widest uppercase text-neutral-400">Industry / Sector</label>
+                            <label className="text-[10px] tracking-widest uppercase text-foreground/50">Industry / Sector</label>
                             <input
                                 type="text"
                                 placeholder="e.g. Fintech, Healthcare, SaaS"
                                 value={formData.industry}
                                 onChange={e => setFormData({ ...formData, industry: e.target.value })}
-                                className="w-full bg-white border border-neutral-200 px-6 py-4 text-sm focus:border-black outline-none transition-all rounded-xl"
+                                className="w-full bg-background border border-border px-6 py-4 text-sm focus:border-foreground outline-none transition-all rounded-xl"
                             />
                         </div>
                         <div className="space-y-2">
-                            <label className="text-[10px] tracking-widest uppercase text-neutral-400">Primary Highlight</label>
+                            <label className="text-[10px] tracking-widest uppercase text-foreground/50">Primary Highlight</label>
                             <input
                                 type="text"
                                 placeholder="e.g. Rapid Execution, Scalable Architecture"
                                 value={formData.highlight}
                                 onChange={e => setFormData({ ...formData, highlight: e.target.value })}
-                                className="w-full bg-white border border-neutral-200 px-6 py-4 text-sm focus:border-black outline-none transition-all rounded-xl"
+                                className="w-full bg-background border border-border px-6 py-4 text-sm focus:border-foreground outline-none transition-all rounded-xl"
                             />
                         </div>
                     </div>
 
                     {/* Rating & Preference Section */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 py-6 border-y border-neutral-100">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 py-6 border-y border-border">
                         {formData.type === "review" ? (
                             <div className="flex items-center gap-6">
-                                <span className="text-[10px] tracking-widest uppercase text-neutral-400">Rating</span>
+                                <span className="text-[10px] tracking-widest uppercase text-foreground/50">Rating</span>
                                 <div className="flex gap-2">
                                     {[1, 2, 3, 4, 5].map(star => (
                                         <button
@@ -236,7 +237,7 @@ export function ReviewForm({ onComplete }: ReviewFormProps) {
                                             className="transition-all hover:scale-110 active:scale-95"
                                         >
                                             <Star
-                                                className={`w-7 h-7 ${star <= formData.rating ? "text-black fill-current" : "text-neutral-200"
+                                                className={`w-7 h-7 ${star <= formData.rating ? "text-primary fill-current" : "text-muted-foreground/20"
                                                     }`}
                                             />
                                         </button>
@@ -244,8 +245,8 @@ export function ReviewForm({ onComplete }: ReviewFormProps) {
                                 </div>
                             </div>
                         ) : (
-                            <div className="flex items-center gap-3 text-neutral-500 bg-neutral-100 px-4 py-2 rounded-lg">
-                                <AlertCircle className="w-4 h-4 text-black" />
+                            <div className="flex items-center gap-3 text-foreground/50 bg-secondary/30 px-4 py-2 rounded-lg">
+                                <AlertCircle className="w-4 h-4 text-primary" />
                                 <span className="text-[11px] font-medium uppercase tracking-wider">High Priority Resolution Support</span>
                             </div>
                         )}
@@ -255,21 +256,21 @@ export function ReviewForm({ onComplete }: ReviewFormProps) {
                             onClick={() => setFormData({ ...formData, isAnonymous: !formData.isAnonymous })}
                             className="flex items-center gap-3 cursor-pointer group"
                         >
-                            <div className={`w-10 h-6 rounded-full p-1 transition-all flex items-center ${formData.isAnonymous ? "bg-black" : "bg-neutral-200"
+                            <div className={`w-10 h-6 rounded-full p-1 transition-all flex items-center ${formData.isAnonymous ? "bg-primary" : "bg-secondary/50"
                                 }`}>
                                 <motion.div
                                     animate={{ x: formData.isAnonymous ? 16 : 0 }}
                                     className="w-4 h-4 bg-white rounded-full shadow-sm"
                                 />
                             </div>
-                            <span className="text-[10px] tracking-widest uppercase text-neutral-800 font-semibold">Post Anonymously</span>
+                            <span className="text-[10px] tracking-widest uppercase text-foreground font-semibold">Post Anonymously</span>
                         </button>
                     </div>
 
                     {/* Detailed Content */}
                     <div className="space-y-6">
                         <div className="space-y-2">
-                            <label className="text-[10px] tracking-widest uppercase text-neutral-400 flex items-center gap-2">
+                            <label className="text-[10px] tracking-widest uppercase text-foreground/50 flex items-center gap-2">
                                 <Quote className="w-3 h-3" /> Detailed {formData.type === "review" ? "Feedback" : "Concern"}
                             </label>
                             <textarea
@@ -278,12 +279,12 @@ export function ReviewForm({ onComplete }: ReviewFormProps) {
                                 placeholder={formData.type === "review" ? "Your journey with CortDevs..." : "Please describe your concern precisely..."}
                                 value={formData.message}
                                 onChange={e => setFormData({ ...formData, message: e.target.value })}
-                                className="w-full bg-white border border-neutral-200 p-6 text-sm focus:border-black outline-none transition-all rounded-2xl resize-none"
+                                className="w-full bg-background border border-border p-6 text-sm focus:border-foreground outline-none transition-all rounded-2xl resize-none"
                             />
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-[10px] tracking-widest uppercase text-neutral-400 flex items-center gap-2">
+                            <label className="text-[10px] tracking-widest uppercase text-foreground/50 flex items-center gap-2">
                                 <Zap className="w-3 h-3" /> Primary Impact / Result
                             </label>
                             <textarea
@@ -291,7 +292,7 @@ export function ReviewForm({ onComplete }: ReviewFormProps) {
                                 placeholder="Capture the core outcome of this project..."
                                 value={formData.impact}
                                 onChange={e => setFormData({ ...formData, impact: e.target.value })}
-                                className="w-full bg-white border border-neutral-200 p-6 text-sm focus:border-black outline-none transition-all rounded-2xl resize-none"
+                                className="w-full bg-background border border-border p-6 text-sm focus:border-foreground outline-none transition-all rounded-2xl resize-none"
                             />
                         </div>
                     </div>
@@ -299,7 +300,7 @@ export function ReviewForm({ onComplete }: ReviewFormProps) {
                     <button
                         type="submit"
                         disabled={isSubmitting}
-                        className="w-full bg-black text-white py-7 rounded-2xl flex items-center justify-center gap-4 tracking-[0.3em] uppercase text-xs hover:bg-neutral-800 transition-all disabled:opacity-50 group shadow-2xl shadow-black/20"
+                        className="w-full bg-primary text-primary-foreground py-7 rounded-2xl flex items-center justify-center gap-4 tracking-[0.3em] uppercase text-xs hover:opacity-90 transition-all disabled:opacity-50 group shadow-2xl shadow-black/20"
                     >
                         {isSubmitting ? (
                             <BrandLoader size="sm" />

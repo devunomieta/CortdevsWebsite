@@ -64,7 +64,7 @@ export function Services() {
   ];
 
   return (
-    <div className="bg-white pt-20 lg:pt-24">
+    <div className="bg-background text-foreground transition-colors duration-300 pt-20 lg:pt-24">
       <SEO
         title="Web Development Services | WordPress, Shopify & GHL Mastery"
         description="Elite technical solutions including Custom WordPress development, conversion-optimized Shopify stores, and advanced GHL automation."
@@ -85,23 +85,23 @@ export function Services() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.2 }}
-              className="inline-block px-4 py-2 bg-black text-white text-xs tracking-widest mb-8"
+              className="inline-block px-4 py-2 bg-primary text-primary-foreground text-[10px] font-bold tracking-[0.3em] mb-8 uppercase"
             >
               PREMIUM EXECUTION
             </motion.div>
 
-            <h1 className="text-5xl lg:text-7xl font-light tracking-tight mb-8 leading-[1.1] text-black">
+            <h1 className="text-5xl lg:text-7xl font-light tracking-tight mb-8 leading-[1.1]">
               Strategic Technical
               <span className="block mt-2 font-normal">Solutions</span>
             </h1>
-            <p className="text-lg lg:text-xl text-neutral-600 leading-relaxed max-w-2xl mb-12">
+            <p className="text-lg lg:text-xl text-muted-foreground leading-relaxed max-w-2xl mb-12">
               We don't limit your vision to a specific toolkit. Our team selects and masterfully
               deploys the optimal technology stack tailored specifically for your project's
               unique scale, security, and performance needs.
             </p>
             <Link
               to="/contact"
-              className="inline-flex items-center gap-3 px-8 py-4 bg-black text-white tracking-wide hover:bg-neutral-800 transition-all group shadow-sm"
+              className="inline-flex items-center gap-3 px-8 py-4 bg-primary text-primary-foreground tracking-widest text-[10px] font-bold uppercase hover:opacity-90 transition-all group shadow-sm"
             >
               Discuss Your Project
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
@@ -123,14 +123,14 @@ export function Services() {
                 transition={{ delay: index * 0.1 }}
                 className="group"
               >
-                <div className="mb-8 p-4 bg-neutral-50 inline-block group-hover:bg-black group-hover:text-white transition-colors">
+                <div className="mb-8 p-4 bg-muted inline-block group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
                   {service.icon}
                 </div>
                 <h3 className="text-2xl font-light mb-4 tracking-tight">{service.title}</h3>
-                <p className="text-neutral-600 leading-relaxed text-sm mb-6">
+                <p className="text-muted-foreground leading-relaxed text-sm mb-6">
                   {service.description}
                 </p>
-                <div className="h-[1px] w-full bg-neutral-100 group-hover:bg-black transition-colors" />
+                <div className="h-[1px] w-full bg-border group-hover:bg-foreground transition-colors" />
               </motion.div>
             ))}
           </div>
@@ -147,7 +147,7 @@ export function Services() {
                 Technology Agnostic.
                 <span className="block mt-2">Results Focused.</span>
               </h2>
-              <p className="text-neutral-400 leading-relaxed mb-12 max-w-lg">
+              <p className="text-primary-foreground/60 leading-relaxed mb-12 max-w-lg">
                 While we are masters of modern stacks like React, Node.js, and specialized platforms
                 like Shopify or WordPress, our philosophy is simple: we use what works best for you.
                 Whether you need military-grade security, enterprise scalability, or rapid
@@ -155,39 +155,39 @@ export function Services() {
               </p>
               <div className="space-y-6">
                 <div className="flex items-start gap-4">
-                  <div className="mt-1 w-1.5 h-1.5 bg-white rounded-full flex-shrink-0" />
-                  <p className="text-sm text-neutral-300">No vendor lock-in or tool limitations</p>
+                  <div className="mt-1 w-1.5 h-1.5 bg-primary-foreground rounded-full flex-shrink-0" />
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-primary-foreground/80">No vendor lock-in or tool limitations</p>
                 </div>
                 <div className="flex items-start gap-4">
-                  <div className="mt-1 w-1.5 h-1.5 bg-white rounded-full flex-shrink-0" />
-                  <p className="text-sm text-neutral-300">Bespoke stack selection based on project requirements</p>
+                  <div className="mt-1 w-1.5 h-1.5 bg-primary-foreground rounded-full flex-shrink-0" />
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-primary-foreground/80">Bespoke stack selection based on project requirements</p>
                 </div>
                 <div className="flex items-start gap-4">
-                  <div className="mt-1 w-1.5 h-1.5 bg-white rounded-full flex-shrink-0" />
-                  <p className="text-sm text-neutral-300">Continuous integration of emerging technologies</p>
+                  <div className="mt-1 w-1.5 h-1.5 bg-primary-foreground rounded-full flex-shrink-0" />
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-primary-foreground/80">Continuous integration of emerging technologies</p>
                 </div>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-4 pt-12">
-                <div className="aspect-[4/5] bg-neutral-800 flex flex-col items-center justify-center p-8 border border-neutral-700 text-center">
-                  <Code2 className="w-10 h-10 text-neutral-500 mb-4" />
-                  <span className="text-xs uppercase tracking-widest text-neutral-400">Custom Engineering</span>
+                <div className="aspect-[4/5] bg-secondary/10 flex flex-col items-center justify-center p-8 border border-primary-foreground/10 text-center">
+                  <Code2 className="w-10 h-10 text-primary-foreground/30 mb-4" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-primary-foreground/40">Custom Engineering</span>
                 </div>
-                <div className="aspect-[4/5] bg-neutral-800 flex flex-col items-center justify-center p-8 border border-neutral-700 translate-y-4 text-center">
-                  <Smartphone className="w-10 h-10 text-neutral-500 mb-4" />
-                  <span className="text-xs uppercase tracking-widest text-neutral-400">Mobile First</span>
+                <div className="aspect-[4/5] bg-secondary/10 flex flex-col items-center justify-center p-8 border border-primary-foreground/10 translate-y-4 text-center">
+                  <Smartphone className="w-10 h-10 text-primary-foreground/30 mb-4" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-primary-foreground/40">Mobile First</span>
                 </div>
               </div>
               <div className="space-y-4">
-                <div className="aspect-[4/5] bg-white flex flex-col items-center justify-center p-8 border border-neutral-200 text-center">
-                  <Server className="w-10 h-10 text-black mb-4" />
-                  <span className="text-xs uppercase tracking-widest text-neutral-600">Infrastructure</span>
+                <div className="aspect-[4/5] bg-primary-foreground flex flex-col items-center justify-center p-8 border border-primary-foreground/10 text-center text-primary">
+                  <Server className="w-10 h-10 mb-4" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">Infrastructure</span>
                 </div>
-                <div className="aspect-[4/5] bg-neutral-800 flex flex-col items-center justify-center p-8 border border-neutral-700 translate-y-4 text-center">
-                  <Cloud className="w-10 h-10 text-neutral-500 mb-4" />
-                  <span className="text-xs uppercase tracking-widest text-neutral-400">Scalable Cloud</span>
+                <div className="aspect-[4/5] bg-secondary/10 flex flex-col items-center justify-center p-8 border border-primary-foreground/10 translate-y-4 text-center">
+                  <Cloud className="w-10 h-10 text-primary-foreground/30 mb-4" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-primary-foreground/40">Scalable Cloud</span>
                 </div>
               </div>
             </div>
@@ -200,7 +200,7 @@ export function Services() {
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="text-center mb-16 lg:mb-24 px-4">
             <h2 className="text-4xl lg:text-6xl font-light tracking-tight mb-6">Our Methodology</h2>
-            <p className="text-lg text-neutral-600 max-w-2xl mx-auto italic">"Precision at every step, excellence at every scale."</p>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto italic">"Precision at every step, excellence at every scale."</p>
           </div>
 
           <div className="space-y-12">
@@ -214,8 +214,8 @@ export function Services() {
                 title: "Maintenance & Evolution",
                 desc: (
                   <span>
-                    We offer <strong className="text-black font-medium">Basic Maintenance</strong> for essential updates, or a
-                    <strong className="text-black font-medium"> Full Paid Managed Option</strong> for proactive scaling,
+                    We offer <strong className="text-foreground font-bold italic">Basic Maintenance</strong> for essential updates, or a
+                    <strong className="text-foreground font-bold italic"> Full Paid Managed Option</strong> for proactive scaling,
                     deep optimizations, and 24/7 technical priority.
                   </span>
                 )
@@ -227,14 +227,14 @@ export function Services() {
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
-                className="flex flex-col md:flex-row gap-8 md:items-center p-8 lg:p-12 border border-neutral-100 hover:border-black transition-all"
+                className="flex flex-col md:flex-row gap-8 md:items-center p-8 lg:p-12 border border-border bg-card hover:border-foreground transition-all group"
               >
-                <span className="text-5xl lg:text-7xl font-light text-neutral-200">{phase.step}</span>
+                <span className="text-5xl lg:text-7xl font-light text-muted/30">{phase.step}</span>
                 <div className="flex-1">
                   <h3 className="text-2xl lg:text-3xl font-light mb-2">{phase.title}</h3>
-                  <div className="text-neutral-600 max-w-xl">{phase.desc}</div>
+                  <div className="text-muted-foreground max-w-xl text-sm leading-relaxed">{phase.desc}</div>
                 </div>
-                <CheckCircle2 className="w-8 h-8 text-neutral-200 group-hover:text-black transition-colors hidden md:block" />
+                <CheckCircle2 className="w-8 h-8 text-muted/30 group-hover:text-foreground transition-colors hidden md:block" />
               </motion.div>
             ))}
           </div>

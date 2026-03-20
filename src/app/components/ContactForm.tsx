@@ -294,7 +294,7 @@ export function ContactForm({ onSuccess, isPopup = false }: ContactFormProps) {
     return (
       <div className="flex flex-col items-center justify-center py-20 px-4 animate-in fade-in duration-500">
         <BrandLoader size="lg" />
-        <p className="mt-8 text-neutral-500 tracking-widest text-sm animate-pulse">TRANSMITTING DATA SECURELY...</p>
+        <p className="mt-8 text-foreground/50 tracking-widest text-sm animate-pulse">TRANSMITTING DATA SECURELY...</p>
       </div>
     );
   }
@@ -302,25 +302,25 @@ export function ContactForm({ onSuccess, isPopup = false }: ContactFormProps) {
   if (isPreview) {
     return (
       <div ref={containerRef} className="space-y-8 animate-in fade-in duration-500">
-        <div className="bg-neutral-50 p-6 border border-neutral-200">
+        <div className="bg-secondary/20 p-6 border border-border">
           <h3 className="text-xl font-medium mb-6 flex items-center gap-2">
             <Eye className="w-5 h-5" /> Review Your Inquiry
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6 text-sm">
-            <div><p className="text-neutral-500 mb-1">Name</p><p className="font-medium">{formData.name}</p></div>
-            <div><p className="text-neutral-500 mb-1">Email</p><p className="font-medium">{formData.email}</p></div>
-            <div><p className="text-neutral-500 mb-1">Company</p><p className="font-medium">{formData.company || "Not provided"}</p></div>
-            <div><p className="text-neutral-500 mb-1">Phone</p><p className="font-medium">{formData.phone || "Not provided"}</p></div>
-            <div><p className="text-neutral-500 mb-1">Service</p><p className="font-medium">{formData.service}</p></div>
-            <div><p className="text-neutral-500 mb-1">Budget</p><p className="font-medium">{formData.budget || "Not provided"}</p></div>
-            <div><p className="text-neutral-500 mb-1">Timeline</p><p className="font-medium">{formData.timeline || "Not provided"}</p></div>
+            <div><p className="text-foreground/50 mb-1">Name</p><p className="font-medium">{formData.name}</p></div>
+            <div><p className="text-foreground/50 mb-1">Email</p><p className="font-medium">{formData.email}</p></div>
+            <div><p className="text-foreground/50 mb-1">Company</p><p className="font-medium">{formData.company || "Not provided"}</p></div>
+            <div><p className="text-foreground/50 mb-1">Phone</p><p className="font-medium">{formData.phone || "Not provided"}</p></div>
+            <div><p className="text-foreground/50 mb-1">Service</p><p className="font-medium">{formData.service}</p></div>
+            <div><p className="text-foreground/50 mb-1">Budget</p><p className="font-medium">{formData.budget || "Not provided"}</p></div>
+            <div><p className="text-foreground/50 mb-1">Timeline</p><p className="font-medium">{formData.timeline || "Not provided"}</p></div>
             <div className="md:col-span-2">
-              <p className="text-neutral-500 mb-1">Message</p>
+              <p className="text-foreground/50 mb-1">Message</p>
               <div className="font-medium prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: formData.message || "No details." }} />
             </div>
             {files.length > 0 && (
               <div className="md:col-span-2">
-                <p className="text-neutral-500 mb-2">Attachments</p>
+                <p className="text-foreground/50 mb-2">Attachments</p>
                 <div className="flex flex-wrap gap-2">
                   {files.map((f, i) => (
                     <div key={i} className="flex items-center gap-2 bg-white px-3 py-2 border border-neutral-200 text-xs text-neutral-600">
@@ -332,7 +332,7 @@ export function ContactForm({ onSuccess, isPopup = false }: ContactFormProps) {
             )}
             {formData.issueNDA && (
               <div className="md:col-span-2">
-                <p className="text-neutral-500 mb-1">NDA Status</p>
+                <p className="text-foreground/50 mb-1">NDA Status</p>
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 font-medium text-green-700 font-bold uppercase tracking-widest text-[10px]">
                     <CheckCircle2 className="w-4 h-4" /> Issue NDA Requested
@@ -345,10 +345,10 @@ export function ContactForm({ onSuccess, isPopup = false }: ContactFormProps) {
           </div>
         </div>
         <div className="flex flex-col sm:flex-row gap-4">
-          <button onClick={() => setIsPreview(false)} className="flex-1 px-8 py-4 border border-black text-black text-sm tracking-wide hover:bg-neutral-50 transition-colors flex items-center justify-center gap-2">
+          <button onClick={() => setIsPreview(false)} className="flex-1 px-8 py-4 border border-foreground text-foreground text-sm tracking-wide hover:bg-secondary/20 transition-colors flex items-center justify-center gap-2">
             <Edit className="w-4 h-4" /> Edit Details
           </button>
-          <button onClick={() => handleSubmit(null as any)} className="flex-1 px-8 py-4 bg-black text-white text-sm tracking-wide hover:bg-neutral-800 transition-colors flex items-center justify-center gap-2 group">
+          <button onClick={() => handleSubmit(null as any)} className="flex-1 px-8 py-4 bg-primary text-primary-foreground text-sm tracking-wide hover:opacity-90 transition-colors flex items-center justify-center gap-2 group">
             Confirm & Send Inquiry <Send className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
           </button>
         </div>
@@ -361,23 +361,23 @@ export function ContactForm({ onSuccess, isPopup = false }: ContactFormProps) {
       <form onSubmit={handleSubmit} className="space-y-10">
         <div className="mb-12">
           <h2 className="text-4xl font-light tracking-tight mb-4 italic">Project Inquiry</h2>
-          <p className="text-sm text-neutral-500 uppercase tracking-[0.2em] font-bold">Secure Briefing Portal</p>
+          <p className="text-sm text-foreground/50 uppercase tracking-[0.2em] font-bold">Secure Briefing Portal</p>
         </div>
         {error && <div className="bg-red-50 border border-red-200 p-4 text-red-600 text-sm">{error}</div>}
         <div className={isPopup ? "space-y-6" : "grid grid-cols-1 sm:grid-cols-2 gap-6"}>
           <div>
             <label htmlFor="name" className="block text-sm tracking-wide mb-2">Your Name *</label>
-            <input type="text" id="name" name="name" value={formData.name} onChange={handleChange} required className="w-full px-4 py-3 border border-neutral-300 focus:border-black focus:outline-none" placeholder="John Smith" />
+            <input type="text" id="name" name="name" value={formData.name} onChange={handleChange} required className="w-full px-4 py-3 border border-border bg-background focus:border-foreground focus:outline-none" placeholder="John Smith" />
           </div>
           <div>
             <label htmlFor="email" className="block text-sm tracking-wide mb-2">Email Address *</label>
-            <input type="email" id="email" name="email" value={formData.email} onChange={handleChange} required className="w-full px-4 py-3 border border-neutral-300 focus:border-black focus:outline-none" placeholder="john@company.com" />
+            <input type="email" id="email" name="email" value={formData.email} onChange={handleChange} required className="w-full px-4 py-3 border border-border bg-background focus:border-foreground focus:outline-none" placeholder="john@company.com" />
           </div>
         </div>
         <div className={isPopup ? "space-y-6" : "grid grid-cols-1 sm:grid-cols-2 gap-6"}>
           <div>
             <label htmlFor="company" className="block text-sm tracking-wide mb-2">Company Name</label>
-            <input type="text" id="company" name="company" value={formData.company} onChange={handleChange} className="w-full px-4 py-3 border border-neutral-300 focus:border-black focus:outline-none" placeholder="Acme Inc." />
+            <input type="text" id="company" name="company" value={formData.company} onChange={handleChange} className="w-full px-4 py-3 border border-border bg-background focus:border-foreground focus:outline-none" placeholder="Acme Inc." />
           </div>
           <div>
             <label htmlFor="phone" className="block text-sm tracking-wide mb-2">Phone Number</label>
@@ -398,7 +398,7 @@ export function ContactForm({ onSuccess, isPopup = false }: ContactFormProps) {
 
         <div>
           <label htmlFor="service" className="block text-sm tracking-wide mb-2">Service *</label>
-          <select id="service" name="service" value={formData.service} onChange={handleChange} required className="w-full px-4 py-3 border border-neutral-300 focus:border-black focus:outline-none bg-white">
+          <select id="service" name="service" value={formData.service} onChange={handleChange} required className="w-full px-4 py-3 border border-border bg-background focus:border-foreground focus:outline-none">
             <option value="">Select a service</option>
             {services.map((s, i) => <option key={i} value={s}>{s}</option>)}
           </select>
@@ -411,14 +411,14 @@ export function ContactForm({ onSuccess, isPopup = false }: ContactFormProps) {
                 <button
                   type="button"
                   onClick={() => setCurrencyCode("USD")}
-                  className={`px-2 py-0.5 rounded-full text-[9px] font-bold transition-all ${currency.code === "USD" ? "bg-black text-white" : "text-neutral-400 hover:text-black"}`}
+                  className={`px-2 py-0.5 rounded-full text-[9px] font-bold transition-all ${currency.code === "USD" ? "bg-primary text-primary-foreground" : "text-foreground/40 hover:text-foreground"}`}
                 >
                   USD
                 </button>
                 <button
                   type="button"
                   onClick={() => setCurrencyCode("NGN")}
-                  className={`px-2 py-0.5 rounded-full text-[9px] font-bold transition-all ${currency.code === "NGN" ? "bg-black text-white" : "text-neutral-400 hover:text-black"}`}
+                  className={`px-2 py-0.5 rounded-full text-[9px] font-bold transition-all ${currency.code === "NGN" ? "bg-primary text-primary-foreground" : "text-foreground/40 hover:text-foreground"}`}
                 >
                   NGN
                 </button>
@@ -430,7 +430,7 @@ export function ContactForm({ onSuccess, isPopup = false }: ContactFormProps) {
               value={formData.budget}
               onChange={handleChange}
               required
-              className="w-full px-4 py-3 border border-neutral-300 focus:border-black focus:outline-none bg-white"
+              className="w-full px-4 py-3 border border-border bg-background focus:border-foreground focus:outline-none"
             >
               <option value="">Select Range</option>
               {budgetOptions.map((opt, i) => (
@@ -442,7 +442,7 @@ export function ContactForm({ onSuccess, isPopup = false }: ContactFormProps) {
           </div>
           <div>
             <label htmlFor="timeline" className="block text-sm tracking-wide mb-2">Timeline</label>
-            <select id="timeline" name="timeline" value={formData.timeline} onChange={handleChange} className="w-full px-4 py-3 border border-neutral-300 focus:border-black focus:outline-none bg-white">
+            <select id="timeline" name="timeline" value={formData.timeline} onChange={handleChange} className="w-full px-4 py-3 border border-border bg-background focus:border-foreground focus:outline-none">
               <option value="">Select timeline</option>
               {timelines.map((t, i) => <option key={i} value={t}>{t}</option>)}
             </select>
@@ -454,9 +454,9 @@ export function ContactForm({ onSuccess, isPopup = false }: ContactFormProps) {
         </div>
         <div className="space-y-4">
           <label className="block text-sm tracking-wide">Attachments (PDF/Image)</label>
-          <div onClick={() => fileInputRef.current?.click()} className="w-full border-2 border-dashed border-neutral-300 p-8 text-center cursor-pointer hover:border-black transition-colors">
-            <Upload className="w-8 h-8 text-neutral-400 mx-auto mb-2" />
-            <p className="text-sm text-neutral-500">Click to upload assets</p>
+          <div onClick={() => fileInputRef.current?.click()} className="w-full border-2 border-dashed border-border bg-secondary/10 p-8 text-center cursor-pointer hover:border-foreground transition-colors">
+            <Upload className="w-8 h-8 text-foreground/20 mx-auto mb-2" />
+            <p className="text-sm text-foreground/40">Click to upload assets</p>
             <input type="file" ref={fileInputRef} onChange={(e) => handleFileChange(e)} multiple accept=".pdf,image/jpeg,image/png" className="hidden" />
           </div>
           {files.length > 0 && (
@@ -472,21 +472,21 @@ export function ContactForm({ onSuccess, isPopup = false }: ContactFormProps) {
         </div>
         <div className="pt-4 border-t border-neutral-100">
           <label className="flex items-center gap-3 cursor-pointer group">
-            <input type="checkbox" name="issueNDA" checked={formData.issueNDA} onChange={handleChange} className="peer h-5 w-5 appearance-none border border-neutral-300 checked:bg-black checked:border-black transition-all" />
+            <input type="checkbox" name="issueNDA" checked={formData.issueNDA} onChange={handleChange} className="peer h-5 w-5 appearance-none border border-border rounded-none checked:bg-primary checked:border-primary transition-all" />
             <span className="text-sm text-neutral-700 group-hover:text-black">Issue NDA</span>
           </label>
           {formData.issueNDA && (
-            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="mt-4 p-4 bg-neutral-50 border border-neutral-200 space-y-3">
-              <div onClick={() => ndaInputRef.current?.click()} className="flex items-center justify-between bg-white px-4 py-2 border border-neutral-300 cursor-pointer hover:border-black">
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="mt-4 p-4 bg-secondary/20 border border-border space-y-3">
+              <div onClick={() => ndaInputRef.current?.click()} className="flex items-center justify-between bg-background px-4 py-2 border border-border cursor-pointer hover:border-foreground">
                 <span className="text-xs text-neutral-500">{ndaFile ? ndaFile.name : "Upload NDA PDF"}</span>
                 <Upload className="w-4 h-4 text-neutral-400" />
               </div>
-              <input type="url" placeholder="Or provide NDA link" name="ndaUrl" value={formData.ndaUrl} onChange={handleChange} className="w-full p-2 text-xs border border-neutral-200 outline-none focus:border-black" />
+              <input type="url" placeholder="Or provide NDA link" name="ndaUrl" value={formData.ndaUrl} onChange={handleChange} className="w-full p-2 text-xs border border-border bg-background outline-none focus:border-foreground" />
               <input type="file" ref={ndaInputRef} onChange={(e) => handleFileChange(e, true)} accept=".pdf" className="hidden" />
             </motion.div>
           )}
         </div>
-        <button type="submit" className="w-full sm:w-auto px-10 py-4 bg-black text-white text-sm tracking-wide hover:bg-neutral-800 transition-colors flex items-center justify-center gap-2 group">
+        <button type="submit" className="w-full sm:w-auto px-10 py-4 bg-primary text-primary-foreground text-sm tracking-wide hover:opacity-90 transition-colors flex items-center justify-center gap-2 group">
           Preview Inquiry <Eye className="w-4 h-4 group-hover:scale-110 transition-transform" />
         </button>
       </form>

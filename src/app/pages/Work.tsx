@@ -111,14 +111,14 @@ export function Work() {
   };
 
   return (
-    <div className="bg-white pt-20 lg:pt-24">
+    <div className="bg-background text-foreground transition-colors duration-300 pt-20 lg:pt-24">
       <SEO
         title="Our Work | High-Impact Digital Solutions"
         description="Explore the impact CortDevs has delivered for elite clientele. From enterprise-grade security to scalable e-commerce architectures and financial automation."
         structuredData={breadcrumbSchema}
       />
       {/* Hero Section */}
-      <section className="py-20 lg:py-32 bg-neutral-50 border-b border-neutral-100">
+      <section className="py-20 lg:py-32 bg-secondary/30 border-b border-border">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -129,7 +129,7 @@ export function Work() {
               Results That
               <span className="block mt-2 font-normal">Matter Most</span>
             </h1>
-            <p className="text-lg lg:text-xl text-neutral-600 leading-relaxed max-w-2xl">
+            <p className="text-lg lg:text-xl text-foreground/70 leading-relaxed max-w-2xl">
               We deliver high-impact digital solutions for industry leaders.
               While we prioritize the confidentiality of our elite clientele,
               our track record of excellence speaks for itself.
@@ -147,13 +147,13 @@ export function Work() {
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
             >
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-neutral-100 text-xs tracking-widest mb-6">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-muted text-foreground text-[10px] font-bold tracking-[0.2em] mb-6 uppercase">
                 <Lock className="w-3 h-3" /> CONFIDENTIALITY FIRST
               </div>
               <h2 className="text-4xl lg:text-5xl font-light tracking-tight mb-8">
                 Your Privacy is Our Priority
               </h2>
-              <p className="text-neutral-600 leading-relaxed mb-8 text-lg">
+              <p className="text-foreground/70 leading-relaxed mb-8 text-lg">
                 Due to strict Non-Disclosure Agreements (NDAs) and the sensitive nature of
                 our high-enterprise projects, we do not publicly display a detailed portfolio.
                 This commitment to extreme privacy is why the world's most innovative
@@ -161,13 +161,13 @@ export function Work() {
               </p>
               <div className="space-y-4">
                 {[
-                  { icon: <ShieldCheck className="w-5 h-5 text-neutral-400" />, text: "Strict adherence to legal & NDA requirements" },
-                  { icon: <FileCheck className="w-5 h-5 text-neutral-400" />, text: "Secure handling of proprietary intellectual property" },
-                  { icon: <Users className="w-5 h-5 text-neutral-400" />, text: "Vetted team members with security clearance" }
+                  { icon: <ShieldCheck className="w-5 h-5 text-foreground/40" />, text: "Strict adherence to legal & NDA requirements" },
+                  { icon: <FileCheck className="w-5 h-5 text-foreground/40" />, text: "Secure handling of proprietary intellectual property" },
+                  { icon: <Users className="w-5 h-5 text-foreground/40" />, text: "Vetted team members with security clearance" }
                 ].map((item, i) => (
-                  <div key={i} className="flex items-center gap-4 text-neutral-800">
+                  <div key={i} className="flex items-center gap-4 text-foreground">
                     {item.icon}
-                    <span className="text-sm tracking-wide">{item.text}</span>
+                    <span className="text-xs font-bold uppercase tracking-widest">{item.text}</span>
                   </div>
                 ))}
               </div>
@@ -177,17 +177,17 @@ export function Work() {
               initial={{ opacity: 0, scale: 0.95 }}
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
-              className="bg-neutral-900 text-white p-12 border border-neutral-800"
+              className="bg-primary text-primary-foreground p-12 border border-border"
             >
               <h3 className="text-2xl font-light mb-6">Request a Private Demo</h3>
-              <p className="text-neutral-400 mb-8 leading-relaxed">
+              <p className="text-primary-foreground/70 mb-8 leading-relaxed">
                 We are happy to showcase relevant case studies and redacted project samples
                 during a private consultation, provided we verify the alignment of interests
                 and respect all legal boundaries.
               </p>
               <button
                 onClick={() => setIsDialogOpen(true)}
-                className="w-full py-4 bg-white text-black text-sm tracking-wide hover:bg-neutral-100 transition-all flex items-center justify-center gap-3 group"
+                className="w-full py-4 bg-primary-foreground text-primary text-[10px] font-bold tracking-[0.2em] uppercase hover:opacity-90 transition-all flex items-center justify-center gap-3 group"
               >
                 Schedule Private Portfolio Review
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
@@ -198,7 +198,7 @@ export function Work() {
       </section>
 
       {/* Stats Grid */}
-      <section className="py-20 bg-black text-white">
+      <section className="py-20 bg-primary text-primary-foreground">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
             {stats.map((stat, i) => (
@@ -211,7 +211,7 @@ export function Work() {
                 className="text-center"
               >
                 <div className="text-4xl lg:text-5xl font-light mb-2">{stat.value}</div>
-                <div className="text-xs text-neutral-500 tracking-widest uppercase">{stat.label}</div>
+                <div className="text-[10px] font-bold text-primary-foreground/50 tracking-[0.2em] uppercase">{stat.label}</div>
               </motion.div>
             ))}
           </div>
@@ -223,23 +223,23 @@ export function Work() {
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-16">
             <div>
-              <h2 className="text-4xl lg:text-5xl font-light tracking-tight mb-6 text-black">Success Stories</h2>
-              <p className="text-neutral-600 max-w-2xl text-lg">Real impact delivered for complex organizational challenges.</p>
+              <h2 className="text-4xl lg:text-5xl font-light tracking-tight mb-6">Success Stories</h2>
+              <p className="text-foreground/60 max-w-2xl text-lg">Real impact delivered for complex organizational challenges.</p>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-4">
               <button
                 onClick={() => setShowReviewForm(!showReviewForm)}
-                className={`inline-flex items-center gap-2 px-6 py-3 transition-all text-sm tracking-wide ${showReviewForm
-                  ? "bg-neutral-100 text-black border border-neutral-200"
-                  : "bg-black text-white hover:bg-neutral-800 shadow-xl shadow-black/10"
+                className={`inline-flex items-center gap-2 px-6 py-3 transition-all text-[10px] font-bold uppercase tracking-[0.2em] ${showReviewForm
+                  ? "bg-muted text-foreground border border-border"
+                  : "bg-primary text-primary-foreground hover:opacity-90 shadow-xl shadow-black/10"
                   }`}
               >
                 {showReviewForm ? "Close Form" : <><Star className="w-4 h-4" /> Leave a Review</>}
               </button>
               <button
                 onClick={copyReviewLink}
-                className="inline-flex items-center gap-2 px-6 py-3 border border-neutral-200 text-black text-sm tracking-wide hover:border-black transition-all"
+                className="inline-flex items-center gap-2 px-6 py-3 border border-border text-foreground text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-muted transition-all"
               >
                 {copied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
                 {copied ? "Link Copied" : "Share Review Link"}
@@ -270,24 +270,24 @@ export function Work() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
-                className="p-8 border border-neutral-100 bg-neutral-50/50 hover:bg-white hover:border-neutral-900 transition-all group relative overflow-hidden"
+                className="p-8 border border-border bg-card hover:bg-muted/50 hover:border-foreground transition-all group relative overflow-hidden"
               >
-                <Quote className="absolute -right-4 -top-4 w-24 h-24 text-black/[0.03] rotate-12" />
+                <Quote className="absolute -right-4 -top-4 w-24 h-24 text-foreground/[0.03] rotate-12" />
 
                 <div className="relative z-10">
-                  <div className="text-[10px] tracking-[0.2em] text-neutral-400 mb-6 uppercase flex items-center gap-2">
-                    <span className="w-4 h-[1px] bg-neutral-300" /> {story.highlight}
+                  <div className="text-[10px] tracking-[0.2em] text-muted-foreground mb-6 uppercase flex items-center gap-2">
+                    <span className="w-4 h-[1px] bg-border" /> {story.highlight}
                   </div>
 
-                  <h3 className="text-xl font-normal mb-4 text-black">{story.industry}</h3>
+                  <h3 className="text-xl font-normal mb-4 font-bold">{story.industry}</h3>
 
-                  <blockquote className="text-sm text-neutral-800 leading-relaxed mb-8 italic">
+                  <blockquote className="text-sm text-foreground/60 leading-relaxed mb-8 italic">
                     "{story.quote}"
                   </blockquote>
 
-                  <div className="pt-6 border-t border-neutral-200">
-                    <p className="text-xs uppercase tracking-widest text-neutral-400 mb-2">Primary Impact</p>
-                    <p className="text-sm text-black font-medium leading-relaxed">
+                  <div className="pt-6 border-t border-border">
+                    <p className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground/60 mb-2">Primary Impact</p>
+                    <p className="text-sm text-foreground font-bold leading-relaxed">
                       {story.impact}
                     </p>
                   </div>
@@ -299,8 +299,8 @@ export function Work() {
       </section>
 
       {/* Final CTA - Revamped for visual separation from footer */}
-      <section className="relative py-20 lg:py-40 bg-neutral-50 overflow-hidden border-t border-neutral-100">
-        <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white to-transparent opacity-60 pointer-events-none" />
+      <section className="relative py-20 lg:py-40 bg-secondary/30 overflow-hidden border-t border-border">
+        <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-background to-transparent opacity-60 pointer-events-none" />
 
         <div className="relative max-w-4xl mx-auto px-6 text-center">
           <motion.div
@@ -308,16 +308,16 @@ export function Work() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <div className="inline-block px-4 py-1 bg-black text-white text-[10px] tracking-[0.3em] uppercase mb-8">
+            <div className="inline-block px-4 py-1 bg-primary text-primary-foreground text-[10px] font-bold tracking-[0.3em] uppercase mb-8">
               Future Focused
             </div>
 
-            <h2 className="text-4xl lg:text-7xl font-light tracking-tight mb-8 text-black leading-tight">
+            <h2 className="text-4xl lg:text-7xl font-light tracking-tight mb-8 leading-tight">
               Your Project is Our <br />
               <span className="font-normal italic">Next Priority</span>
             </h2>
 
-            <p className="text-lg text-neutral-600 mb-12 max-w-2xl mx-auto leading-relaxed">
+            <p className="text-lg text-foreground/70 mb-12 max-w-2xl mx-auto leading-relaxed">
               We are ready to build something exceptional under the highest standards
               of technical excellence and confidentiality.
             </p>
@@ -325,7 +325,7 @@ export function Work() {
             <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
               <button
                 onClick={() => setIsDialogOpen(true)}
-                className="inline-flex items-center gap-3 px-12 py-5 bg-black text-white tracking-widest text-sm uppercase hover:bg-neutral-800 transition-all group shadow-xl shadow-black/10"
+                className="inline-flex items-center gap-3 px-12 py-5 bg-primary text-primary-foreground tracking-widest text-[10px] font-bold uppercase hover:opacity-90 transition-all group shadow-xl shadow-black/10"
               >
                 Start Your Journey
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
@@ -333,7 +333,7 @@ export function Work() {
 
               <Link
                 to="/contact"
-                className="text-sm tracking-widest uppercase text-neutral-400 hover:text-black transition-colors"
+                className="text-[10px] font-bold tracking-widest uppercase text-muted-foreground hover:text-foreground transition-colors"
               >
                 Inquire via Email
               </Link>

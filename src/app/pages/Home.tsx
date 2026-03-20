@@ -76,7 +76,7 @@ export function Home() {
   ];
 
   return (
-    <div className="bg-white">
+    <div className="bg-background text-foreground transition-colors duration-300">
       <SEO
         title="Premium Web Solutions | WordPress, Shopify, GHL & Custom Apps"
         description="CortDevs delivers elite web development services. From custom WordPress and Shopify stores to GHL automations and full-stack applications."
@@ -94,7 +94,7 @@ export function Home() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.2 }}
-                className="inline-block px-4 py-2 bg-black text-white text-xs tracking-widest mb-8"
+                className="inline-block px-4 py-2 bg-primary text-primary-foreground text-[10px] font-bold tracking-[0.3em] mb-8"
               >
                 PREMIUM WEB SOLUTIONS
               </motion.div>
@@ -104,7 +104,7 @@ export function Home() {
                 <span className="block mt-2">Digital Presence</span>
               </h1>
 
-              <p className="text-lg lg:text-xl text-neutral-600 leading-relaxed mb-12 max-w-xl">
+              <p className="text-lg lg:text-xl text-muted-foreground leading-relaxed mb-12 max-w-xl">
                 We craft exceptional digital experiences that drive results.
                 From WordPress to custom full-stack solutions, we transform
                 your vision into reality with precision and elegance.
@@ -113,14 +113,14 @@ export function Home() {
               <div className="flex flex-col sm:flex-row gap-4">
                 <button
                   onClick={() => setIsDialogOpen(true)}
-                  className="inline-flex items-center justify-center gap-3 px-8 py-5 bg-black text-white tracking-wide hover:bg-neutral-800 transition-all group"
+                  className="inline-flex items-center justify-center gap-3 px-8 py-5 bg-primary text-primary-foreground tracking-widest text-[10px] font-bold uppercase hover:opacity-90 transition-all group"
                 >
                   Start Your Project
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </button>
                 <Link
                   to="/work"
-                  className="inline-flex items-center justify-center gap-3 px-8 py-5 border border-neutral-300 text-black tracking-wide hover:border-black transition-colors"
+                  className="inline-flex items-center justify-center gap-3 px-8 py-5 border border-border text-foreground tracking-widest text-[10px] font-bold uppercase hover:bg-muted transition-colors"
                 >
                   View Our Work
                 </Link>
@@ -150,7 +150,7 @@ export function Home() {
       </section>
 
       {/* Stats Section */}
-      <section className="py-20 lg:py-32 bg-black text-white">
+      <section className="py-20 lg:py-32 bg-primary text-primary-foreground">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
             {stats.map((stat, index) => (
@@ -163,7 +163,7 @@ export function Home() {
                 className="text-center"
               >
                 <div className="text-4xl lg:text-5xl font-light mb-3">{stat.number}</div>
-                <div className="text-sm lg:text-base text-neutral-400 tracking-wide">{stat.label}</div>
+                <div className="text-xs lg:text-sm text-primary-foreground/60 tracking-[0.2em] uppercase font-bold">{stat.label}</div>
               </motion.div>
             ))}
           </div>
@@ -182,7 +182,7 @@ export function Home() {
             <h2 className="text-4xl lg:text-6xl font-light tracking-tight mb-6">
               Our Expertise
             </h2>
-            <p className="text-lg lg:text-xl text-neutral-600 max-w-3xl mx-auto leading-relaxed">
+            <p className="text-lg lg:text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
               Comprehensive web development services tailored to your business needs.
               We combine technical excellence with strategic thinking.
             </p>
@@ -198,7 +198,7 @@ export function Home() {
                 transition={{ delay: index * 0.1 }}
                 className="group"
               >
-                <div className="border border-neutral-200 p-8 lg:p-10 hover:border-black transition-all duration-300 h-full">
+                <div className="border border-border p-8 lg:p-10 hover:border-foreground transition-all duration-300 h-full bg-card">
                   <h3 className="text-2xl lg:text-3xl font-light mb-4 tracking-tight">
                     {service.title}
                   </h3>
@@ -246,7 +246,7 @@ export function Home() {
             <h2 className="text-4xl lg:text-6xl font-light tracking-tight mb-6">
               The CortDevs Difference
             </h2>
-            <p className="text-lg lg:text-xl text-neutral-600 max-w-3xl mx-auto leading-relaxed">
+            <p className="text-lg lg:text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
               We don't just build websites—we create digital assets that drive business growth
               and deliver measurable ROI.
             </p>
@@ -262,13 +262,13 @@ export function Home() {
                 transition={{ delay: index * 0.1 }}
                 className="text-center"
               >
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-black text-white mb-6">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-primary text-primary-foreground mb-6">
                   {item.icon}
                 </div>
                 <h3 className="text-xl lg:text-2xl font-light mb-4 tracking-tight">
                   {item.title}
                 </h3>
-                <p className="text-neutral-600 leading-relaxed">
+                <p className="text-muted-foreground leading-relaxed">
                   {item.description}
                 </p>
               </motion.div>
@@ -288,21 +288,21 @@ export function Home() {
             <h2 className="text-4xl lg:text-6xl font-light tracking-tight mb-6">
               Ready to Get Started?
             </h2>
-            <p className="text-lg lg:text-xl text-neutral-600 mb-12 leading-relaxed">
+            <p className="text-lg lg:text-xl text-muted-foreground mb-12 leading-relaxed">
               Let's discuss your project and explore how we can help you achieve your digital goals.
               Schedule a consultation today—no obligations, just possibilities.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <button
                 onClick={() => setIsDialogOpen(true)}
-                className="inline-flex items-center justify-center gap-3 px-10 py-5 bg-black text-white tracking-wide hover:bg-neutral-800 transition-all group"
+                className="inline-flex items-center justify-center gap-3 px-10 py-5 bg-primary text-primary-foreground tracking-widest text-[10px] font-bold uppercase hover:opacity-90 transition-all group"
               >
                 Schedule Consultation
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </button>
               <Link
                 to="/contact#faq"
-                className="inline-flex items-center justify-center gap-3 px-10 py-5 border border-neutral-300 text-black tracking-wide hover:border-black transition-colors"
+                className="inline-flex items-center justify-center gap-3 px-10 py-5 border border-border text-foreground tracking-widest text-[10px] font-bold uppercase hover:bg-muted transition-colors"
               >
                 Learn More
               </Link>
