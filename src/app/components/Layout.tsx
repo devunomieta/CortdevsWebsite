@@ -87,10 +87,10 @@ export function Layout() {
   };
 
   return (
-    <div className="min-h-screen bg-white text-black font-sans">
+    <div className="min-h-screen bg-background text-foreground font-sans">
       {/* Navigation */}
       <nav
-        className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-500 ${scrolled || isMenuOpen ? "bg-white/95 backdrop-blur-md border-b border-neutral-100 py-4" : "py-6"
+        className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-500 ${scrolled || isMenuOpen ? "bg-background/95 backdrop-blur-md border-b border-border py-4" : "py-6"
           }`}
       >
         <div className="max-w-7xl mx-auto px-6 lg:px-8 flex items-center justify-between">
@@ -98,22 +98,21 @@ export function Layout() {
             <img src={config.headerLogo} alt="CortDevs" className="h-8 w-auto object-contain transition-transform group-hover:scale-105" />
           </Link>
 
-          {/* Desktop Nav */}
-          <div className="hidden lg:flex items-center gap-12">
-            {navLinks.map((link) => (
-              <Link
-                key={link.to}
-                to={link.to}
-                className={`text-sm tracking-widest uppercase transition-colors relative group ${location.pathname === link.to ? "text-black font-semibold" : "text-neutral-500 hover:text-black"
-                  }`}
-              >
-                {link.label}
-                <span className={`absolute -bottom-1 left-0 h-[1px] bg-black transition-all duration-300 ${location.pathname === link.to ? "w-full" : "w-0 group-hover:w-full"}`} />
-              </Link>
-            ))}
+            <div className="hidden lg:flex items-center gap-12">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.to}
+                  to={link.to}
+                  className={`text-sm tracking-widest uppercase transition-colors relative group ${location.pathname === link.to ? "text-foreground font-semibold" : "text-muted-foreground hover:text-foreground"
+                    }`}
+                >
+                  {link.label}
+                  <span className={`absolute -bottom-1 left-0 h-[1px] bg-foreground transition-all duration-300 ${location.pathname === link.to ? "w-full" : "w-0 group-hover:w-full"}`} />
+                </Link>
+              ))}
             <button
               onClick={() => setIsDialogOpen(true)}
-              className="bg-black text-white px-8 py-3 text-xs tracking-widest uppercase hover:bg-neutral-800 transition-all shadow-xl shadow-black/10"
+              className="bg-primary text-primary-foreground px-8 py-3 text-xs tracking-widest uppercase hover:opacity-90 transition-all shadow-xl shadow-black/10"
             >
               Start Project
             </button>
@@ -122,16 +121,16 @@ export function Layout() {
           {/* Creative Mobile Trigger */}
           <button
             onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="lg:hidden relative z-[110] w-12 h-12 flex flex-col items-center justify-center gap-1.5 focus:outline-none group bg-black rounded-full shadow-lg shadow-black/20"
+            className="lg:hidden relative z-[110] w-12 h-12 flex flex-col items-center justify-center gap-1.5 focus:outline-none group bg-primary rounded-full shadow-lg shadow-black/20"
             aria-label="Toggle Menu"
           >
             <motion.span
               animate={isMenuOpen ? { rotate: 45, y: 3.5, width: 22 } : { rotate: 0, y: 0, width: 16 }}
-              className="h-[1.5px] bg-white transition-all origin-center"
+              className="h-[1.5px] bg-primary-foreground transition-all origin-center"
             />
             <motion.span
               animate={isMenuOpen ? { rotate: -45, y: -3.5, width: 22 } : { rotate: 0, y: 0, width: 24 }}
-              className="h-[1.5px] bg-white transition-all origin-center"
+              className="h-[1.5px] bg-primary-foreground transition-all origin-center"
             />
           </button>
         </div>
@@ -145,7 +144,7 @@ export function Layout() {
             initial="closed"
             animate="open"
             exit="closed"
-            className="fixed inset-0 z-[105] bg-white flex flex-col pt-24"
+            className="fixed inset-0 z-[105] bg-background flex flex-col pt-24"
           >
             <div className="flex-1 flex flex-col justify-center px-12 space-y-10">
               {navLinks.map((link, i) => (
@@ -158,7 +157,7 @@ export function Layout() {
                   <Link
                     to={link.to}
                     onClick={() => setIsMenuOpen(false)}
-                    className={`text-5xl font-light tracking-tight transition-all hover:pl-4 transition-[padding] ${location.pathname === link.to ? "italic font-normal underline underline-offset-8 decoration-1" : "text-black"
+                    className={`text-5xl font-light tracking-tight transition-all hover:pl-4 transition-[padding] ${location.pathname === link.to ? "italic font-normal underline underline-offset-8 decoration-1" : "text-foreground"
                       }`}
                   >
                     {link.label}
@@ -177,21 +176,21 @@ export function Layout() {
                     setIsMenuOpen(false);
                     setIsDialogOpen(true);
                   }}
-                  className="w-full py-8 bg-black text-white text-sm tracking-[0.3em] uppercase font-bold hover:bg-neutral-800 transition-all shadow-2xl shadow-black/30"
+                  className="w-full py-8 bg-primary text-primary-foreground text-sm tracking-[0.3em] uppercase font-bold hover:opacity-90 transition-all shadow-2xl shadow-black/30"
                 >
                   Start Project
                 </button>
               </motion.div>
             </div>
 
-            <div className="p-12 border-t border-neutral-100 grid grid-cols-2 gap-8">
+            <div className="p-12 border-t border-border grid grid-cols-2 gap-8">
               <div>
-                <p className="text-[10px] tracking-widest text-neutral-400 uppercase mb-2 font-bold">Inquiries</p>
+                <p className="text-[10px] tracking-widest text-muted-foreground uppercase mb-2 font-bold">Inquiries</p>
                 <a href="mailto:projects@cortdevs.com" className="text-xs font-semibold block truncate">projects@cortdevs.com</a>
               </div>
               {isNigerian && (
                 <div>
-                  <p className="text-[10px] tracking-widest text-neutral-400 uppercase mb-2 font-bold">WhatsApp</p>
+                  <p className="text-[10px] tracking-widest text-muted-foreground uppercase mb-2 font-bold">WhatsApp</p>
                   <a href="https://wa.me/2348162351372" className="text-xs font-semibold">+234 816 235 1372</a>
                 </div>
               )}
@@ -201,7 +200,7 @@ export function Layout() {
       </AnimatePresence>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto p-10 lg:p-16 border-none bg-white shadow-[0_35px_60px_-15px_rgba(0,0,0,0.3)]">
+        <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto p-10 lg:p-16 border-none bg-background shadow-[0_35px_60px_-15px_rgba(0,0,0,0.3)]">
           <ContactForm isPopup onSuccess={() => setIsDialogOpen(false)} />
         </DialogContent>
       </Dialog>
@@ -226,7 +225,7 @@ export function Layout() {
               </p>
               <button
                 onClick={() => setIsDialogOpen(true)}
-                className="inline-flex items-center gap-2 px-8 py-4 bg-white text-black text-sm tracking-wide hover:bg-neutral-100 transition-colors"
+                className="inline-flex items-center gap-2 px-8 py-4 bg-primary text-primary-foreground text-sm tracking-wide hover:opacity-90 transition-colors"
               >
                 Start Your Project <ArrowRight size={18} />
               </button>
@@ -249,7 +248,7 @@ export function Layout() {
                 <li className="pt-2">
                   <Link
                     to="/work?review=true"
-                    className="group flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 text-xs font-bold uppercase tracking-widest text-white hover:bg-white hover:text-black transition-all"
+                    className="group flex items-center gap-2 px-4 py-2 bg-secondary/10 border border-border text-xs font-bold uppercase tracking-widest text-foreground hover:bg-foreground hover:text-background transition-all"
                   >
                     <Star size={12} className="group-hover:fill-current transition-all" />
                     Leave a Review

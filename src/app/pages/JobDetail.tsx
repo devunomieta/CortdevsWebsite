@@ -86,8 +86,8 @@ export function JobDetail() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <RefreshCw className="animate-spin text-neutral-300 w-8 h-8" />
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <RefreshCw className="animate-spin text-muted-foreground w-8 h-8" />
       </div>
     );
   }
@@ -213,18 +213,18 @@ export function JobDetail() {
   ];
 
   return (
-    <div className="bg-white min-h-screen">
+    <div className="bg-background min-h-screen">
       <SEO 
         title={`${job.title} | Careers at CortDevs`}
         description={job.about}
       />
 
       {/* Hero Header */}
-      <section className="pt-32 pb-20 lg:pt-48 lg:pb-24 bg-neutral-50 border-b border-neutral-100">
+      <section className="pt-32 pb-20 lg:pt-48 lg:pb-24 bg-secondary/50 border-b border-border">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <Link 
             to="/careers" 
-            className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-neutral-400 hover:text-black transition-colors mb-12"
+            className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors mb-12"
           >
             <ArrowLeft size={14} /> Back to Open Positions
           </Link>
@@ -232,32 +232,32 @@ export function JobDetail() {
           <motion.div {...fadeInUp}>
             <div className="flex flex-wrap items-center gap-4 mb-8">
               <span className={`px-4 py-1.5 text-[9px] font-bold uppercase tracking-[0.2em] ${
-                job.status === 'open' ? 'bg-black text-white' : 'bg-neutral-200 text-neutral-500'
+                job.status === 'open' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground'
               }`}>
                 {job.status === 'open' ? 'Active Opportunity' : 'Closed Role'}
               </span>
-              <div className="flex items-center gap-2 text-neutral-400 text-[10px] uppercase font-bold tracking-widest">
-                <MapPin size={12} className="text-neutral-300" />
+              <div className="flex items-center gap-2 text-muted-foreground text-[10px] uppercase font-bold tracking-widest">
+                <MapPin size={12} className="text-muted-foreground/30" />
                 {job.location}
               </div>
             </div>
             
-            <h1 className="text-5xl lg:text-8xl font-light tracking-tighter mb-10 leading-[1] max-w-4xl">
+            <h1 className="text-5xl lg:text-8xl font-light tracking-tighter mb-10 leading-[1] max-w-4xl text-foreground">
               {job.title}
             </h1>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-12 pt-12 border-t border-neutral-200">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-12 pt-12 border-t border-border">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 mb-2">Primary Architecture</p>
-                <p className="text-lg font-light italic">{job.role}</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Primary Architecture</p>
+                <p className="text-lg font-light italic text-foreground">{job.role}</p>
               </div>
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 mb-2">Compensation Structure</p>
-                <p className="text-sm font-medium leading-relaxed max-w-xs">{job.compensation}</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Compensation Structure</p>
+                <p className="text-sm font-medium leading-relaxed max-w-xs text-foreground">{job.compensation}</p>
               </div>
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 mb-2">Assignment Type</p>
-                <p className="text-sm font-medium uppercase tracking-widest text-[10px]">Remote / Global Engagement</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Assignment Type</p>
+                <p className="text-sm font-medium uppercase tracking-widest text-[10px] text-foreground">Remote / Global Engagement</p>
               </div>
             </div>
           </motion.div>
@@ -271,31 +271,31 @@ export function JobDetail() {
             {/* Left Column: Details */}
             <div className="lg:col-span-7 space-y-20">
               <motion.div {...fadeInUp} className="prose prose-neutral max-w-none">
-                <h2 className="text-3xl font-light tracking-tight mb-8 italic text-neutral-400">The Objective</h2>
-                <p className="text-xl font-light text-neutral-600 leading-relaxed">
+                <h2 className="text-3xl font-light tracking-tight mb-8 italic text-muted-foreground">The Objective</h2>
+                <p className="text-xl font-light text-muted-foreground leading-relaxed">
                   {job.about.replace(/\\"/g, '"')}
                 </p>
               </motion.div>
 
               <motion.div {...fadeInUp}>
-                <h2 className="text-[10px] font-bold uppercase tracking-[0.3em] text-neutral-400 mb-10 border-b border-neutral-100 pb-4">Key Responsibilities</h2>
+                <h2 className="text-[10px] font-bold uppercase tracking-[0.3em] text-muted-foreground mb-10 border-b border-border pb-4">Key Responsibilities</h2>
                 <ul className="space-y-6">
                   {job.responsibilities.map((item, idx) => (
                     <li key={idx} className="flex gap-6 group">
-                      <span className="text-neutral-300 font-mono text-xs pt-1 group-hover:text-black transition-colors">0{idx + 1}</span>
-                      <p className="text-neutral-600 leading-relaxed font-light">{item}</p>
+                      <span className="text-muted-foreground/30 font-mono text-xs pt-1 group-hover:text-foreground transition-colors">0{idx + 1}</span>
+                      <p className="text-muted-foreground leading-relaxed font-light">{item}</p>
                     </li>
                   ))}
                 </ul>
               </motion.div>
 
               <motion.div {...fadeInUp}>
-                <h2 className="text-[10px] font-bold uppercase tracking-[0.3em] text-neutral-400 mb-10 border-b border-neutral-100 pb-4">Structural Requirements</h2>
+                <h2 className="text-[10px] font-bold uppercase tracking-[0.3em] text-muted-foreground mb-10 border-b border-border pb-4">Structural Requirements</h2>
                 <ul className="space-y-6">
                   {job.requirements.map((item, idx) => (
                     <li key={idx} className="flex gap-4 items-start">
-                      <div className="mt-2 w-1.5 h-1.5 bg-black rotate-45 shrink-0" />
-                      <p className="text-neutral-600 leading-relaxed font-light">{item}</p>
+                      <div className="mt-2 w-1.5 h-1.5 bg-foreground rotate-45 shrink-0" />
+                      <p className="text-muted-foreground leading-relaxed font-light">{item}</p>
                     </li>
                   ))}
                 </ul>
@@ -308,11 +308,11 @@ export function JobDetail() {
                 {job.status === 'open' ? (
                   <motion.div 
                     {...fadeInUp}
-                    className="bg-black text-white p-10 lg:p-14 shadow-3xl relative overflow-hidden"
+                    className="bg-primary text-primary-foreground p-10 lg:p-14 shadow-3xl relative overflow-hidden"
                   >
                     <div className="relative z-10">
                       <h2 className="text-3xl font-light tracking-tight mb-4 italic">Application Form</h2>
-                      <p className="text-neutral-400 font-light mb-10 text-sm leading-relaxed">
+                      <p className="text-primary-foreground/60 font-light mb-10 text-sm leading-relaxed">
                         Please upload your CV and proceed to book interview slot
                       </p>
 
@@ -327,8 +327,8 @@ export function JobDetail() {
                             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
                             id="cv-upload-input"
                           />
-                          <div className={`w-full py-10 border border-neutral-800 flex flex-col items-center justify-center gap-4 transition-all duration-500 border-dashed ${
-                            cvFile ? "bg-neutral-900 border-neutral-600 text-white" : "hover:bg-neutral-900 text-neutral-500 hover:text-white"
+                          <div className={`w-full py-10 border border-border flex flex-col items-center justify-center gap-4 transition-all duration-500 border-dashed ${
+                            cvFile ? "bg-primary-foreground/10 border-border/50 text-primary-foreground" : "hover:bg-primary-foreground/5 text-primary-foreground/50 hover:text-primary-foreground"
                           }`}>
                             <RefreshCw size={24} className={isUploading ? "animate-spin" : ""} />
                             <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-center px-4">
@@ -348,7 +348,7 @@ export function JobDetail() {
                                     const url = URL.createObjectURL(cvFile);
                                     window.open(url, '_blank');
                                   }}
-                                  className="text-[8px] font-bold uppercase tracking-widest text-neutral-400 hover:text-white underline underline-offset-4"
+                                  className="text-[8px] font-bold uppercase tracking-widest text-primary-foreground/60 hover:text-primary-foreground underline underline-offset-4"
                                 >
                                   Preview CV
                                 </button>
@@ -371,7 +371,7 @@ export function JobDetail() {
                         <button 
                           onClick={handleScheduleInterview}
                           disabled={!cvFile || isUploading || cvUploaded}
-                          className="w-full py-6 bg-white text-black text-[10px] font-bold uppercase tracking-[0.3em] flex items-center justify-center gap-4 hover:bg-neutral-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-500 shadow-xl shadow-black/20"
+                          className="w-full py-6 bg-primary-foreground text-primary text-[10px] font-bold uppercase tracking-[0.3em] flex items-center justify-center gap-4 hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-500 shadow-xl shadow-black/20"
                         >
                           {isUploading ? (
                             <>
@@ -389,8 +389,8 @@ export function JobDetail() {
                         </button>
                       </div>
                       
-                      <div className="mt-10 pt-10 border-t border-neutral-900">
-                        <p className="text-[8px] font-bold uppercase tracking-[0.2em] text-neutral-500 mb-6">Stay Connected</p>
+                      <div className="mt-10 pt-10 border-t border-primary-foreground/10">
+                        <p className="text-[8px] font-bold uppercase tracking-[0.2em] text-primary-foreground/40 mb-6">Stay Connected</p>
                         <div className="flex gap-6">
                           {socials.map((social, idx) => (
                             <a 
@@ -398,7 +398,7 @@ export function JobDetail() {
                               href={social.href}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-neutral-500 hover:text-white transition-all"
+                              className="text-primary-foreground/50 hover:text-primary-foreground transition-all"
                               aria-label={social.label}
                             >
                               {social.icon}
@@ -408,16 +408,16 @@ export function JobDetail() {
                       </div>
                     </div>
                     
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 blur-[100px] rounded-full translate-x-32 -translate-y-32" />
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-primary-foreground/5 blur-[100px] rounded-full translate-x-32 -translate-y-32" />
                   </motion.div>
                 ) : (
-                  <div className="p-10 border border-neutral-100 bg-neutral-50 text-center space-y-4">
-                    <p className="text-xl font-light italic text-neutral-400">Position Closed</p>
-                    <p className="text-[10px] text-neutral-300 font-bold uppercase tracking-widest">Internal selection in progress</p>
-                    <Link to="/careers" className="inline-block mt-4 text-[10px] font-bold uppercase tracking-widest text-black hover:underline underline-offset-4">Check Other Openings</Link>
+                  <div className="p-10 border border-border bg-secondary text-center space-y-4">
+                    <p className="text-xl font-light italic text-muted-foreground">Position Closed</p>
+                    <p className="text-[10px] text-muted-foreground/50 font-bold uppercase tracking-widest">Internal selection in progress</p>
+                    <Link to="/careers" className="inline-block mt-4 text-[10px] font-bold uppercase tracking-widest text-foreground hover:underline underline-offset-4">Check Other Openings</Link>
                     
-                    <div className="pt-10 mt-10 border-t border-neutral-100 flex flex-col items-center">
-                      <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-neutral-400 mb-6">Stay Connected for Updates</p>
+                    <div className="pt-10 mt-10 border-t border-border flex flex-col items-center">
+                      <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-6">Stay Connected for Updates</p>
                       <div className="flex justify-center gap-6">
                         {socials.map((social, idx) => (
                           <a 
@@ -425,7 +425,7 @@ export function JobDetail() {
                             href={social.href}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-neutral-300 hover:text-black transition-all"
+                            className="text-muted-foreground hover:text-foreground transition-all"
                             aria-label={social.label}
                           >
                             {social.icon}
