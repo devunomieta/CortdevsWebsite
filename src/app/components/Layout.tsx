@@ -225,9 +225,9 @@ export function Layout() {
               </p>
               <button
                 onClick={() => setIsDialogOpen(true)}
-                className="inline-flex items-center gap-2 px-8 py-4 bg-primary text-primary-foreground text-sm tracking-wide hover:opacity-90 transition-colors"
+                className="inline-flex items-center gap-3 px-8 py-4 bg-white text-neutral-900 text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-neutral-200 transition-all shadow-xl shadow-black/20"
               >
-                Start Your Project <ArrowRight size={18} />
+                Start Your Project <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
               </button>
             </div>
 

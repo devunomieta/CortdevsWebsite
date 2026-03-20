@@ -328,9 +328,9 @@ export function JobDetail() {
                             id="cv-upload-input"
                           />
                           <div className={`w-full py-10 border border-border flex flex-col items-center justify-center gap-4 transition-all duration-500 border-dashed ${
-                            cvFile ? "bg-primary-foreground/10 border-border/50 text-primary-foreground" : "hover:bg-primary-foreground/5 text-primary-foreground/50 hover:text-primary-foreground"
+                            cvFile ? "bg-primary-foreground/10 border-border/50 text-primary-foreground" : "hover:bg-primary-foreground/5 text-primary-foreground/70 hover:text-primary-foreground"
                           }`}>
-                            <RefreshCw size={24} className={isUploading ? "animate-spin" : ""} />
+                            <Upload size={24} className={isUploading ? "animate-bounce" : ""} />
                             <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-center px-4">
                               {cvUploaded 
                                 ? "Transmission Confirmed" 
@@ -375,7 +375,7 @@ export function JobDetail() {
                         >
                           {isUploading ? (
                             <>
-                              <RefreshCw size={16} className="animate-spin" />
+                              <Upload size={16} className="animate-bounce" />
                               Synchronizing...
                             </>
                           ) : cvUploaded ? (

@@ -52,10 +52,10 @@ export function DeadlineCountdown({ deadline, minimal = false }: CountdownProps)
   }
 
   return (
-    <div className="bg-secondary/50 backdrop-blur-sm border border-border p-6 mb-8 mt-4">
-      <div className="flex items-center gap-3 mb-4 text-foreground">
-        <Clock size={16} className="text-muted-foreground" />
-        <span className="text-[10px] font-bold uppercase tracking-widest">Application Deadline</span>
+    <div className="bg-white/5 backdrop-blur-sm border border-white/10 p-6 mb-8 mt-4 rounded-xl">
+      <div className="flex items-center gap-3 mb-4 text-white/80">
+        <Clock size={16} className="text-white/40" />
+        <span className="text-[10px] font-bold uppercase tracking-widest text-white">Application Deadline</span>
       </div>
       
       <div className="grid grid-cols-4 gap-4">
@@ -66,10 +66,10 @@ export function DeadlineCountdown({ deadline, minimal = false }: CountdownProps)
           { label: "Secs", value: timeLeft.seconds },
         ].map((unit, idx) => (
           <div key={idx} className="text-center">
-            <div className="text-2xl font-light text-foreground mb-1">
+            <div className="text-2xl font-light text-white mb-1">
               {unit.value.toString().padStart(2, '0')}
             </div>
-            <div className="text-[8px] font-bold uppercase tracking-widest text-muted-foreground">
+            <div className="text-[8px] font-bold uppercase tracking-widest text-white/40">
               {unit.label}
             </div>
           </div>

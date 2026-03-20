@@ -189,22 +189,22 @@ export function Careers() {
           </motion.div>
 
           {/* Culture / Values Callout */}
-          <div className="mt-32 p-12 lg:p-20 bg-secondary/50 text-foreground relative overflow-hidden border border-border">
+          <div className="mt-32 p-12 lg:p-20 bg-card text-foreground relative overflow-hidden border border-border rounded-2xl">
             <div className="relative z-10 max-w-3xl">
-              <h2 className="text-3xl lg:text-5xl font-light tracking-tight mb-8">
+              <h2 className="text-3xl lg:text-5xl font-light tracking-tight mb-8 italic">
                 Why CortDevs?
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
                 <div>
-                  <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] mb-3 text-muted-foreground">Quality Above All</h4>
-                  <p className="text-muted-foreground leading-relaxed text-sm">
+                  <h4 className="text-[10px] font-bold uppercase tracking-[0.3em] mb-4 text-primary">Quality Above All</h4>
+                  <p className="text-foreground/70 leading-relaxed text-sm font-light">
                     We don't settle for "good enough". Every line of code and every client interaction
                     must meet our 3 Rounds of Perfection standards.
                   </p>
                 </div>
                 <div>
-                  <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] mb-3 text-muted-foreground">Remote Excellence</h4>
-                  <p className="text-muted-foreground leading-relaxed text-sm">
+                  <h4 className="text-[10px] font-bold uppercase tracking-[0.3em] mb-4 text-primary">Remote Excellence</h4>
+                  <p className="text-foreground/70 leading-relaxed text-sm font-light">
                     Work from anywhere. We value results, autonomy, and clear communication
                     over office presence.
                   </p>
