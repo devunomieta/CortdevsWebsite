@@ -270,10 +270,10 @@ export function Layout() {
           </div>
 
           <div className="mt-20 pt-8 border-t border-neutral-800 flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-sm text-neutral-500">
+            <p className="text-sm text-neutral-400">
               © 2026 CortDevs Group. Crafted for speed & conversion.
             </p>
-            <div className="flex gap-8 text-sm text-neutral-500">
+            <div className="flex gap-8 text-sm text-neutral-400">
               <Link to="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>
               <Link to="/terms" className="hover:text-white transition-colors">Terms of Service</Link>
             </div>
