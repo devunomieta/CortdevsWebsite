@@ -2,7 +2,8 @@ import { useNavigate, Outlet, Link, useLocation } from "react-router";
 import { useState, useEffect } from "react";
 import {
   ArrowRight,
-  Star
+  Star,
+  ChevronDown
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -17,6 +18,8 @@ export function Layout() {
   const { config, currency, setCurrencyCode, isNigerian } = useConfig();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [mobileSolutionsOpen, setMobileSolutionsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
@@ -61,6 +64,7 @@ export function Layout() {
 
   useEffect(() => {
     setIsMenuOpen(false);
+    setMobileSolutionsOpen(false);
     window.scrollTo(0, 0);
 
     // Deep link check for Google Ads / External Links
@@ -74,6 +78,7 @@ export function Layout() {
     { to: "/", label: "Home" },
     { to: "/services", label: "Services" },
     { to: "/work", label: "Work" },
+    { to: "/sirona", label: "Sirona" },
     { to: "/about", label: "About" },
     { to: "/careers", label: "Careers" },
     { to: "/contact", label: "Contact" },
@@ -98,18 +103,104 @@ export function Layout() {
             <img src={config.headerLogo} alt="CortDevs" className="h-8 w-auto object-contain transition-transform group-hover:scale-105" />
           </Link>
 
-            <div className="hidden lg:flex items-center gap-12">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.to}
-                  to={link.to}
-                  className={`text-xs tracking-[0.2em] uppercase transition-colors relative group ${location.pathname === link.to ? "text-foreground font-bold" : "text-muted-foreground hover:text-foreground"
-                    }`}
-                >
-                  {link.label}
-                  <span className={`absolute -bottom-1 left-0 h-[1px] bg-foreground transition-all duration-300 ${location.pathname === link.to ? "w-full" : "w-0 group-hover:w-full"}`} />
-                </Link>
-              ))}
+          <div className="hidden lg:flex items-center gap-12">
+            <Link
+              to="/"
+              className={`text-xs tracking-[0.2em] uppercase transition-colors relative group ${location.pathname === "/" ? "text-foreground font-bold" : "text-muted-foreground hover:text-foreground"
+                }`}
+            >
+              Home
+              <span className={`absolute -bottom-1 left-0 h-[1px] bg-foreground transition-all duration-300 ${location.pathname === "/" ? "w-full" : "w-0 group-hover:w-full"}`} />
+            </Link>
+
+            <Link
+              to="/services"
+              className={`text-xs tracking-[0.2em] uppercase transition-colors relative group ${location.pathname === "/services" ? "text-foreground font-bold" : "text-muted-foreground hover:text-foreground"
+                }`}
+            >
+              Services
+              <span className={`absolute -bottom-1 left-0 h-[1px] bg-foreground transition-all duration-300 ${location.pathname === "/services" ? "w-full" : "w-0 group-hover:w-full"}`} />
+            </Link>
+
+            {/* Solutions Dropdown Menu */}
+            <div 
+              className="relative"
+              onMouseEnter={() => setIsDropdownOpen(true)}
+              onMouseLeave={() => setIsDropdownOpen(false)}
+            >
+              <button
+                className={`text-xs tracking-[0.2em] uppercase transition-colors relative flex items-center gap-1.5 focus:outline-none ${
+                  location.pathname === "/work" || location.pathname === "/sirona"
+                    ? "text-foreground font-bold"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+                onClick={() => setIsDropdownOpen(prev => !prev)}
+                aria-expanded={isDropdownOpen}
+                aria-haspopup="true"
+              >
+                Solutions
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-350 ${isDropdownOpen ? "rotate-180" : ""}`} />
+              </button>
+
+              <AnimatePresence>
+                {isDropdownOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 8 }}
+                    transition={{ duration: 0.18 }}
+                    className="absolute left-0 mt-3 w-52 bg-card border border-border rounded shadow-xl py-2 z-[200]"
+                  >
+                    <Link
+                      to="/work"
+                      onClick={() => setIsDropdownOpen(false)}
+                      className={`block px-5 py-3 text-xs tracking-[0.2em] uppercase hover:bg-muted transition-colors ${
+                        location.pathname === "/work" ? "text-foreground font-bold" : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      Work
+                    </Link>
+                    <Link
+                      to="/sirona"
+                      onClick={() => setIsDropdownOpen(false)}
+                      className={`block px-5 py-3 text-xs tracking-[0.2em] uppercase hover:bg-muted transition-colors ${
+                        location.pathname === "/sirona" ? "text-foreground font-bold" : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      Sirona
+                    </Link>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            <Link
+              to="/about"
+              className={`text-xs tracking-[0.2em] uppercase transition-colors relative group ${location.pathname === "/about" ? "text-foreground font-bold" : "text-muted-foreground hover:text-foreground"
+                }`}
+            >
+              About
+              <span className={`absolute -bottom-1 left-0 h-[1px] bg-foreground transition-all duration-300 ${location.pathname === "/about" ? "w-full" : "w-0 group-hover:w-full"}`} />
+            </Link>
+
+            <Link
+              to="/careers"
+              className={`text-xs tracking-[0.2em] uppercase transition-colors relative group ${location.pathname === "/careers" ? "text-foreground font-bold" : "text-muted-foreground hover:text-foreground"
+                }`}
+            >
+              Careers
+              <span className={`absolute -bottom-1 left-0 h-[1px] bg-foreground transition-all duration-300 ${location.pathname === "/careers" ? "w-full" : "w-0 group-hover:w-full"}`} />
+            </Link>
+
+            <Link
+              to="/contact"
+              className={`text-xs tracking-[0.2em] uppercase transition-colors relative group ${location.pathname === "/contact" ? "text-foreground font-bold" : "text-muted-foreground hover:text-foreground"
+                }`}
+            >
+              Contact
+              <span className={`absolute -bottom-1 left-0 h-[1px] bg-foreground transition-all duration-300 ${location.pathname === "/contact" ? "w-full" : "w-0 group-hover:w-full"}`} />
+            </Link>
+
             <button
               onClick={() => setIsDialogOpen(true)}
               className="bg-primary text-primary-foreground px-8 py-3 text-[10px] font-bold tracking-[0.2em] uppercase hover:opacity-90 transition-all shadow-xl shadow-black/10"
@@ -146,30 +237,83 @@ export function Layout() {
             exit="closed"
             className="fixed inset-0 z-[105] bg-background flex flex-col pt-24"
           >
-            <div className="flex-1 flex flex-col justify-center px-12 space-y-10">
-              {navLinks.map((link, i) => (
-                <motion.div
-                  key={link.to}
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.1 + i * 0.1 }}
+            <div className="flex-1 flex flex-col justify-center px-12 space-y-8 overflow-y-auto">
+              <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }}>
+                <Link to="/" onClick={() => setIsMenuOpen(false)} className={`text-4xl font-light tracking-tight ${location.pathname === "/" ? "italic font-normal underline underline-offset-8 decoration-1" : "text-foreground"}`}>
+                  Home
+                </Link>
+              </motion.div>
+
+              <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}>
+                <Link to="/services" onClick={() => setIsMenuOpen(false)} className={`text-4xl font-light tracking-tight ${location.pathname === "/services" ? "italic font-normal underline underline-offset-8 decoration-1" : "text-foreground"}`}>
+                  Services
+                </Link>
+              </motion.div>
+
+              {/* Solutions Mobile Group Accordion */}
+              <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }} className="space-y-4">
+                <button
+                  onClick={() => setMobileSolutionsOpen(prev => !prev)}
+                  className={`text-4xl font-light tracking-tight text-left w-full flex items-center justify-between focus:outline-none ${
+                    location.pathname === "/work" || location.pathname === "/sirona"
+                      ? "italic font-normal underline underline-offset-8 decoration-1"
+                      : "text-foreground"
+                  }`}
                 >
-                  <Link
-                    to={link.to}
-                    onClick={() => setIsMenuOpen(false)}
-                    className={`text-5xl font-light tracking-tight transition-all hover:pl-4 transition-[padding] ${location.pathname === link.to ? "italic font-normal underline underline-offset-8 decoration-1" : "text-foreground"
-                      }`}
-                  >
-                    {link.label}
-                  </Link>
-                </motion.div>
-              ))}
+                  Solutions
+                  <ChevronDown className={`w-8 h-8 transition-transform duration-350 ${mobileSolutionsOpen ? "rotate-180" : ""}`} />
+                </button>
+                <AnimatePresence>
+                  {mobileSolutionsOpen && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.25 }}
+                      className="pl-6 flex flex-col gap-4 border-l border-border overflow-hidden"
+                    >
+                      <Link
+                        to="/work"
+                        onClick={() => setIsMenuOpen(false)}
+                        className={`text-2xl font-light tracking-tight ${location.pathname === "/work" ? "italic font-normal text-primary" : "text-muted-foreground"}`}
+                      >
+                        Work
+                      </Link>
+                      <Link
+                        to="/sirona"
+                        onClick={() => setIsMenuOpen(false)}
+                        className={`text-2xl font-light tracking-tight ${location.pathname === "/sirona" ? "italic font-normal text-primary" : "text-muted-foreground"}`}
+                      >
+                        Sirona
+                      </Link>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+
+              <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }}>
+                <Link to="/about" onClick={() => setIsMenuOpen(false)} className={`text-4xl font-light tracking-tight ${location.pathname === "/about" ? "italic font-normal underline underline-offset-8 decoration-1" : "text-foreground"}`}>
+                  About
+                </Link>
+              </motion.div>
+
+              <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 }}>
+                <Link to="/careers" onClick={() => setIsMenuOpen(false)} className={`text-4xl font-light tracking-tight ${location.pathname === "/careers" ? "italic font-normal underline underline-offset-8 decoration-1" : "text-foreground"}`}>
+                  Careers
+                </Link>
+              </motion.div>
+
+              <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.6 }}>
+                <Link to="/contact" onClick={() => setIsMenuOpen(false)} className={`text-4xl font-light tracking-tight ${location.pathname === "/contact" ? "italic font-normal underline underline-offset-8 decoration-1" : "text-foreground"}`}>
+                  Contact
+                </Link>
+              </motion.div>
 
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6 }}
-                className="pt-12"
+                transition={{ delay: 0.7 }}
+                className="pt-6"
               >
                 <button
                   onClick={() => {

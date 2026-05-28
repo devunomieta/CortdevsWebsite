@@ -218,6 +218,62 @@ export function Work() {
         </div>
       </section>
 
+      {/* Featured Case Study: Sirona School Management System */}
+      <section className="py-20 lg:py-32 bg-neutral-950 text-white relative overflow-hidden border-t border-white/5">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_800px_at_0%_300px,rgba(99,102,241,0.08),transparent)] pointer-events-none" />
+        <div className="max-w-7xl mx-auto px-6 lg:px-8 relative">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20 items-center">
+            <div className="lg:col-span-5 relative order-last lg:order-first">
+              <div className="aspect-[4/3] bg-neutral-900 border border-white/10 rounded-xl overflow-hidden shadow-2xl relative group">
+                <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500/10 to-transparent mix-blend-overlay" />
+                <img
+                  src="https://images.unsplash.com/photo-1427504494785-3a9ca7044f45?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzY2hvb2wlMjBtYW5hZ2VtZW50JTIwdGVjaHxlbnwxfHx8fDE3NzIxOTE2NjV8MA&ixlib=rb-4.1.0&q=80&w=640"
+                  alt="Sirona Smart School Platform dashboard mockup"
+                  className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-700"
+                />
+              </div>
+            </div>
+
+            <div className="lg:col-span-7">
+              <div className="inline-block px-3 py-1 bg-indigo-500/20 text-indigo-300 text-[9px] font-bold tracking-[0.3em] uppercase mb-6 rounded-full">
+                Featured Product Case Study
+              </div>
+              <h2 className="text-4xl lg:text-6xl font-light tracking-tight mb-8 leading-[1.1]">
+                Sirona: Smart School
+                <span className="block mt-2 font-normal text-indigo-400">Management System</span>
+              </h2>
+              <p className="text-neutral-400 text-lg leading-relaxed mb-8">
+                In contrast to our highly confidential custom software projects, Sirona is our public-facing 
+                SaaS solution engineered for academic institutions. We automated administrative duties, 
+                grading computations, and secure payment disbursements to help Nigerian schools operate with 
+                unprecedented efficiency.
+              </p>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-10 text-neutral-300">
+                <div>
+                  <h4 className="text-sm font-semibold text-white uppercase tracking-wider mb-2">Key Metric</h4>
+                  <p className="text-xs text-neutral-400">Onboarded over 38+ schools in Nigeria within the first rollout phase.</p>
+                </div>
+                <div>
+                  <h4 className="text-sm font-semibold text-white uppercase tracking-wider mb-2">Security Standard</h4>
+                  <p className="text-xs text-neutral-400">Bank-grade encryption protecting all fee transactions and report cards.</p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-4">
+                <Link
+                  to="/sirona"
+                  className="inline-flex items-center justify-center gap-3 px-8 py-4.5 bg-indigo-600 text-white tracking-widest text-[10px] font-bold uppercase hover:bg-indigo-500 transition-all group"
+                >
+                  View Case Study & Product Details
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Success Stories */}
       <section id="success-stories-section" className="py-20 lg:py-32 scroll-mt-24">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">

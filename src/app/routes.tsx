@@ -34,16 +34,19 @@ import { ProjectPublic } from "./pages/ProjectPublic";
 import { DocsPortal } from "./pages/DocsPortal";
 import { AdminIssueManagement } from "./pages/admin/IssueManagement";
 import { AdminSubmissions } from "./pages/admin/AdminSubmissions";
+import { SironaLanding } from "./pages/SironaLanding";
 import { Navigate } from "react-router";
+
+const isSironaSubdomain = typeof window !== 'undefined' && (window.location.hostname.startsWith('sirona.') || window.location.hostname.includes('sirona.cortdevs.com'));
 
 export const router = createBrowserRouter([
   {
     path: "/",
-    element: <Layout />,
+    element: isSironaSubdomain ? <SironaLanding /> : <Layout />,
     children: [
       {
         index: true,
-        element: <Home />,
+        element: isSironaSubdomain ? <SironaLanding /> : <Home />,
       },
       {
         path: "portal",
@@ -180,6 +183,10 @@ export const router = createBrowserRouter([
   {
     path: "/maintenance",
     element: <Maintenance />,
+  },
+  {
+    path: "/sirona",
+    element: <SironaLanding />,
   },
   {
     path: "*",

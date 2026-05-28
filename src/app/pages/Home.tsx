@@ -277,6 +277,90 @@ export function Home() {
         </div>
       </section>
 
+      {/* Featured Product: Sirona */}
+      <section className="py-20 lg:py-32 relative overflow-hidden bg-neutral-950 text-white border-t border-white/5">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_800px_at_100%_200px,rgba(99,102,241,0.08),transparent)] pointer-events-none" />
+        <div className="max-w-7xl mx-auto px-6 lg:px-8 relative">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20 items-center">
+            <div className="lg:col-span-7">
+              <div className="inline-block px-3 py-1 bg-white/10 text-white text-[9px] font-bold tracking-[0.3em] uppercase mb-6 rounded-full">
+                Featured Product
+              </div>
+              <h2 className="text-4xl lg:text-6xl font-light tracking-tight mb-8 leading-[1.1]">
+                Sirona: Smart School
+                <span className="block mt-2 font-normal text-indigo-400">Management System</span>
+              </h2>
+              <p className="text-neutral-400 text-lg leading-relaxed mb-8">
+                A complete, secure, web-based platform tailored for Nigerian schools to automate 
+                administrative duties, fee collections, classrooms, grading (CA & Exams), 
+                and parent-teacher engagement. Minimize human errors, eliminate paperwork, 
+                and save significant administrative costs.
+              </p>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-10">
+                <div className="flex items-start gap-3">
+                  <div className="w-5 h-5 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-400 mt-1 flex-shrink-0">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-white">Fees & Online Payments</h4>
+                    <p className="text-xs text-neutral-500 mt-0.5">Automated bank updates and digital receipts.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-5 h-5 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-400 mt-1 flex-shrink-0">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-white">Academics & Reports</h4>
+                    <p className="text-xs text-neutral-500 mt-0.5">Continuous assessment, report cards, timetables.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-5 h-5 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-400 mt-1 flex-shrink-0">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-white">User Portals</h4>
+                    <p className="text-xs text-neutral-500 mt-0.5">Dedicated access for Admin, Teachers, Parents, Students.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-5 h-5 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-400 mt-1 flex-shrink-0">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-white">Zero Setup Fee</h4>
+                    <p className="text-xs text-neutral-500 mt-0.5">Free deployment & no system charges for the first year.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-4">
+                <Link
+                  to="/sirona"
+                  className="inline-flex items-center justify-center gap-3 px-8 py-4.5 bg-indigo-600 text-white tracking-widest text-[10px] font-bold uppercase hover:bg-indigo-500 transition-all group"
+                >
+                  Explore Sirona System
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </Link>
+              </div>
+            </div>
+            
+            <div className="lg:col-span-5 relative">
+              <div className="aspect-[4/3] bg-neutral-900 border border-white/10 rounded-xl overflow-hidden shadow-2xl relative group">
+                <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500/10 to-transparent mix-blend-overlay" />
+                <ImageWithFallback
+                  src="https://images.unsplash.com/photo-1427504494785-3a9ca7044f45?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzY2hvb2wlMjBtYW5hZ2VtZW50JTIwdGVjaHxlbnwxfHx8fDE3NzIxOTE2NjV8MA&ixlib=rb-4.1.0&q=80&w=640"
+                  alt="Sirona Smart School Platform dashboard mockup"
+                  className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-700"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* CTA Section */}
       <section className="py-20 lg:py-32">
         <div className="max-w-4xl mx-auto px-6 lg:px-8 text-center">
