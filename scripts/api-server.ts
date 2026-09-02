@@ -7,7 +7,7 @@ import dotenv from 'dotenv';
 // Load .env
 dotenv.config();
 
-const PORT = 3000;
+const PORT = parseInt(process.env.PORT || process.env.API_PORT || '3000', 10);
 
 // Prevent server crash on unhandled errors
 process.on('uncaughtException', (err) => {

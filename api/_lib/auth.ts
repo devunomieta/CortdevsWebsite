@@ -28,9 +28,10 @@ export async function verifyAdmin(req: VercelRequest, res: VercelResponse) {
     const user = await verifyAuth(req, res);
     if (!user) return null;
 
-    // Check if user is an admin or superadmin
-    // In this system, we can check the user metadata or a specific profiles table
-    const isAdmin = user.user_metadata?.role === 'admin' || user.user_metadata?.role === 'superadmin' || user.email === 'projects@cortdevs.com';
+    // Check role in profiles table or metadata
+    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
+    const role = profile?.role || user.user_metadata?.role;
+    const isAdmin = ['Superadmin', 'Admin', 'superadmin', 'admin'].includes(role) || user.email === 'projects@cortdevs.com';
 
     if (!isAdmin) {
         res.status(403).json({ error: 'Access denied. Administrative privileges required.' });

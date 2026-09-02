@@ -422,7 +422,7 @@ export function UserManagement() {
     };
 
     const handleDeleteUser = async (user: AdminUser) => {
-        if (user.email === 'projects@cortdevs.com') {
+        if (user.email === 'projects@cortdevs.com' || user.email === 'lionelunomieta@gmail.com') {
             showToast("Security override: Root identity cannot be purged from the registry.", "error");
             return;
         }
@@ -437,14 +437,22 @@ export function UserManagement() {
 
         setIsProcessing(true);
         try {
-            const { error } = await supabase.from('profiles').delete().eq('id', user.id);
-            if (error) throw error;
+            const { data: { session } } = await supabase.auth.getSession();
+            const token = session?.access_token;
 
-            await supabase.from('audit_logs').insert([{
-                action: 'USER_DELETED',
-                target_type: 'User',
-                details: { email: user.email, name: user.name }
-            }]);
+            const res = await fetch('/api/admin/delete-user', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ userId: user.id, email: user.email })
+            });
+
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.error || "Failed to purge user.");
+            }
 
             showToast("User successfully purged from the registry.", "success");
             fetchUsers();
