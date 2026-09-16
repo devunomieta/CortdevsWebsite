@@ -10,11 +10,19 @@ import {
     Download,
     X,
     RefreshCw,
+    LayoutDashboard,
+    ClipboardCheck,
+    Settings2,
+    Users,
+    UserX,
+    Repeat,
 } from "lucide-react";
 import { useToast } from "../../app/components/Toast";
 import { eventFetch, ApiError } from "../lib/api";
 import { subscribeToChannel } from "../lib/realtime";
 import type { DashboardContext } from "./DashboardLayout";
+
+type Tab = "analytics" | "checkin" | "manage";
 
 interface SearchResult {
     id: string;
@@ -25,10 +33,14 @@ interface SearchResult {
     checkedInAt: string | null;
 }
 
-interface Stats {
+interface Analytics {
+    totalGuests: number;
     checkedIn: number;
     newRegistrations: number;
     checkInRate: number;
+    noShows: number;
+    hourly: { hour: string; count: number }[];
+    crossDay: { uniqueAttendees: number; totalCheckins: number } | null;
 }
 
 interface ExportStatus {
@@ -48,13 +60,16 @@ interface ImportStatus {
     skipped_count?: number | null;
 }
 
+const EMPTY_ANALYTICS: Analytics = { totalGuests: 0, checkedIn: 0, newRegistrations: 0, checkInRate: 0, noShows: 0, hourly: [], crossDay: null };
+
 export function DashboardHome() {
     const ctx = useOutletContext<DashboardContext>();
     const { showToast } = useToast();
     const isFull = ctx.role === "full";
 
+    const [tab, setTab] = useState<Tab>(isFull ? "checkin" : "analytics");
     const [activeDayId, setActiveDayId] = useState(ctx.days[0]?.id || "");
-    const [stats, setStats] = useState<Stats>({ checkedIn: 0, newRegistrations: 0, checkInRate: 0 });
+    const [analytics, setAnalytics] = useState<Analytics>(EMPTY_ANALYTICS);
     const [query, setQuery] = useState("");
     const [results, setResults] = useState<SearchResult[]>([]);
     const [isSearching, setIsSearching] = useState(false);
@@ -64,13 +79,13 @@ export function DashboardHome() {
     const [latestImport, setLatestImport] = useState<ImportStatus | null>(null);
     const [isUploadingCsv, setIsUploadingCsv] = useState(false);
 
-    const loadStats = useCallback(async () => {
+    const loadAnalytics = useCallback(async () => {
         if (!activeDayId) return;
         try {
-            const data = await eventFetch(`/api/events/stats?dayId=${activeDayId}`, ctx.token);
-            setStats(data);
+            const data = await eventFetch(`/api/events/analytics?dayId=${activeDayId}`, ctx.token);
+            setAnalytics(data);
         } catch {
-            // stats are non-critical to surface as an error toast on every poll
+            // non-critical to surface as an error toast on every poll
         }
     }, [activeDayId, ctx.token]);
 
@@ -94,18 +109,18 @@ export function DashboardHome() {
         }
     }, [ctx.token, isFull]);
 
-    useEffect(() => { loadStats(); }, [loadStats]);
+    useEffect(() => { loadAnalytics(); }, [loadAnalytics]);
     useEffect(() => { loadExportStatus(); }, [loadExportStatus]);
     useEffect(() => { loadImportStatus(); }, [loadImportStatus]);
 
-    // Live multi-device sync (PRD §08/§09/§11): any check-in, or a decision on
-    // an export/import request, re-triggers a refetch here — no one has to
-    // reload to see the latest state.
+    // Live multi-device sync: any check-in, or a decision on an export/import
+    // request, re-triggers a refetch here — no one has to reload to see the
+    // latest state.
     useEffect(() => {
         return subscribeToChannel(`event-${ctx.eventId}`, "update", (payload) => {
             if (payload?.kind === "export") { loadExportStatus(); return; }
             if (payload?.kind === "import") { loadImportStatus(); return; }
-            loadStats();
+            loadAnalytics();
             if (query.trim()) runSearch(query);
         });
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -141,7 +156,7 @@ export function DashboardHome() {
             setResults((prev) => prev.map((r) => (r.id === attendee.id ? { ...r, checkedInAt: data.checkedInAt } : r)));
             if (!data.alreadyCheckedIn) {
                 showToast(`${attendee.fullName} checked in.`, "success");
-                loadStats();
+                loadAnalytics();
             }
         } catch (err) {
             showToast(err instanceof ApiError ? err.message : "Could not confirm check-in.", "error");
@@ -166,7 +181,7 @@ export function DashboardHome() {
             showToast(`${walkInForm.fullName} registered and checked in.`, "success");
             setWalkInForm({ fullName: "", email: "", phone: "" });
             setShowWalkIn(false);
-            loadStats();
+            loadAnalytics();
         } catch (err) {
             showToast(err instanceof ApiError ? err.message : "Could not register walk-in.", "error");
         }
@@ -216,50 +231,142 @@ export function DashboardHome() {
     };
 
     const activeDayLabel = useMemo(() => ctx.days.find((d) => d.id === activeDayId)?.label, [ctx.days, activeDayId]);
+    const maxHourly = Math.max(1, ...analytics.hourly.map((h) => h.count));
+
+    const tabs: { id: Tab; label: string; icon: typeof LayoutDashboard }[] = isFull
+        ? [
+            { id: "checkin", label: "Check-in", icon: ClipboardCheck },
+            { id: "analytics", label: "Analytics", icon: LayoutDashboard },
+            { id: "manage", label: "Manage Event", icon: Settings2 },
+        ]
+        : [{ id: "analytics", label: "Analytics", icon: LayoutDashboard }];
 
     return (
-        <div className="space-y-10">
-            {/* Day selector */}
-            <div className="flex flex-wrap gap-2">
-                {ctx.days.map((day) => (
-                    <button
-                        key={day.id}
-                        onClick={() => setActiveDayId(day.id)}
-                        className={`px-4 py-2 text-xs font-bold uppercase tracking-widest border transition-colors ${activeDayId === day.id
-                                ? "bg-primary text-primary-foreground border-primary"
-                                : "border-border text-muted-foreground hover:text-foreground"
-                            }`}
-                    >
-                        {day.label}
-                    </button>
-                ))}
+        <div className="space-y-8">
+            {/* Tab bar */}
+            <div className="flex gap-1 border-b border-border">
+                {tabs.map((t) => {
+                    const Icon = t.icon;
+                    return (
+                        <button
+                            key={t.id}
+                            onClick={() => setTab(t.id)}
+                            className={`flex items-center gap-2 px-4 py-3 text-xs font-bold uppercase tracking-widest border-b-2 transition-colors ${tab === t.id
+                                    ? "border-primary text-foreground"
+                                    : "border-transparent text-muted-foreground hover:text-foreground"
+                                }`}
+                        >
+                            <Icon size={14} /> {t.label}
+                        </button>
+                    );
+                })}
             </div>
 
-            {/* Stats */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="border border-border p-6 bg-card">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
-                        Confirmed — {activeDayLabel}
-                    </p>
-                    <p className="text-4xl font-light tracking-tight">{stats.checkedIn}</p>
+            {/* Day selector — relevant to Analytics and Check-in, not Manage Event */}
+            {tab !== "manage" && (
+                <div className="flex flex-wrap gap-2">
+                    {ctx.days.map((day) => (
+                        <button
+                            key={day.id}
+                            onClick={() => setActiveDayId(day.id)}
+                            className={`px-4 py-2 text-xs font-bold uppercase tracking-widest border transition-colors ${activeDayId === day.id
+                                    ? "bg-primary text-primary-foreground border-primary"
+                                    : "border-border text-muted-foreground hover:text-foreground"
+                                }`}
+                        >
+                            {day.label}
+                        </button>
+                    ))}
                 </div>
-                <div className="border border-border p-6 bg-card">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
-                        New Registrations
-                    </p>
-                    <p className="text-4xl font-light tracking-tight">{stats.newRegistrations}</p>
-                </div>
-                <div className="border border-border p-6 bg-card">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
-                        Check-in Rate
-                    </p>
-                    <p className="text-4xl font-light tracking-tight">{stats.checkInRate}%</p>
-                </div>
-            </div>
+            )}
 
-            {isFull && (
-                <>
-                    {/* Search & confirm */}
+            {tab === "analytics" && (
+                <div className="space-y-8">
+                    <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+                        <div className="border border-border p-6 bg-card">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Total Invited</p>
+                            <p className="text-3xl font-light tracking-tight">{analytics.totalGuests}</p>
+                        </div>
+                        <div className="border border-border p-6 bg-card">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
+                                Confirmed — {activeDayLabel}
+                            </p>
+                            <p className="text-3xl font-light tracking-tight">{analytics.checkedIn}</p>
+                        </div>
+                        <div className="border border-border p-6 bg-card">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">New Registrations</p>
+                            <p className="text-3xl font-light tracking-tight">{analytics.newRegistrations}</p>
+                        </div>
+                        <div className="border border-border p-6 bg-card">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Check-in Rate</p>
+                            <p className="text-3xl font-light tracking-tight">{analytics.checkInRate}%</p>
+                        </div>
+                        <div className="border border-border p-6 bg-card">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">No-Shows (so far)</p>
+                            <p className="text-3xl font-light tracking-tight">{analytics.noShows}</p>
+                        </div>
+                    </div>
+
+                    {/* Hourly check-in curve */}
+                    <div className="border border-border bg-card p-6">
+                        <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-5">
+                            Check-ins by hour — {activeDayLabel}
+                        </p>
+                        {analytics.hourly.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">No check-ins yet today.</p>
+                        ) : (
+                            <div className="space-y-2.5">
+                                {analytics.hourly.map((h) => (
+                                    <div key={h.hour} className="flex items-center gap-3">
+                                        <span className="text-xs font-mono text-muted-foreground w-12 shrink-0">{h.hour}</span>
+                                        <div className="flex-1 h-5 bg-secondary relative">
+                                            <div
+                                                className="h-full bg-primary"
+                                                style={{ width: `${(h.count / maxHourly) * 100}%` }}
+                                            />
+                                        </div>
+                                        <span className="text-xs font-bold w-6 text-right shrink-0">{h.count}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Cross-day rollup */}
+                    {analytics.crossDay && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="border border-border p-6 bg-card flex items-center gap-4">
+                                <div className="w-11 h-11 bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                                    <Users size={18} />
+                                </div>
+                                <div>
+                                    <p className="text-2xl font-light tracking-tight">{analytics.crossDay.uniqueAttendees}</p>
+                                    <p className="text-xs text-muted-foreground">Unique guests across all {ctx.days.length} days</p>
+                                </div>
+                            </div>
+                            <div className="border border-border p-6 bg-card flex items-center gap-4">
+                                <div className="w-11 h-11 bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                                    <Repeat size={18} />
+                                </div>
+                                <div>
+                                    <p className="text-2xl font-light tracking-tight">{analytics.crossDay.totalCheckins}</p>
+                                    <p className="text-xs text-muted-foreground">Total check-ins (repeat visits included)</p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {!isFull && (
+                        <div className="border border-border p-6 bg-card text-sm text-muted-foreground flex items-center gap-3">
+                            <UserX size={16} className="shrink-0" />
+                            You can see the numbers, but this login can't check people in or request the guest list.
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {tab === "checkin" && isFull && (
+                <div className="space-y-8">
                     <div className="border border-border bg-card">
                         <div className="p-6 border-b border-border flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
                             <div className="relative flex-1">
@@ -314,7 +421,11 @@ export function DashboardHome() {
                             })}
                         </div>
                     </div>
+                </div>
+            )}
 
+            {tab === "manage" && isFull && (
+                <div className="space-y-8">
                     {/* Export */}
                     <div className="border border-border p-6 bg-card flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                         <div>
@@ -403,12 +514,6 @@ export function DashboardHome() {
                             </label>
                         </div>
                     </div>
-                </>
-            )}
-
-            {!isFull && (
-                <div className="border border-border p-6 bg-card text-sm text-muted-foreground">
-                    You can see the numbers, but this login can't check people in or request the guest list.
                 </div>
             )}
 

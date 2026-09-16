@@ -25,8 +25,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const checkedIn = records?.length || 0;
         const newRegistrations = (records || []).filter((r: any) => r.attendees?.source === 'walk-in').length;
+        const importedCheckedIn = checkedIn - newRegistrations;
         const imported = importedCount || 0;
-        const checkInRate = imported > 0 ? Math.round((checkedIn / imported) * 100) : 0;
+        const checkInRate = imported > 0 ? Math.round((importedCheckedIn / imported) * 100) : 0;
 
         return res.status(200).json({ checkedIn, newRegistrations, checkInRate });
     } catch (err: any) {

@@ -35,6 +35,7 @@ import eventsRegisterHandler from './_handlers/events/register.js';
 import eventsStatsHandler from './_handlers/events/stats.js';
 import eventsImportRequestHandler from './_handlers/events/import-request.js';
 import eventsImportTemplateHandler from './_handlers/events/import-template.js';
+import eventsAnalyticsHandler from './_handlers/events/analytics.js';
 
 import paymentsVerifyHandler from './_handlers/payments/verify.js';
 
@@ -69,6 +70,7 @@ const routes: Record<string, (req: VercelRequest, res: VercelResponse) => any> =
   'events/stats': eventsStatsHandler,
   'events/import-request': eventsImportRequestHandler,
   'events/import-template': eventsImportTemplateHandler,
+  'events/analytics': eventsAnalyticsHandler,
   'payments/verify': paymentsVerifyHandler,
 };
 
