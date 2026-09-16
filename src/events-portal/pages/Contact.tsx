@@ -142,6 +142,7 @@ export function EventsContact() {
                                         </label>
                                         <input
                                             required
+                                            maxLength={200}
                                             value={form.name}
                                             onChange={handleChange("name")}
                                             className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm"
@@ -154,6 +155,7 @@ export function EventsContact() {
                                         <input
                                             required
                                             type="email"
+                                            maxLength={200}
                                             value={form.email}
                                             onChange={handleChange("email")}
                                             className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm"
@@ -165,6 +167,7 @@ export function EventsContact() {
                                         Event / Organization
                                     </label>
                                     <input
+                                        maxLength={200}
                                         value={form.company}
                                         onChange={handleChange("company")}
                                         placeholder="e.g. Demo Day 2026"
@@ -178,6 +181,7 @@ export function EventsContact() {
                                     <textarea
                                         required
                                         rows={5}
+                                        maxLength={5000}
                                         value={form.message}
                                         onChange={handleChange("message")}
                                         placeholder="Tell us about your event — dates, expected attendees, what you need."

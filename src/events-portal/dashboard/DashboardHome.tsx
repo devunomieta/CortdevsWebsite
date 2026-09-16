@@ -16,10 +16,13 @@ import {
     Users,
     UserX,
     Repeat,
+    CalendarClock,
 } from "lucide-react";
 import { useToast } from "../../app/components/Toast";
 import { eventFetch, ApiError } from "../lib/api";
 import { subscribeToChannel } from "../lib/realtime";
+import { sanitizePhoneInput, isValidPhone, isValidEmail, LIMITS } from "../lib/validation";
+import { todayInTimezone } from "../lib/date";
 import type { DashboardContext } from "./DashboardLayout";
 
 type Tab = "analytics" | "checkin" | "manage";
@@ -165,7 +168,15 @@ export function DashboardHome() {
 
     const submitWalkIn = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!walkInForm.fullName) return;
+        if (!walkInForm.fullName.trim()) return;
+        if (walkInForm.email && !isValidEmail(walkInForm.email)) {
+            showToast("That email address doesn't look right.", "error");
+            return;
+        }
+        if (walkInForm.phone && !isValidPhone(walkInForm.phone)) {
+            showToast("Phone number can only contain digits, spaces, +, -, and parentheses.", "error");
+            return;
+        }
         try {
             const customFields = Object.fromEntries(ctx.walkinFields.map((f) => [f, walkInForm[f] || ""]));
             await eventFetch("/api/events/register", ctx.token, {
@@ -205,8 +216,12 @@ export function DashboardHome() {
                 method: "POST",
                 body: JSON.stringify({ csvContent, fileName: file.name }),
             });
-            const skippedNote = data.preview?.skipped ? ` (${data.preview.skipped} row${data.preview.skipped === 1 ? "" : "s"} skipped — missing a name)` : "";
-            showToast(`Uploaded ${data.preview?.usable ?? ""} attendees${skippedNote} — an admin will review it before it's added.`, "info");
+            const notes: string[] = [];
+            if (data.preview?.skipped) notes.push(`${data.preview.skipped} skipped (no name)`);
+            if (data.preview?.invalidPhones) notes.push(`${data.preview.invalidPhones} phone number${data.preview.invalidPhones === 1 ? "" : "s"} dropped (invalid format)`);
+            if (data.preview?.invalidEmails) notes.push(`${data.preview.invalidEmails} email${data.preview.invalidEmails === 1 ? "" : "s"} dropped (invalid format)`);
+            const notesText = notes.length ? ` (${notes.join(", ")})` : "";
+            showToast(`Uploaded ${data.preview?.usable ?? ""} attendees${notesText} — an admin will review it before it's added.`, "info");
             loadImportStatus();
         } catch (err) {
             showToast(err instanceof ApiError ? err.message : "Could not upload that file.", "error");
@@ -230,7 +245,17 @@ export function DashboardHome() {
         }
     };
 
-    const activeDayLabel = useMemo(() => ctx.days.find((d) => d.id === activeDayId)?.label, [ctx.days, activeDayId]);
+    const activeDay = useMemo(() => ctx.days.find((d) => d.id === activeDayId), [ctx.days, activeDayId]);
+    const activeDayLabel = activeDay?.label;
+    const today = useMemo(() => todayInTimezone(ctx.timezone), [ctx.timezone]);
+    const isEventDay = activeDay?.date === today;
+    const dayStatusNote = activeDay
+        ? activeDay.date < today
+            ? `${activeDay.label} has already passed.`
+            : activeDay.date > today
+                ? `${activeDay.label} hasn't started yet.`
+                : null
+        : null;
     const maxHourly = Math.max(1, ...analytics.hourly.map((h) => h.count));
 
     const tabs: { id: Tab; label: string; icon: typeof LayoutDashboard }[] = isFull
@@ -367,6 +392,13 @@ export function DashboardHome() {
 
             {tab === "checkin" && isFull && (
                 <div className="space-y-8">
+                    {!isEventDay && dayStatusNote && (
+                        <div className="flex items-start gap-3 border border-amber-500/30 bg-amber-500/5 p-4 text-sm text-amber-700">
+                            <CalendarClock size={16} className="shrink-0 mt-0.5" />
+                            <p>{dayStatusNote} You can still look around, but check-in and walk-in registration only work on a day's own date.</p>
+                        </div>
+                    )}
+
                     <div className="border border-border bg-card">
                         <div className="p-6 border-b border-border flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
                             <div className="relative flex-1">
@@ -380,7 +412,9 @@ export function DashboardHome() {
                             </div>
                             <button
                                 onClick={() => setShowWalkIn(true)}
-                                className="inline-flex items-center justify-center gap-2 px-5 py-3 border border-border text-xs font-bold uppercase tracking-widest hover:bg-muted transition-colors whitespace-nowrap"
+                                disabled={!isEventDay}
+                                title={isEventDay ? undefined : dayStatusNote || undefined}
+                                className="inline-flex items-center justify-center gap-2 px-5 py-3 border border-border text-xs font-bold uppercase tracking-widest hover:bg-muted transition-colors whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
                             >
                                 <UserPlus size={14} /> Register Walk-in
                             </button>
@@ -411,7 +445,9 @@ export function DashboardHome() {
                                         ) : (
                                             <button
                                                 onClick={() => confirmCheckIn(attendee)}
-                                                className="px-5 py-2.5 bg-primary text-primary-foreground text-xs font-bold uppercase tracking-widest hover:opacity-90 transition-all whitespace-nowrap"
+                                                disabled={!isEventDay}
+                                                title={isEventDay ? undefined : dayStatusNote || undefined}
+                                                className="px-5 py-2.5 bg-primary text-primary-foreground text-xs font-bold uppercase tracking-widest hover:opacity-90 transition-all whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed"
                                             >
                                                 Confirm
                                             </button>
@@ -538,6 +574,7 @@ export function DashboardHome() {
                                 </label>
                                 <input
                                     required
+                                    maxLength={LIMITS.name}
                                     value={walkInForm.fullName}
                                     onChange={(e) => setWalkInForm((p) => ({ ...p, fullName: e.target.value }))}
                                     className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm"
@@ -550,6 +587,7 @@ export function DashboardHome() {
                                     </label>
                                     <input
                                         type="email"
+                                        maxLength={200}
                                         value={walkInForm.email}
                                         onChange={(e) => setWalkInForm((p) => ({ ...p, email: e.target.value }))}
                                         className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm"
@@ -560,8 +598,11 @@ export function DashboardHome() {
                                         Phone
                                     </label>
                                     <input
+                                        type="tel"
+                                        inputMode="tel"
+                                        maxLength={20}
                                         value={walkInForm.phone}
-                                        onChange={(e) => setWalkInForm((p) => ({ ...p, phone: e.target.value }))}
+                                        onChange={(e) => setWalkInForm((p) => ({ ...p, phone: sanitizePhoneInput(e.target.value) }))}
                                         className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm"
                                     />
                                 </div>
@@ -572,6 +613,7 @@ export function DashboardHome() {
                                         {field}
                                     </label>
                                     <input
+                                        maxLength={200}
                                         value={walkInForm[field] || ""}
                                         onChange={(e) => setWalkInForm((p) => ({ ...p, [field]: e.target.value }))}
                                         className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm"
@@ -580,7 +622,8 @@ export function DashboardHome() {
                             ))}
                             <button
                                 type="submit"
-                                className="w-full py-3.5 bg-primary text-primary-foreground text-xs font-bold uppercase tracking-widest hover:opacity-90 transition-all"
+                                disabled={!isEventDay}
+                                className="w-full py-3.5 bg-primary text-primary-foreground text-xs font-bold uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                             >
                                 Register &amp; Check In
                             </button>

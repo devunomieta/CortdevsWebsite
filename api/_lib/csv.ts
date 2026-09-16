@@ -3,6 +3,9 @@
 // enough not to need one: a header row, comma-separated, RFC4180-style quoting
 // for fields containing commas/quotes/newlines.
 
+import { isValidPhone } from './phone.js';
+import { isValidEmail } from './validation.js';
+
 export function csvEscape(value: unknown): string {
     const str = String(value ?? '');
     return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
@@ -66,6 +69,8 @@ export interface CsvImportResult {
     attendees: ParsedAttendee[];
     skipped: number;
     total: number;
+    invalidPhones: number;
+    invalidEmails: number;
     error?: string;
 }
 
@@ -75,7 +80,7 @@ export interface CsvImportResult {
 export function attendeesFromCsv(text: string, customFieldNames: string[]): CsvImportResult {
     const rows = parseCsvText(text);
     if (rows.length < 2) {
-        return { attendees: [], skipped: 0, total: 0, error: 'The file needs a header row plus at least one attendee row.' };
+        return { attendees: [], skipped: 0, total: 0, invalidPhones: 0, invalidEmails: 0, error: 'The file needs a header row plus at least one attendee row.' };
     }
 
     const headers = rows[0];
@@ -84,7 +89,7 @@ export function attendeesFromCsv(text: string, customFieldNames: string[]): CsvI
     const phoneCol = findColumn(headers, REQUIRED_HEADERS.phone);
 
     if (nameCol === -1) {
-        return { attendees: [], skipped: 0, total: 0, error: 'Missing a "Full Name" column.' };
+        return { attendees: [], skipped: 0, total: 0, invalidPhones: 0, invalidEmails: 0, error: 'Missing a "Full Name" column.' };
     }
 
     const customCols = customFieldNames.map((name) => ({
@@ -95,6 +100,8 @@ export function attendeesFromCsv(text: string, customFieldNames: string[]): CsvI
     const dataRows = rows.slice(1);
     const attendees: ParsedAttendee[] = [];
     let skipped = 0;
+    let invalidPhones = 0;
+    let invalidEmails = 0;
 
     for (const row of dataRows) {
         const fullName = (row[nameCol] || '').trim();
@@ -105,15 +112,20 @@ export function attendeesFromCsv(text: string, customFieldNames: string[]): CsvI
             if (col !== -1) customFields[name] = (row[col] || '').trim();
         }
 
-        attendees.push({
-            fullName,
-            email: emailCol !== -1 ? (row[emailCol] || '').trim() : '',
-            phone: phoneCol !== -1 ? (row[phoneCol] || '').trim() : '',
-            customFields,
-        });
+        // A bad phone/email in one row shouldn't sink the whole import — drop
+        // just that field (name is what matters for check-in) and report the
+        // count so the admin reviewing it can see something needs attention.
+        const rawPhone = phoneCol !== -1 ? (row[phoneCol] || '').trim() : '';
+        const rawEmail = emailCol !== -1 ? (row[emailCol] || '').trim() : '';
+        const phone = rawPhone && isValidPhone(rawPhone) ? rawPhone : '';
+        const email = rawEmail && isValidEmail(rawEmail) ? rawEmail : '';
+        if (rawPhone && !phone) invalidPhones++;
+        if (rawEmail && !email) invalidEmails++;
+
+        attendees.push({ fullName, email, phone, customFields });
     }
 
-    return { attendees, skipped, total: dataRows.length };
+    return { attendees, skipped, total: dataRows.length, invalidPhones, invalidEmails };
 }
 
 export function buildSampleCsv(customFieldNames: string[]): string {

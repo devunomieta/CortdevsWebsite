@@ -3,6 +3,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabase } from '../../../_lib/supabase.js';
 import { verifyAdmin } from '../../../_lib/auth.js';
 import { encryptSecret, decryptSecret } from '../../../_lib/eventAuth.js';
+import { withinLength, isValidEmail, LIMITS } from '../../../_lib/validation.js';
 import { logEventActivity } from '../../../_lib/eventAuditLog.js';
 
 function generatePassword(): string {
@@ -38,7 +39,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
         if (action === 'issue') {
             const { eventId, label, email, role, dayId } = req.body;
-            if (!eventId || !label || !email) return res.status(400).json({ error: 'eventId, label, and email are required.' });
+            if (!eventId || !label?.trim() || !email) return res.status(400).json({ error: 'eventId, label, and email are required.' });
+            if (!withinLength(label, LIMITS.label)) return res.status(400).json({ error: `Label must be ${LIMITS.label} characters or fewer.` });
+            if (!isValidEmail(email)) return res.status(400).json({ error: 'That email address doesn\'t look valid.' });
 
             const password = generatePassword();
             const { data, error } = await supabase
@@ -46,7 +49,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 .insert([{
                     event_id: eventId,
                     event_day_id: dayId || null,
-                    label,
+                    label: label.trim(),
                     email: String(email).toLowerCase().trim(),
                     password_hash: encryptSecret(password),
                     role: role === 'view_only' ? 'view_only' : 'full',

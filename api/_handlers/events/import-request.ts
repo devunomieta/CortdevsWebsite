@@ -91,7 +91,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         return res.status(200).json({
             request,
-            preview: { usable: preview.attendees.length, skipped: preview.skipped },
+            preview: {
+                usable: preview.attendees.length,
+                skipped: preview.skipped,
+                invalidPhones: preview.invalidPhones,
+                invalidEmails: preview.invalidEmails,
+            },
         });
     } catch (err: any) {
         console.error('events/import-request error:', err);

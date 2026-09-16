@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabase } from '../../_lib/supabase.js';
 import { verifyAdmin } from '../../_lib/auth.js';
 import { uniqueEventSlug } from '../../_lib/slug.js';
+import { isNonEmpty, withinLength, isValidEmail, isValidUrl, isValidDateString, isValidFieldName, LIMITS } from '../../_lib/validation.js';
 
 // GET: list every event with a rollup of checked-in attendees (admin overview,
 // PRD §04/§09 — never a public listing, this is the admin-only surface).
@@ -73,11 +74,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (req.method === 'POST') {
         const { title, organizerName, organizerEmail, websiteUrl, flierUrl, description, timezone, days, walkinFields } = req.body || {};
-        if (!title || !organizerName || !organizerEmail) {
+        if (!isNonEmpty(title) || !isNonEmpty(organizerName) || !isNonEmpty(organizerEmail)) {
             return res.status(400).json({ error: 'title, organizerName, and organizerEmail are required.' });
         }
-        if (!Array.isArray(days) || days.length === 0 || days.some((d: any) => !d.date || !d.label)) {
-            return res.status(400).json({ error: 'At least one day with a date and label is required.' });
+        if (!withinLength(title, LIMITS.title)) return res.status(400).json({ error: `Title must be ${LIMITS.title} characters or fewer.` });
+        if (!withinLength(organizerName, LIMITS.name)) return res.status(400).json({ error: `Organizer name must be ${LIMITS.name} characters or fewer.` });
+        if (!isValidEmail(organizerEmail)) return res.status(400).json({ error: 'Organizer email doesn\'t look valid.' });
+        if (websiteUrl && (!isValidUrl(websiteUrl) || !withinLength(websiteUrl, LIMITS.url))) {
+            return res.status(400).json({ error: 'Website URL must be a valid http(s) link.' });
+        }
+        if (description && !withinLength(description, LIMITS.description)) {
+            return res.status(400).json({ error: `Description must be ${LIMITS.description} characters or fewer.` });
+        }
+        if (!Array.isArray(days) || days.length === 0 || days.some((d: any) => !isValidDateString(d.date) || !isNonEmpty(d.label) || !withinLength(d.label, LIMITS.label))) {
+            return res.status(400).json({ error: 'Every day needs a valid date and a label under 60 characters.' });
+        }
+        if (walkinFields && (!Array.isArray(walkinFields) || walkinFields.some((f: any) => !isValidFieldName(f)))) {
+            return res.status(400).json({ error: 'Custom field names can only use letters, numbers, spaces, and basic punctuation, up to 40 characters.' });
         }
 
         try {
@@ -86,15 +99,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const { data: event, error } = await supabase
                 .from('events')
                 .insert([{
-                    title,
+                    title: title.trim(),
                     slug,
-                    organizer_name: organizerName,
-                    organizer_email: organizerEmail,
+                    organizer_name: organizerName.trim(),
+                    organizer_email: organizerEmail.trim().toLowerCase(),
                     website_url: websiteUrl || null,
                     flier_url: flierUrl || null,
                     description: description || null,
                     timezone: timezone || 'Africa/Lagos',
-                    walkin_fields: walkinFields || [],
+                    walkin_fields: (walkinFields || []).map((f: string) => f.trim()),
                     status: 'active',
                     created_by: admin.id,
                 }])
@@ -103,7 +116,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             if (error) throw error;
 
-            const dayRows = days.map((d: any) => ({ event_id: event.id, date: d.date, label: d.label }));
+            const dayRows = days.map((d: any) => ({ event_id: event.id, date: d.date, label: d.label.trim() }));
 
             const { error: daysError } = await supabase.from('event_days').insert(dayRows);
             if (daysError) throw daysError;

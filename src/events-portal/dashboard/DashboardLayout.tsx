@@ -20,6 +20,7 @@ export interface DashboardContext {
     eventTitle: string;
     walkinFields: string[];
     days: EventDay[];
+    timezone: string;
 }
 
 export function DashboardLayout() {
@@ -49,6 +50,7 @@ export function DashboardLayout() {
                     eventTitle: data.event.title,
                     walkinFields: data.event.walkinFields || [],
                     days: data.days,
+                    timezone: data.event.timezone || "UTC",
                 });
             })
             .catch(() => {

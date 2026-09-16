@@ -3,6 +3,7 @@ import { supabase } from '../../_lib/supabase.js';
 import { verifyEventAccess } from '../../_lib/eventAuth.js';
 import { logEventActivity } from '../../_lib/eventAuditLog.js';
 import { broadcastAttendanceUpdate } from '../../_lib/eventRealtime.js';
+import { assertIsEventDay } from '../../_lib/eventContext.js';
 
 // Confirm a check-in (PRD §08) — Full role only. Idempotent: re-confirming an
 // already-checked-in guest returns the existing record instead of erroring,
@@ -21,6 +22,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     try {
+        const dayCheck = await assertIsEventDay(session.eventId, dayId);
+        if (dayCheck.ok === false) return res.status(403).json({ error: dayCheck.error });
+
         const { data: existing } = await supabase
             .from('attendance_records')
             .select('checked_in_at')

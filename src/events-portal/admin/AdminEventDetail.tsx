@@ -22,6 +22,7 @@ import { useToast } from "../../app/components/Toast";
 import { adminFetch, ApiError } from "../lib/api";
 import { supabase } from "../../lib/supabase";
 import { subscribeToChannel } from "../lib/realtime";
+import { isValidEmail, isValidFieldName, LIMITS } from "../lib/validation";
 
 interface EventDetail {
     id: string;
@@ -211,7 +212,15 @@ export function AdminEventDetail() {
 
     const addCustomField = () => {
         const name = newFieldName.trim();
-        if (!name || !event || event.walkin_fields.some((f) => f.toLowerCase() === name.toLowerCase())) return;
+        if (!name || !event) return;
+        if (!isValidFieldName(name)) {
+            showToast("Field names can only use letters, numbers, spaces, and basic punctuation, up to 40 characters.", "error");
+            return;
+        }
+        if (event.walkin_fields.some((f) => f.toLowerCase() === name.toLowerCase())) {
+            showToast("That field already exists.", "error");
+            return;
+        }
         setNewFieldName("");
         saveWalkinFields([...event.walkin_fields, name]);
     };
@@ -269,6 +278,14 @@ export function AdminEventDetail() {
     const issueCredential = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!eventId) return;
+        if (!issueForm.label.trim()) {
+            showToast("Label is required.", "error");
+            return;
+        }
+        if (!isValidEmail(issueForm.email)) {
+            showToast("That email address doesn't look valid.", "error");
+            return;
+        }
         try {
             const data = await adminFetch("/api/admin/events/credentials", {
                 method: "POST",
@@ -356,6 +373,7 @@ export function AdminEventDetail() {
                     )}
                     <div className="flex gap-2 max-w-sm">
                         <input
+                            maxLength={LIMITS.fieldName}
                             value={newFieldName}
                             onChange={(e) => setNewFieldName(e.target.value)}
                             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustomField(); } }}
@@ -605,6 +623,7 @@ export function AdminEventDetail() {
                                 <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Label</label>
                                 <input
                                     required
+                                    maxLength={LIMITS.label}
                                     value={issueForm.label}
                                     onChange={(e) => setIssueForm((p) => ({ ...p, label: e.target.value }))}
                                     placeholder="e.g. Front Desk, Jane — VIP Desk"
@@ -616,6 +635,7 @@ export function AdminEventDetail() {
                                 <input
                                     required
                                     type="email"
+                                    maxLength={200}
                                     value={issueForm.email}
                                     onChange={(e) => setIssueForm((p) => ({ ...p, email: e.target.value }))}
                                     className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm"

@@ -3,6 +3,9 @@ import { supabase } from '../../_lib/supabase.js';
 import { verifyEventAccess } from '../../_lib/eventAuth.js';
 import { logEventActivity } from '../../_lib/eventAuditLog.js';
 import { broadcastAttendanceUpdate } from '../../_lib/eventRealtime.js';
+import { assertIsEventDay } from '../../_lib/eventContext.js';
+import { isValidPhone } from '../../_lib/phone.js';
+import { isValidEmail } from '../../_lib/validation.js';
 
 // Register a walk-in (PRD §08) against the event's admin-configured
 // walkin_fields, and immediately check them in for the given day. Full role only.
@@ -15,18 +18,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!session) return;
 
     const { dayId, fullName, email, phone, customFields } = req.body || {};
-    if (!dayId || !fullName) {
+    if (!dayId || !fullName || !String(fullName).trim()) {
         return res.status(400).json({ error: 'dayId and fullName are required.' });
+    }
+    if (String(fullName).trim().length > 200) {
+        return res.status(400).json({ error: 'Full name is too long.' });
+    }
+    if (email && !isValidEmail(email)) {
+        return res.status(400).json({ error: 'That email address doesn\'t look right.' });
+    }
+    if (phone && !isValidPhone(phone)) {
+        return res.status(400).json({ error: 'Phone number can only contain digits, spaces, +, -, and parentheses.' });
     }
 
     try {
+        const dayCheck = await assertIsEventDay(session.eventId, dayId);
+        if (dayCheck.ok === false) return res.status(403).json({ error: dayCheck.error });
+
         const { data: attendee, error: attendeeError } = await supabase
             .from('attendees')
             .insert([{
                 event_id: session.eventId,
-                full_name: fullName,
-                email: email || null,
-                phone: phone || null,
+                full_name: String(fullName).trim(),
+                email: email ? String(email).trim() : null,
+                phone: phone ? String(phone).trim() : null,
                 source: 'walk-in',
                 custom_fields: customFields || {},
             }])

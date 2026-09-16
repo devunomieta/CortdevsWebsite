@@ -4,6 +4,7 @@ import { Plus, X, ExternalLink, Power, AlertTriangle, RefreshCw, Trash2, Image a
 import { useToast } from "../../app/components/Toast";
 import { adminFetch, ApiError } from "../lib/api";
 import { supabase } from "../../lib/supabase";
+import { isValidEmail, isValidUrl, isValidFieldName, LIMITS } from "../lib/validation";
 
 interface DayInput { date: string; label: string; }
 
@@ -44,7 +45,15 @@ export function AdminOverview() {
 
     const addCustomField = () => {
         const name = newFieldName.trim();
-        if (!name || customFields.some((f) => f.toLowerCase() === name.toLowerCase())) return;
+        if (!name) return;
+        if (!isValidFieldName(name)) {
+            showToast("Field names can only use letters, numbers, spaces, and basic punctuation, up to 40 characters.", "error");
+            return;
+        }
+        if (customFields.some((f) => f.toLowerCase() === name.toLowerCase())) {
+            showToast("That field already exists.", "error");
+            return;
+        }
         setCustomFields((prev) => [...prev, name]);
         setNewFieldName("");
     };
@@ -96,6 +105,18 @@ export function AdminOverview() {
         e.preventDefault();
         if (days.length === 0) {
             showToast("Add at least one day.", "error");
+            return;
+        }
+        if (days.some((d) => !d.date || !d.label.trim())) {
+            showToast("Every day needs both a date and a label.", "error");
+            return;
+        }
+        if (!isValidEmail(form.organizerEmail)) {
+            showToast("Organizer email doesn't look valid.", "error");
+            return;
+        }
+        if (form.websiteUrl && !isValidUrl(form.websiteUrl)) {
+            showToast("Website must be a full http(s) link.", "error");
             return;
         }
         setIsCreating(true);
@@ -263,6 +284,7 @@ export function AdminOverview() {
                                 </label>
                                 <input
                                     required
+                                    maxLength={LIMITS.title}
                                     value={form.title}
                                     onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
                                     placeholder="e.g. Cortdevs Demo Day 2026"
@@ -281,6 +303,7 @@ export function AdminOverview() {
                                     </label>
                                     <input
                                         required
+                                        maxLength={LIMITS.name}
                                         value={form.organizerName}
                                         onChange={(e) => setForm((p) => ({ ...p, organizerName: e.target.value }))}
                                         className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm"
@@ -293,6 +316,7 @@ export function AdminOverview() {
                                     <input
                                         required
                                         type="email"
+                                        maxLength={200}
                                         value={form.organizerEmail}
                                         onChange={(e) => setForm((p) => ({ ...p, organizerEmail: e.target.value }))}
                                         className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm"
@@ -305,6 +329,8 @@ export function AdminOverview() {
                                 </label>
                                 <input
                                     type="url"
+                                    maxLength={LIMITS.url}
+                                    placeholder="https://…"
                                     value={form.websiteUrl}
                                     onChange={(e) => setForm((p) => ({ ...p, websiteUrl: e.target.value }))}
                                     className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm"
@@ -332,6 +358,7 @@ export function AdminOverview() {
                                             />
                                             <input
                                                 required
+                                                maxLength={LIMITS.label}
                                                 value={day.label}
                                                 onChange={(e) => updateDay(i, { label: e.target.value })}
                                                 placeholder="e.g. Day 1 — Showcase"
@@ -369,6 +396,7 @@ export function AdminOverview() {
                                 )}
                                 <div className="flex gap-2">
                                     <input
+                                        maxLength={LIMITS.fieldName}
                                         value={newFieldName}
                                         onChange={(e) => setNewFieldName(e.target.value)}
                                         onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustomField(); } }}
