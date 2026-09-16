@@ -57,6 +57,13 @@ const server = http.createServer(async (req, res) => {
                 const vercelReq = req as any;
                 const vercelRes = res as any;
 
+                // Vercel's real runtime always populates req.query from the URL's
+                // search params; this shim didn't, so every handler reading
+                // req.query.xxx (admin/events, credentials, stats, search, etc.)
+                // threw "Cannot read properties of undefined" here even though
+                // the same code works fine once deployed.
+                vercelReq.query = Object.fromEntries(url.searchParams.entries());
+
                 // Simple JSON body parser for POST
                 if (req.method === 'POST') {
                     const buffers: Buffer[] = [];

@@ -73,7 +73,7 @@ export function AdminEventDetail() {
             setCredentials((prev) => prev.map((c) => (c.id === cred.id ? { ...c, is_active: !c.is_active } : c)));
             showToast(cred.is_active ? `${cred.label}'s access revoked.` : `${cred.label}'s access re-enabled.`, cred.is_active ? "warning" : "success");
         } catch (err) {
-            showToast(err instanceof ApiError ? err.message : "Could not update credential.", "error");
+            showToast(err instanceof ApiError ? err.message : "Could not update this login.", "error");
         }
     };
 
@@ -101,7 +101,7 @@ export function AdminEventDetail() {
             setExportRequests((prev) => prev.map((r) => (r.id === id ? { ...r, status: decision, decided_at: new Date().toISOString() } : r)));
             showToast(decision === "approved" ? "Export approved — a download link is now available to the requester." : "Export request denied.", decision === "approved" ? "success" : "info");
         } catch (err) {
-            showToast(err instanceof ApiError ? err.message : "Could not decide export request.", "error");
+            showToast(err instanceof ApiError ? err.message : "Could not update this request.", "error");
         }
     };
 
@@ -129,7 +129,7 @@ export function AdminEventDetail() {
         if (!eventId) return;
         try {
             await adminFetch("/api/admin/events/purge", { method: "POST", body: JSON.stringify({ eventId }) });
-            showToast("Attendee contact data purged for this event. Historical counts are unaffected.", "warning");
+            showToast("Guest details deleted for this event. The attendance numbers are still there.", "warning");
         } catch (err) {
             showToast(err instanceof ApiError ? err.message : "Could not purge attendee data.", "error");
         }
@@ -143,12 +143,12 @@ export function AdminEventDetail() {
                 method: "POST",
                 body: JSON.stringify({ action: "issue", eventId, ...issueForm, dayId: issueForm.dayId || null }),
             });
-            showToast(`Credential issued for ${issueForm.label}. Password: ${data.password} (copy it now — it won't be shown again)`, "success");
+            showToast(`Login created for ${issueForm.label}. Password: ${data.password} (copy it now — it won't be shown again)`, "success");
             setShowIssue(false);
             setIssueForm({ label: "", email: "", role: "full", dayId: "" });
             loadAll();
         } catch (err) {
-            showToast(err instanceof ApiError ? err.message : "Could not issue credential.", "error");
+            showToast(err instanceof ApiError ? err.message : "Could not create this login.", "error");
         }
     };
 
@@ -206,18 +206,18 @@ export function AdminEventDetail() {
             <section className="space-y-4">
                 <div className="flex items-center justify-between">
                     <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
-                        Credentials ({credentials.length})
+                        Logins ({credentials.length})
                     </h2>
                     <button
                         onClick={() => setShowIssue(true)}
                         className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground text-xs font-bold uppercase tracking-widest hover:opacity-90 transition-all"
                     >
-                        <Plus size={14} /> Issue Credential
+                        <Plus size={14} /> Add Login
                     </button>
                 </div>
 
                 <div className="border border-border bg-card divide-y divide-border">
-                    {credentials.length === 0 && <p className="p-5 text-sm text-muted-foreground">No credentials issued yet.</p>}
+                    {credentials.length === 0 && <p className="p-5 text-sm text-muted-foreground">No logins yet.</p>}
                     {credentials.map((cred) => (
                         <div key={cred.id} className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                             <div className="min-w-0">
@@ -263,10 +263,10 @@ export function AdminEventDetail() {
             {/* Export requests */}
             <section className="space-y-4">
                 <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
-                    Export Requests {pendingExports.length > 0 && <span className="text-destructive">({pendingExports.length} pending)</span>}
+                    Download Requests {pendingExports.length > 0 && <span className="text-destructive">({pendingExports.length} pending)</span>}
                 </h2>
                 <div className="border border-border bg-card divide-y divide-border">
-                    {exportRequests.length === 0 && <p className="p-5 text-sm text-muted-foreground">No export requests yet.</p>}
+                    {exportRequests.length === 0 && <p className="p-5 text-sm text-muted-foreground">No requests yet.</p>}
                     {exportRequests.map((req) => (
                         <div key={req.id} className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                             <div>
@@ -297,21 +297,21 @@ export function AdminEventDetail() {
 
             {/* Retention */}
             <section className="space-y-4">
-                <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Data Retention</h2>
+                <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Guest Data</h2>
                 <div className="border border-border bg-card p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
-                        <p className="text-sm font-medium mb-1">7-day post-event window</p>
+                        <p className="text-sm font-medium mb-1">Deletes itself after 7 days</p>
                         <p className="text-xs text-muted-foreground max-w-md">
-                            Once this event's last day ends, both the admin and event owner get daily reminders to
-                            export. Unexported attendee contact data is deleted automatically on day 7. Historical
-                            counts are kept either way.
+                            Once this event's last day ends, you and the event owner get daily reminders to
+                            save the guest list. Anything not saved is deleted automatically on day 7. The
+                            attendance numbers stay either way.
                         </p>
                     </div>
                     <button
                         onClick={purgeAttendeeData}
                         className="inline-flex items-center gap-2 px-5 py-3 border border-destructive/30 text-destructive text-xs font-bold uppercase tracking-widest hover:bg-destructive/10 transition-colors whitespace-nowrap"
                     >
-                        <Trash2 size={14} /> Purge Now
+                        <Trash2 size={14} /> Delete Now
                     </button>
                 </div>
             </section>
@@ -340,9 +340,9 @@ export function AdminEventDetail() {
                         <button onClick={() => setShowIssue(false)} className="absolute top-6 right-6 text-muted-foreground hover:text-foreground">
                             <X size={18} />
                         </button>
-                        <h3 className="text-xl font-medium mb-1">Issue Credential</h3>
+                        <h3 className="text-xl font-medium mb-1">Add a Login</h3>
                         <p className="text-xs text-muted-foreground mb-6">
-                            One login per staffer or desk — this is what makes check-ins attributable.
+                            Give each person or desk their own login. That way you always know who checked someone in.
                         </p>
                         <form onSubmit={issueCredential} className="space-y-4">
                             <div className="space-y-1.5">
@@ -392,7 +392,7 @@ export function AdminEventDetail() {
                                 </div>
                             </div>
                             <button type="submit" className="w-full py-3.5 bg-primary text-primary-foreground text-xs font-bold uppercase tracking-widest hover:opacity-90 transition-all">
-                                Issue Credential
+                                Add Login
                             </button>
                         </form>
                     </div>

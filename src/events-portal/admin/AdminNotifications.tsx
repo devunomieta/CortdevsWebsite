@@ -52,8 +52,8 @@ export function AdminNotifications() {
                 <div>
                     <h1 className="text-2xl font-light tracking-tight">Notifications</h1>
                     <p className="text-sm text-muted-foreground mt-1">
-                        {unreadCount > 0 ? `${unreadCount} unread` : "You're caught up"} — export requests and post-event
-                        retention reminders land here.
+                        {unreadCount > 0 ? `${unreadCount} unread` : "You're caught up"} — download requests
+                        and reminders about events that ended show up here.
                     </p>
                 </div>
                 {unreadCount > 0 && (

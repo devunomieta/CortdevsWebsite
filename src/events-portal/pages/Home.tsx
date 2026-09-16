@@ -12,32 +12,32 @@ const fadeInUp = {
 
 const steps = [
     {
-        title: "We list it, privately",
+        title: "We set it up",
         description:
-            "Cortdevs creates the event behind the scenes — name, flier, day(s) and date(s). It's never shown publicly and never indexed.",
+            "We add your event's name, flier, and date(s) behind the scenes. No one can find it by searching — it's just not out there.",
     },
     {
-        title: "You get a private link",
+        title: "You get a link and a login",
         description:
-            "We hand you a single URL and a login scoped to your event only — nothing else on this portal is reachable with it.",
+            "One link, one login, just for your event. It won't open anything else on this site.",
     },
     {
         title: "Your team checks people in",
         description:
-            "Search by name, email or phone, confirm attendance, or register a walk-in — live, across as many devices as your door needs.",
+            "Find a guest by name, email, or phone and mark them in — or add a walk-in on the spot. Works on as many phones or laptops as your door needs, all at once.",
     },
     {
-        title: "Data expires on its own",
+        title: "Guest info clears itself out",
         description:
-            "After your event ends, you have a 7-day window to export. What's left after that is deleted automatically.",
+            "Once your event is over, you have 7 days to save your guest list. After that, it's deleted for you automatically.",
     },
 ];
 
 const highlights = [
-    { icon: <KeyRound className="w-6 h-6" />, label: "Named, revocable logins" },
-    { icon: <Radio className="w-6 h-6" />, label: "Live, multi-device check-in" },
-    { icon: <ShieldCheck className="w-6 h-6" />, label: "Nothing indexed, nothing public" },
-    { icon: <ListChecks className="w-6 h-6" />, label: "Attendee data auto-expires" },
+    { icon: <KeyRound className="w-6 h-6" />, label: "Logins you can turn off anytime" },
+    { icon: <Radio className="w-6 h-6" />, label: "Check in guests from any device" },
+    { icon: <ShieldCheck className="w-6 h-6" />, label: "Never public, never searchable" },
+    { icon: <ListChecks className="w-6 h-6" />, label: "Guest info doesn't stick around" },
 ];
 
 export function EventsHome() {
@@ -45,7 +45,7 @@ export function EventsHome() {
         <div>
             <SEO
                 title="Event Attendance Portal"
-                description="A private, login-gated attendance system Cortdevs runs for events it lists or supports — never public, never indexed."
+                description="A private tool Cortdevs uses to check people in at events — never public, never searchable."
                 canonical="https://events.cortdevs.com"
             />
 
@@ -58,13 +58,13 @@ export function EventsHome() {
                             Events Portal
                         </div>
                         <h1 className="text-4xl lg:text-6xl font-light tracking-tight mb-6 leading-[1.1]">
-                            Attendance, handled
-                            <span className="block mt-2">privately.</span>
+                            Know who shows up.
+                            <span className="block mt-2">Keep it private.</span>
                         </h1>
                         <p className="text-lg lg:text-xl text-muted-foreground leading-relaxed mb-10 max-w-xl">
-                            This is the private side of Cortdevs' event work — a login-gated dashboard
-                            for confirming attendees, tracking turnout, and nothing else. There is no
-                            public event list here, and there never will be.
+                            This is where Cortdevs manages event check-ins — a private dashboard for
+                            confirming who's here and counting them. Nothing about your event is ever
+                            posted here for anyone else to see.
                         </p>
                         <div className="flex flex-col sm:flex-row gap-4">
                             <Link
@@ -89,8 +89,8 @@ export function EventsHome() {
             <section className="py-12 border-y border-border bg-neutral-50">
                 <div className="max-w-7xl mx-auto px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
                     <p className="text-sm text-muted-foreground">
-                        Running an event Cortdevs listed for you? You'll need the private link and login your admin sent —
-                        this homepage won't get you into a dashboard.
+                        Already running an event with us? You'll need the private link and login we sent you —
+                        this page won't get you into your dashboard.
                     </p>
                     <a
                         href="mailto:events@cortdevs.com"
@@ -109,7 +109,7 @@ export function EventsHome() {
                             How It Works
                         </p>
                         <h2 className="text-3xl lg:text-5xl font-light tracking-tight">
-                            Four steps, from listing to shutdown.
+                            Four simple steps.
                         </h2>
                     </motion.div>
 

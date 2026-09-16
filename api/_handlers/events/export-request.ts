@@ -41,8 +41,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             await supabase.from('admin_notifications').insert([{
                 event_id: session.eventId,
                 kind: 'export',
-                title: 'Export request pending',
-                detail: `${session.label} requested a data export. Approve or deny it from the event page.`,
+                title: 'Someone wants to download the guest list',
+                detail: `${session.label} asked for the guest list. Approve or deny it from the event page.`,
             }]);
 
             return res.status(200).json({ request: data });

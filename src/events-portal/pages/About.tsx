@@ -21,51 +21,51 @@ const fadeInUp = {
 const features = [
     {
         icon: <KeyRound className="w-6 h-6" />,
-        title: "Private by construction",
+        title: "Private from the start",
         description:
-            "No event is ever publicly listed. The only way to reach a dashboard is the exact link and login Cortdevs issues for that event.",
+            "No event ever shows up publicly. The only way in is the exact link and login we give you for that event.",
     },
     {
         icon: <Users className="w-6 h-6" />,
-        title: "Named logins per staffer",
+        title: "A login for each person",
         description:
-            "Every credential carries a label — Front Desk, VIP Desk, a person's name — plus a role: full access, or stats-only view.",
+            "Give each staffer their own named login — Front Desk, VIP Desk, or their own name — with either full access or just the numbers.",
     },
     {
         icon: <Radio className="w-6 h-6" />,
-        title: "Live across every device",
+        title: "Updates on every screen",
         description:
-            "Check a guest in at one station and every other screen watching the event updates instantly — no double check-ins.",
+            "Check someone in at one station and every other screen watching the event updates right away — no one gets checked in twice.",
     },
     {
         icon: <ListChecks className="w-6 h-6" />,
-        title: "Search or walk in",
+        title: "Search or add on the spot",
         description:
-            "Confirm a pre-registered guest by name, email or phone, or register someone on the spot with fields your event defines.",
+            "Find a guest who already registered by name, email, or phone, or add a walk-in right there with whatever details you need.",
     },
     {
         icon: <Eye className="w-6 h-6" />,
-        title: "Stats that update themselves",
+        title: "Numbers that update themselves",
         description:
-            "Confirmed attendees, new walk-in registrations, and check-in rate, per day — visible the moment they change.",
+            "See how many people checked in, how many are walk-ins, and your check-in rate for each day — updated the second they change.",
     },
     {
         icon: <FileSpreadsheet className="w-6 h-6" />,
-        title: "Export needs sign-off",
+        title: "Downloads need approval",
         description:
-            "Only a Cortdevs admin can actually export attendee data. An event owner's export click files a request; nothing downloads until it's approved.",
+            "Only a Cortdevs admin can actually hand over guest data. Asking for it just sends a request — nothing downloads until we say yes.",
     },
     {
         icon: <Clock className="w-6 h-6" />,
-        title: "Data doesn't linger",
+        title: "Data doesn't stick around",
         description:
-            "Seven days after an event ends, both sides get daily reminders to export. What's left after that is deleted automatically.",
+            "Once your event ends, we both get daily reminders for 7 days to save what you need. After that, it's deleted automatically.",
     },
     {
         icon: <ShieldCheck className="w-6 h-6" />,
-        title: "Everything is timestamped",
+        title: "Everything is logged",
         description:
-            "Every login, search, check-in and export decision is logged against the credential that performed it — a full record if anything is ever disputed.",
+            "Every login, search, check-in, and download decision is recorded with who did it and when — so there's always a clear record.",
     },
 ];
 
@@ -74,7 +74,7 @@ export function EventsAbout() {
         <div>
             <SEO
                 title="About the Events Portal"
-                description="What the Cortdevs events attendance system is, how it works, and who Cortdevs is."
+                description="What this tool is, how it works, and who's behind it."
                 canonical="https://events.cortdevs.com/about"
             />
 
@@ -86,13 +86,13 @@ export function EventsAbout() {
                             About This Portal
                         </p>
                         <h1 className="text-4xl lg:text-6xl font-light tracking-tight mb-6 leading-[1.1]">
-                            A private tool for a
-                            <span className="block mt-2">specific job.</span>
+                            Built to do
+                            <span className="block mt-2">one thing well.</span>
                         </h1>
                         <p className="text-lg lg:text-xl text-muted-foreground leading-relaxed max-w-2xl">
-                            Cortdevs occasionally lists and supports events on behalf of clients and partners.
-                            This portal exists to give those event owners a dashboard for confirming attendees
-                            and tracking turnout — without ever making the event itself public.
+                            Sometimes Cortdevs helps run events for clients and partners. This portal
+                            gives those event owners a private dashboard to check guests in and see how
+                            many showed up — without ever putting the event online for anyone else to find.
                         </p>
                     </motion.div>
                 </div>
@@ -105,14 +105,14 @@ export function EventsAbout() {
                         <h2 className="text-3xl lg:text-4xl font-light tracking-tight mb-6">What it is</h2>
                         <div className="space-y-4 text-muted-foreground leading-relaxed">
                             <p>
-                                An event attendance system, not an events website. There's no public calendar, no
-                                ticket store, no discovery page — this subdomain exists solely so a Cortdevs admin
-                                can hand a login-gated dashboard to whoever is running an event, and that person's
-                                team can confirm who showed up.
+                                A tool for checking people in, not a website for browsing events. There's no
+                                calendar, no ticket shop, no way to search for events here. It exists so a
+                                Cortdevs admin can hand a private dashboard to whoever is running an event, so
+                                their team can check off guests as they arrive.
                             </p>
                             <p>
-                                Every event lives behind its own private link and its own set of credentials.
-                                Nothing here is reachable without both.
+                                Every event has its own private link and its own login. You can't get in
+                                without both.
                             </p>
                         </div>
                     </motion.div>
@@ -123,10 +123,9 @@ export function EventsAbout() {
                         <h2 className="text-3xl lg:text-4xl font-light tracking-tight mb-6">What it isn't</h2>
                         <div className="space-y-4 text-muted-foreground leading-relaxed">
                             <p>
-                                Not a ticketing platform — Cortdevs doesn't process payments or sell seats here.
-                                Not a marketing page — events are never indexed or linked from anywhere public.
-                                Not a permanent archive — attendee contact details are deleted on a fixed schedule
-                                after an event closes, by design.
+                                We don't sell tickets or take payments here. We don't advertise your event —
+                                it's never listed anywhere public. And we don't keep guest details forever —
+                                they're deleted on a set schedule after your event ends, by design.
                             </p>
                         </div>
                     </motion.div>
@@ -141,7 +140,7 @@ export function EventsAbout() {
                             Features
                         </p>
                         <h2 className="text-3xl lg:text-5xl font-light tracking-tight">
-                            Built around attendance, not marketing.
+                            Built for checking people in, not for showing off.
                         </h2>
                     </motion.div>
 
@@ -179,14 +178,13 @@ export function EventsAbout() {
                         </h2>
                         <div className="space-y-4 text-neutral-400 leading-relaxed">
                             <p>
-                                Cortdevs is a web development studio building WordPress, Shopify, GHL, and custom
-                                full-stack products for clients who need more than a template. This events portal
-                                is a smaller, internal tool built the same way as everything else we ship: scoped
-                                tightly to the job it does, and nothing else.
+                                Cortdevs builds websites and web apps — WordPress, Shopify, and custom builds —
+                                for clients who need more than a template. This events portal is a smaller tool
+                                we built the same way: to do one job well, and nothing more.
                             </p>
                             <p>
-                                If you're here because Cortdevs is running attendance for your event, this is the
-                                same team you're already talking to — just wearing a different hat for a few days.
+                                If Cortdevs is handling attendance for your event, it's the same team you
+                                already know — just doing a different job for a few days.
                             </p>
                         </div>
                     </motion.div>

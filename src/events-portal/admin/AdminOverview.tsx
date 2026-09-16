@@ -86,7 +86,7 @@ export function AdminOverview() {
             }
 
             await adminFetch("/api/admin/events", { method: "POST", body: JSON.stringify({ ...form, flierUrl, days }) });
-            showToast(`"${form.title}" created. Add credentials from its event page next.`, "success");
+            showToast(`"${form.title}" created. Add logins from its event page next.`, "success");
             setShowCreate(false);
             setForm({ title: "", organizerName: "", organizerEmail: "", websiteUrl: "" });
             setDays([{ date: todayISO(), label: "Day 1" }]);
@@ -222,7 +222,7 @@ export function AdminOverview() {
                         </button>
                         <h3 className="text-xl font-medium mb-1">New Event</h3>
                         <p className="text-xs text-muted-foreground mb-6">
-                            Never listed publicly. You'll add day(s) and issue credentials after this.
+                            Never listed publicly. You can add day(s) and logins after this.
                         </p>
                         <form onSubmit={handleCreate} className="space-y-4">
                             <div className="space-y-1.5">

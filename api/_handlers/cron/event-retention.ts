@@ -76,12 +76,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             if (await alreadyRemindedToday(event.id)) continue;
 
             const daysRemaining = RETENTION_WINDOW_DAYS - elapsed;
-            const detail = `This event ended ${elapsed} day${elapsed === 1 ? '' : 's'} ago. Attendee contact data auto-purges in ${daysRemaining} day${daysRemaining === 1 ? '' : 's'} unless exported.`;
+            const detail = `This event ended ${elapsed} day${elapsed === 1 ? '' : 's'} ago. Guest details get deleted in ${daysRemaining} day${daysRemaining === 1 ? '' : 's'} unless someone saves them.`;
 
             await supabase.from('admin_notifications').insert([{
                 event_id: event.id,
                 kind: 'retention',
-                title: `Retention reminder — Day ${elapsed} of ${RETENTION_WINDOW_DAYS} — ${event.title}`,
+                title: `${event.title} — ${daysRemaining} day${daysRemaining === 1 ? '' : 's'} left to save guest data`,
                 detail,
             }]);
 
@@ -89,8 +89,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 await resend.emails.send({
                     from: getFromAddress('CortDevs Events'),
                     to: event.organizer_email,
-                    subject: `Export reminder: ${event.title} — ${daysRemaining} day${daysRemaining === 1 ? '' : 's'} left`,
-                    html: `<p>${detail} Log in to your event dashboard and use "Request Export" — a Cortdevs admin will approve it and you'll get a download link.</p>`,
+                    subject: `${event.title}: ${daysRemaining} day${daysRemaining === 1 ? '' : 's'} left to save your guest list`,
+                    html: `<p>${detail} Log in to your event dashboard and click "Request Export" — a Cortdevs admin will approve it and send you a download link.</p>`,
                 });
             }
 

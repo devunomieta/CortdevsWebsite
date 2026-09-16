@@ -27,7 +27,7 @@ export function EventsAdminLogin() {
                 navigate("/admin");
             }
         } catch (err: any) {
-            showToast(err.message || "Invalid credentials.", "error");
+            showToast(err.message || "Wrong email or password.", "error");
         } finally {
             setIsLoading(false);
         }

@@ -149,7 +149,7 @@ export function DashboardHome() {
     const requestExport = async () => {
         try {
             await eventFetch("/api/events/export-request", ctx.token, { method: "POST" });
-            showToast("Export requested — an admin needs to approve it before it's downloadable.", "info");
+            showToast("Request sent — an admin needs to approve it before you can download anything.", "info");
             loadExportStatus();
         } catch (err) {
             showToast(err instanceof ApiError ? err.message : "Could not request export.", "error");
@@ -259,10 +259,10 @@ export function DashboardHome() {
                     {/* Export */}
                     <div className="border border-border p-6 bg-card flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                         <div>
-                            <p className="text-sm font-medium mb-1">Attendee data export</p>
+                            <p className="text-sm font-medium mb-1">Guest list export</p>
                             <p className="text-xs text-muted-foreground max-w-md">
-                                Only a Cortdevs admin can approve a download. Requesting doesn't hand you the data —
-                                it just asks.
+                                Only a Cortdevs admin can approve a download. Clicking below just sends a
+                                request — it doesn't hand you the file.
                             </p>
                             {latestExport && (
                                 <p className="text-xs mt-2 flex items-center gap-1.5">
@@ -299,8 +299,7 @@ export function DashboardHome() {
 
             {!isFull && (
                 <div className="border border-border p-6 bg-card text-sm text-muted-foreground">
-                    You have view-only access to this event — stats update live, but check-in and export actions
-                    aren't available on this login.
+                    You can see the numbers, but this login can't check people in or request the guest list.
                 </div>
             )}
 

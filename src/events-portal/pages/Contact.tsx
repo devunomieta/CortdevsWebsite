@@ -9,7 +9,7 @@ const contactMethods = [
         icon: <Mail className="w-6 h-6" />,
         title: "Email Us",
         detail: "events@cortdevs.com",
-        description: "For new events, access issues, or lost login links",
+        description: "For new events, login problems, or a lost link",
     },
     {
         icon: <Calendar className="w-6 h-6" />,
@@ -62,7 +62,7 @@ export function EventsContact() {
         <div>
             <SEO
                 title="Contact | Events Portal"
-                description="Reach Cortdevs about a new event, dashboard access, or a lost private link."
+                description="Reach Cortdevs about a new event, login trouble, or a lost private link."
                 canonical="https://events.cortdevs.com/contact"
             />
 
@@ -81,8 +81,8 @@ export function EventsContact() {
                             Let's talk about your event.
                         </h1>
                         <p className="text-lg text-muted-foreground leading-relaxed">
-                            Already have a dashboard login? This form isn't it — use the private link your
-                            admin sent you. This is for new events, access problems, or general questions.
+                            Already have a login? This form isn't for you — use the private link we sent
+                            you instead. This one's for new events, login problems, or anything else.
                         </p>
                     </motion.div>
                 </div>

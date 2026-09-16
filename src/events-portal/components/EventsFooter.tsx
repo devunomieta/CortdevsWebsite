@@ -11,9 +11,8 @@ export function EventsFooter() {
                     <div className="lg:col-span-2">
                         <img src={config.footerLogo} alt="CortDevs" className="h-9 w-auto object-contain mb-6" />
                         <p className="text-neutral-400 text-sm leading-relaxed max-w-sm mb-6">
-                            The events portal is a private, internal tool — event listings and
-                            attendance dashboards here are never public and never indexed.
-                            Reach out if Cortdevs is running or supporting your event.
+                            This is a private, internal tool — nothing here is ever public or
+                            searchable. Reach out if Cortdevs is running or supporting your event.
                         </p>
                         <Link
                             to="/contact"
@@ -44,7 +43,7 @@ export function EventsFooter() {
 
                 <div className="border-t border-neutral-800 mt-12 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
                     <p className="text-xs text-neutral-500">© 2026 CortDevs Group. Internal use only.</p>
-                    <p className="text-xs text-neutral-500">Every dashboard here is private and login-gated.</p>
+                    <p className="text-xs text-neutral-500">Every dashboard here needs a login.</p>
                 </div>
             </div>
         </footer>
