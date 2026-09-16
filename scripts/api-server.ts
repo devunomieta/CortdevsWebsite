@@ -37,7 +37,7 @@ const server = http.createServer(async (req, res) => {
     // Route /api/* to api/*.ts
     if (pathname.startsWith('/api/')) {
         const routeName = pathname.replace('/api/', '');
-        const filePath = path.join(process.cwd(), 'api', `${routeName}.ts`);
+        const filePath = path.join(process.cwd(), 'api', '_handlers', `${routeName}.ts`);
 
         if (fs.existsSync(filePath)) {
             let bodySent = false;
