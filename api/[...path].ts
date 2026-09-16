@@ -17,7 +17,7 @@ import adminEventsCredentialsHandler from './_handlers/admin/events/credentials.
 import adminEventsExportRequestsHandler from './_handlers/admin/events/export-requests.js';
 import adminEventsNotificationsHandler from './_handlers/admin/events/notifications.js';
 import adminEventsPurgeHandler from './_handlers/admin/events/purge.js';
-import adminEventsUpdateHandler from './_handlers/admin/events/update.ts';
+import adminEventsUpdateHandler from './_handlers/admin/events/update.js';
 
 import authRequestResetHandler from './_handlers/auth/request-reset.js';
 import authResetPasswordHandler from './_handlers/auth/reset-password.js';
