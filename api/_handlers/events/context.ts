@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { verifyEventAccess } from '.../_lib/eventAuth.js';
-import { getEventContext } from '.../_lib/eventContext.js';
+import { verifyEventAccess } from '../../_lib/eventAuth.js';
+import { getEventContext } from '../../_lib/eventContext.js';
 
 // Re-validates the session token and returns fresh event/day data — used on
 // dashboard load so a page refresh doesn't need to re-login, but still

@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { supabase } from '.../_lib/supabase.js';
-import { verifyAdmin } from '.../_lib/auth.js';
-import { uniqueEventSlug } from '.../_lib/slug.js';
+import { supabase } from '../../_lib/supabase.js';
+import { verifyAdmin } from '../../_lib/auth.js';
+import { uniqueEventSlug } from '../../_lib/slug.js';
 
 // GET: list every event with a rollup of checked-in attendees (admin overview,
 // PRD §04/§09 — never a public listing, this is the admin-only surface).

@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { supabase } from '.../_lib/supabase.js';
-import { verifyEventAccess } from '.../_lib/eventAuth.js';
-import { logEventActivity } from '.../_lib/eventAuditLog.js';
-import { broadcastAttendanceUpdate } from '.../_lib/eventRealtime.js';
+import { supabase } from '../../_lib/supabase.js';
+import { verifyEventAccess } from '../../_lib/eventAuth.js';
+import { logEventActivity } from '../../_lib/eventAuditLog.js';
+import { broadcastAttendanceUpdate } from '../../_lib/eventRealtime.js';
 
 // Register a walk-in (PRD §08) against the event's admin-configured
 // walkin_fields, and immediately check them in for the given day. Full role only.

@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { supabase } from '.../_lib/supabase.js';
-import { verifyPassword, signEventToken, getClientIp } from '.../_lib/eventAuth.js';
-import { checkLoginLockout, recordLoginAttempt } from '.../_lib/rateLimit.js';
-import { getEventContext, todayInTimezone } from '.../_lib/eventContext.js';
-import { logEventActivity } from '.../_lib/eventAuditLog.js';
+import { supabase } from '../../_lib/supabase.js';
+import { verifyPassword, signEventToken, getClientIp } from '../../_lib/eventAuth.js';
+import { checkLoginLockout, recordLoginAttempt } from '../../_lib/rateLimit.js';
+import { getEventContext, todayInTimezone } from '../../_lib/eventContext.js';
+import { logEventActivity } from '../../_lib/eventAuditLog.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') {

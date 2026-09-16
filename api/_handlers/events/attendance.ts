@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { supabase } from '.../_lib/supabase.js';
-import { verifyEventAccess } from '.../_lib/eventAuth.js';
-import { logEventActivity } from '.../_lib/eventAuditLog.js';
-import { broadcastAttendanceUpdate } from '.../_lib/eventRealtime.js';
+import { supabase } from '../../_lib/supabase.js';
+import { verifyEventAccess } from '../../_lib/eventAuth.js';
+import { logEventActivity } from '../../_lib/eventAuditLog.js';
+import { broadcastAttendanceUpdate } from '../../_lib/eventRealtime.js';
 
 // Confirm a check-in (PRD §08) — Full role only. Idempotent: re-confirming an
 // already-checked-in guest returns the existing record instead of erroring,

@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { supabase } from '.../_lib/supabase.js';
-import { verifyEventAccess } from '.../_lib/eventAuth.js';
-import { logEventActivity } from '.../_lib/eventAuditLog.js';
+import { supabase } from '../../_lib/supabase.js';
+import { verifyEventAccess } from '../../_lib/eventAuth.js';
+import { logEventActivity } from '../../_lib/eventAuditLog.js';
 
 // File or check an export request (PRD §07, §11, §12) — Full role only, both
 // ways. Filing a request never returns data; only an admin approval (see

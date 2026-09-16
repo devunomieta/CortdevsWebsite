@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { supabase } from '.../_lib/supabase.js';
-import { resend, getFromAddress } from '.../_lib/resend.js';
-import { logEventActivity } from '.../_lib/eventAuditLog.js';
+import { supabase } from '../../_lib/supabase.js';
+import { resend, getFromAddress } from '../../_lib/resend.js';
+import { logEventActivity } from '../../_lib/eventAuditLog.js';
 
 // Daily job (PRD §04, §06, §14): for each event that ended 1–7 days ago,
 // remind the admin + event owner to export; on day 7, purge attendee contact

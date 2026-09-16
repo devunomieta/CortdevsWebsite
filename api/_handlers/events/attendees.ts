@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { supabase } from '.../_lib/supabase.js';
-import { verifyEventAccess } from '.../_lib/eventAuth.js';
+import { supabase } from '../../_lib/supabase.js';
+import { verifyEventAccess } from '../../_lib/eventAuth.js';
 
 // Search by name, email, or phone (PRD §08) — Full role only.
 export default async function handler(req: VercelRequest, res: VercelResponse) {

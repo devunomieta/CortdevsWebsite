@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { supabase } from '.../_lib/supabase.js';
-import { verifyEventAccess } from '.../_lib/eventAuth.js';
+import { supabase } from '../../_lib/supabase.js';
+import { verifyEventAccess } from '../../_lib/eventAuth.js';
 
 // Full and View-only can both read this (PRD §07, §09).
 export default async function handler(req: VercelRequest, res: VercelResponse) {
