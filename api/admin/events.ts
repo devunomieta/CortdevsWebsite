@@ -68,9 +68,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === 'POST') {
-        const { title, organizerName, organizerEmail, websiteUrl, description, timezone, days, walkinFields } = req.body || {};
+        const { title, organizerName, organizerEmail, websiteUrl, flierUrl, description, timezone, days, walkinFields } = req.body || {};
         if (!title || !organizerName || !organizerEmail) {
             return res.status(400).json({ error: 'title, organizerName, and organizerEmail are required.' });
+        }
+        if (!Array.isArray(days) || days.length === 0 || days.some((d: any) => !d.date || !d.label)) {
+            return res.status(400).json({ error: 'At least one day with a date and label is required.' });
         }
 
         try {
@@ -84,6 +87,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     organizer_name: organizerName,
                     organizer_email: organizerEmail,
                     website_url: websiteUrl || null,
+                    flier_url: flierUrl || null,
                     description: description || null,
                     timezone: timezone || 'Africa/Lagos',
                     walkin_fields: walkinFields || [],
@@ -95,8 +99,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             if (error) throw error;
 
-            const dayRows = (Array.isArray(days) && days.length > 0 ? days : [{ date: new Date().toISOString().slice(0, 10), label: 'Day 1' }])
-                .map((d: any) => ({ event_id: event.id, date: d.date, label: d.label }));
+            const dayRows = days.map((d: any) => ({ event_id: event.id, date: d.date, label: d.label }));
 
             const { error: daysError } = await supabase.from('event_days').insert(dayRows);
             if (daysError) throw daysError;

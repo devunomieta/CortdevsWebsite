@@ -1,8 +1,19 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
-import { Plus, X, ExternalLink, Power, AlertTriangle, RefreshCw } from "lucide-react";
+import { Plus, X, ExternalLink, Power, AlertTriangle, RefreshCw, Trash2, Image as ImageIcon } from "lucide-react";
 import { useToast } from "../../app/components/Toast";
 import { adminFetch, ApiError } from "../lib/api";
+import { supabase } from "../../lib/supabase";
+
+interface DayInput { date: string; label: string; }
+
+function todayISO() {
+    return new Date().toISOString().slice(0, 10);
+}
+
+function slugify(title: string) {
+    return title.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+}
 
 interface EventRow {
     id: string;
@@ -20,6 +31,20 @@ export function AdminOverview() {
     const [showCreate, setShowCreate] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
     const [form, setForm] = useState({ title: "", organizerName: "", organizerEmail: "", websiteUrl: "" });
+    const [days, setDays] = useState<DayInput[]>([{ date: todayISO(), label: "Day 1" }]);
+    const [flierFile, setFlierFile] = useState<File | null>(null);
+    const [flierPreview, setFlierPreview] = useState<string | null>(null);
+
+    const addDay = () => setDays((prev) => [...prev, { date: todayISO(), label: `Day ${prev.length + 1}` }]);
+    const removeDay = (index: number) => setDays((prev) => prev.filter((_, i) => i !== index));
+    const updateDay = (index: number, patch: Partial<DayInput>) =>
+        setDays((prev) => prev.map((d, i) => (i === index ? { ...d, ...patch } : d)));
+
+    const handleFlierChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0] || null;
+        setFlierFile(file);
+        setFlierPreview(file ? URL.createObjectURL(file) : null);
+    };
 
     const loadEvents = () => {
         adminFetch("/api/admin/events")
@@ -45,12 +70,28 @@ export function AdminOverview() {
 
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (days.length === 0) {
+            showToast("Add at least one day.", "error");
+            return;
+        }
         setIsCreating(true);
         try {
-            await adminFetch("/api/admin/events", { method: "POST", body: JSON.stringify(form) });
+            let flierUrl: string | null = null;
+            if (flierFile) {
+                const ext = flierFile.name.split(".").pop();
+                const path = `event-fliers/${slugify(form.title) || "event"}-${Date.now()}.${ext}`;
+                const { error: uploadError } = await supabase.storage.from("assets").upload(path, flierFile, { upsert: true });
+                if (uploadError) throw new ApiError(`Flier upload failed: ${uploadError.message}`);
+                flierUrl = supabase.storage.from("assets").getPublicUrl(path).data.publicUrl;
+            }
+
+            await adminFetch("/api/admin/events", { method: "POST", body: JSON.stringify({ ...form, flierUrl, days }) });
             showToast(`"${form.title}" created. Add credentials from its event page next.`, "success");
             setShowCreate(false);
             setForm({ title: "", organizerName: "", organizerEmail: "", websiteUrl: "" });
+            setDays([{ date: todayISO(), label: "Day 1" }]);
+            setFlierFile(null);
+            setFlierPreview(null);
             loadEvents();
         } catch (err) {
             showToast(err instanceof ApiError ? err.message : "Could not create event.", "error");
@@ -237,14 +278,67 @@ export function AdminOverview() {
                                     className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm"
                                 />
                             </div>
+
                             <div className="space-y-1.5">
-                                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                                    Event Flier
-                                </label>
-                                <div className="border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
-                                    Upload wires to Supabase Storage's assets bucket, same as CV uploads.
+                                <div className="flex items-center justify-between">
+                                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                        Day(s) &amp; Date(s)
+                                    </label>
+                                    <button type="button" onClick={addDay} className="text-[10px] font-bold uppercase tracking-widest text-primary hover:opacity-70">
+                                        + Add Day
+                                    </button>
+                                </div>
+                                <div className="space-y-2">
+                                    {days.map((day, i) => (
+                                        <div key={i} className="flex gap-2 items-center">
+                                            <input
+                                                type="date"
+                                                required
+                                                value={day.date}
+                                                onChange={(e) => updateDay(i, { date: e.target.value })}
+                                                className="px-3 py-2.5 bg-background border border-border outline-none focus:border-primary text-sm"
+                                            />
+                                            <input
+                                                required
+                                                value={day.label}
+                                                onChange={(e) => updateDay(i, { label: e.target.value })}
+                                                placeholder="e.g. Day 1 — Showcase"
+                                                className="flex-1 px-3 py-2.5 bg-background border border-border outline-none focus:border-primary text-sm min-w-0"
+                                            />
+                                            {days.length > 1 && (
+                                                <button type="button" onClick={() => removeDay(i)} className="p-2 text-muted-foreground hover:text-destructive transition-colors shrink-0">
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            )}
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
+
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                    Event Flier (optional)
+                                </label>
+                                {flierPreview ? (
+                                    <div className="relative border border-border p-2">
+                                        <img src={flierPreview} alt="Flier preview" className="w-full max-h-40 object-contain" />
+                                        <button
+                                            type="button"
+                                            onClick={() => { setFlierFile(null); setFlierPreview(null); }}
+                                            className="absolute top-2 right-2 p-1.5 bg-black/70 text-white"
+                                        >
+                                            <X size={12} />
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <label className="border border-dashed border-border p-6 flex flex-col items-center gap-2 text-center text-xs text-muted-foreground cursor-pointer hover:border-primary transition-colors">
+                                        <ImageIcon size={20} />
+                                        Click to upload a flier image
+                                        <input type="file" accept="image/*" onChange={handleFlierChange} className="hidden" />
+                                    </label>
+                                )}
+                            </div>
+
                             <button
                                 type="submit"
                                 disabled={isCreating}

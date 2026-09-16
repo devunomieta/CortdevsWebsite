@@ -13,14 +13,17 @@ import {
     ShieldCheck,
     Eye,
     RefreshCw,
+    Image as ImageIcon,
 } from "lucide-react";
 import { useToast } from "../../app/components/Toast";
 import { adminFetch, ApiError } from "../lib/api";
+import { supabase } from "../../lib/supabase";
 
 interface EventDetail {
     id: string;
     title: string;
     slug: string;
+    flier_url: string | null;
 }
 interface EventDay { id: string; date: string; label: string; }
 interface Credential {
@@ -49,6 +52,7 @@ export function AdminEventDetail() {
     const [auditLog, setAuditLog] = useState<AuditEntry[]>([]);
     const [showIssue, setShowIssue] = useState(false);
     const [issueForm, setIssueForm] = useState({ label: "", email: "", role: "full" as "full" | "view_only", dayId: "" });
+    const [isUploadingFlier, setIsUploadingFlier] = useState(false);
 
     const loadAll = () => {
         if (!eventId) return;
@@ -101,6 +105,26 @@ export function AdminEventDetail() {
         }
     };
 
+    const uploadFlier = async (file: File) => {
+        if (!eventId || !event) return;
+        setIsUploadingFlier(true);
+        try {
+            const ext = file.name.split(".").pop();
+            const path = `event-fliers/${event.slug}-${Date.now()}.${ext}`;
+            const { error: uploadError } = await supabase.storage.from("assets").upload(path, file, { upsert: true });
+            if (uploadError) throw new ApiError(uploadError.message);
+            const flierUrl = supabase.storage.from("assets").getPublicUrl(path).data.publicUrl;
+
+            await adminFetch("/api/admin/events/update", { method: "POST", body: JSON.stringify({ id: eventId, flierUrl }) });
+            setEvent((prev) => (prev ? { ...prev, flier_url: flierUrl } : prev));
+            showToast("Flier updated.", "success");
+        } catch (err) {
+            showToast(err instanceof ApiError ? err.message : "Could not upload flier.", "error");
+        } finally {
+            setIsUploadingFlier(false);
+        }
+    };
+
     const purgeAttendeeData = async () => {
         if (!eventId) return;
         try {
@@ -147,6 +171,36 @@ export function AdminEventDetail() {
                 <h1 className="text-2xl font-light tracking-tight">{event.title}</h1>
                 <p className="text-sm text-muted-foreground mt-1">/e/{event.slug} · Event ID {eventId}</p>
             </div>
+
+            {/* Flier */}
+            <section className="space-y-4">
+                <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Event Flier</h2>
+                <div className="border border-border bg-card p-6 flex flex-col sm:flex-row sm:items-center gap-6">
+                    {event.flier_url ? (
+                        <img src={event.flier_url} alt={`${event.title} flier`} className="w-40 h-40 object-cover border border-border shrink-0" />
+                    ) : (
+                        <div className="w-40 h-40 border border-dashed border-border flex items-center justify-center text-muted-foreground shrink-0">
+                            <ImageIcon size={24} />
+                        </div>
+                    )}
+                    <div className="space-y-2">
+                        <p className="text-sm text-muted-foreground max-w-sm">
+                            {event.flier_url ? "Replace the flier for this event." : "No flier uploaded yet."}
+                        </p>
+                        <label className="inline-flex items-center gap-2 px-5 py-2.5 border border-border text-xs font-bold uppercase tracking-widest hover:bg-muted transition-colors cursor-pointer w-fit">
+                            {isUploadingFlier ? <RefreshCw size={13} className="animate-spin" /> : <ImageIcon size={13} />}
+                            {isUploadingFlier ? "Uploading…" : event.flier_url ? "Replace Flier" : "Upload Flier"}
+                            <input
+                                type="file"
+                                accept="image/*"
+                                disabled={isUploadingFlier}
+                                className="hidden"
+                                onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadFlier(f); }}
+                            />
+                        </label>
+                    </div>
+                </div>
+            </section>
 
             {/* Credentials */}
             <section className="space-y-4">

@@ -13,7 +13,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const admin = await verifyAdmin(req, res);
     if (!admin) return;
 
-    const { id, status, title, organizerName, organizerEmail, websiteUrl, description, walkinFields } = req.body || {};
+    const { id, status, title, organizerName, organizerEmail, websiteUrl, flierUrl, description, walkinFields } = req.body || {};
     if (!id) return res.status(400).json({ error: 'id is required.' });
 
     try {
@@ -23,6 +23,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (organizerName) patch.organizer_name = organizerName;
         if (organizerEmail) patch.organizer_email = organizerEmail;
         if (websiteUrl !== undefined) patch.website_url = websiteUrl;
+        if (flierUrl !== undefined) patch.flier_url = flierUrl;
         if (description !== undefined) patch.description = description;
         if (walkinFields) patch.walkin_fields = walkinFields;
 
