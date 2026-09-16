@@ -15,10 +15,14 @@ import { supabase } from './supabase.js';
 // once authenticated, so no per-admin scoping is needed.
 
 async function broadcast(channelName: string, event: string, payload: Record<string, unknown> = {}) {
+    // Serverless functions are short-lived, so there's never time for
+    // .subscribe() to actually finish joining a WebSocket before we'd send —
+    // the client used to paper over that by silently falling back to REST,
+    // but that implicit fallback is being deprecated. httpSend() delivers the
+    // same broadcast over plain HTTP directly, with no WebSocket handshake
+    // (and no subscribe/removeChannel bookkeeping) needed at all.
     const channel = supabase.channel(channelName);
-    await channel.subscribe();
-    await channel.send({ type: 'broadcast', event, payload: { at: new Date().toISOString(), ...payload } });
-    await supabase.removeChannel(channel);
+    await channel.httpSend(event, { at: new Date().toISOString(), ...payload });
 }
 
 // Event dashboard: check-ins, walk-ins, and export/import decisions all
