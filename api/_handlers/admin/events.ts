@@ -6,6 +6,10 @@ import { uniqueEventSlug } from '../../_lib/slug.js';
 // GET: list every event with a rollup of checked-in attendees (admin overview,
 // PRD §04/§09 — never a public listing, this is the admin-only surface).
 // POST: create a new event (draft/active) plus its day(s).
+// DELETE ?id= : permanently removes the event and everything under it
+// (event_days, event_credentials, attendees, attendance_records, export/import
+// requests, audit log — all `on delete cascade`). Irreversible; the frontend
+// gates this behind an explicit confirmation.
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     const admin = await verifyAdmin(req, res);
     if (!admin) return;
@@ -108,6 +112,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         } catch (err: any) {
             console.error('admin/events create error:', err);
             return res.status(500).json({ error: err.message || 'Could not create event.' });
+        }
+    }
+
+    if (req.method === 'DELETE') {
+        const eventId = String(req.query.id || '');
+        if (!eventId) return res.status(400).json({ error: 'id is required.' });
+
+        try {
+            const { data: event } = await supabase.from('events').select('title, flier_url').eq('id', eventId).maybeSingle();
+            if (!event) return res.status(404).json({ error: 'Event not found.' });
+
+            const { error } = await supabase.from('events').delete().eq('id', eventId);
+            if (error) throw error;
+
+            // Best-effort cleanup of the flier — not fatal if it fails or was never set.
+            if (event.flier_url) {
+                const match = event.flier_url.match(/\/assets\/(.+)$/);
+                if (match) await supabase.storage.from('assets').remove([decodeURIComponent(match[1])]).catch(() => { });
+            }
+
+            return res.status(200).json({ success: true });
+        } catch (err: any) {
+            console.error('admin/events delete error:', err);
+            return res.status(500).json({ error: err.message || 'Could not delete event.' });
         }
     }
 

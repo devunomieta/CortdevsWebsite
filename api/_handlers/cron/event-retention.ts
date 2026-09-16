@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabase } from '../../_lib/supabase.js';
 import { resend, getFromAddress } from '../../_lib/resend.js';
 import { logEventActivity } from '../../_lib/eventAuditLog.js';
+import { broadcastAdminUpdate } from '../../_lib/eventRealtime.js';
 
 // Daily job (PRD §04, §06, §14): for each event that ended 1–7 days ago,
 // remind the admin + event owner to export; on day 7, purge attendee contact
@@ -96,6 +97,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             reminded += 1;
         }
+
+        if (reminded > 0) await broadcastAdminUpdate(`${reminded} event${reminded === 1 ? '' : 's'} need a retention reminder check`);
 
         return res.status(200).json({ success: true, reminded, purged });
     } catch (err: any) {

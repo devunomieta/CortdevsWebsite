@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router";
+import { useParams, Link, useNavigate } from "react-router";
 import {
     ArrowLeft,
     Plus,
@@ -9,21 +9,26 @@ import {
     Ban,
     CheckCircle2,
     FileDown,
+    FileUp,
+    ExternalLink,
     Trash2,
     ShieldCheck,
     Eye,
+    KeyRound,
     RefreshCw,
     Image as ImageIcon,
 } from "lucide-react";
 import { useToast } from "../../app/components/Toast";
 import { adminFetch, ApiError } from "../lib/api";
 import { supabase } from "../../lib/supabase";
+import { subscribeToChannel } from "../lib/realtime";
 
 interface EventDetail {
     id: string;
     title: string;
     slug: string;
     flier_url: string | null;
+    walkin_fields: string[];
 }
 interface EventDay { id: string; date: string; label: string; }
 interface Credential {
@@ -41,28 +46,56 @@ interface ExportRequestRow {
     decided_at?: string;
 }
 interface AuditEntry { id: string; actor_label: string; action: string; created_at: string; }
+interface ImportRequestRow {
+    id: string;
+    file_name: string;
+    row_count: number;
+    status: "pending" | "approved" | "denied";
+    uploaded_at: string;
+    decided_at?: string;
+    imported_count?: number | null;
+    skipped_count?: number | null;
+    reviewUrl: string | null;
+}
 
 export function AdminEventDetail() {
     const { eventId } = useParams();
+    const navigate = useNavigate();
     const { showToast } = useToast();
     const [event, setEvent] = useState<EventDetail | null>(null);
     const [days, setDays] = useState<EventDay[]>([]);
     const [credentials, setCredentials] = useState<Credential[]>([]);
     const [exportRequests, setExportRequests] = useState<ExportRequestRow[]>([]);
+    const [importRequests, setImportRequests] = useState<ImportRequestRow[]>([]);
     const [auditLog, setAuditLog] = useState<AuditEntry[]>([]);
     const [showIssue, setShowIssue] = useState(false);
     const [issueForm, setIssueForm] = useState({ label: "", email: "", role: "full" as "full" | "view_only", dayId: "" });
     const [isUploadingFlier, setIsUploadingFlier] = useState(false);
+    const [isProcessingImport, setIsProcessingImport] = useState(false);
+    const [newFieldName, setNewFieldName] = useState("");
+    const [isSavingFields, setIsSavingFields] = useState(false);
 
     const loadAll = () => {
         if (!eventId) return;
         adminFetch(`/api/admin/events?id=${eventId}`).then((d) => { setEvent(d.event); setDays(d.days); }).catch(() => { });
         adminFetch(`/api/admin/events/credentials?eventId=${eventId}`).then((d) => setCredentials(d.credentials)).catch(() => { });
         adminFetch(`/api/admin/events/export-requests?eventId=${eventId}`).then((d) => setExportRequests(d.requests)).catch(() => { });
+        adminFetch(`/api/admin/events/imports?eventId=${eventId}`).then((d) => setImportRequests(d.requests)).catch(() => { });
         adminFetch(`/api/admin/events/audit-log?eventId=${eventId}`).then((d) => setAuditLog(d.entries)).catch(() => { });
     };
 
     useEffect(loadAll, [eventId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Live: check-in activity and decisions made from this same page.
+    useEffect(() => {
+        if (!eventId) return;
+        return subscribeToChannel(`event-${eventId}`, "update", loadAll);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [eventId]);
+
+    // Live: a new export/import request or retention reminder from any event
+    // — cheap enough to just reload this page's lists when one comes in.
+    useEffect(() => subscribeToChannel("admin-notifications", "update", loadAll), []); // eslint-disable-line react-hooks/exhaustive-deps
 
     const toggleCredential = async (cred: Credential) => {
         try {
@@ -77,10 +110,20 @@ export function AdminEventDetail() {
         }
     };
 
+    const viewPassword = async (cred: Credential) => {
+        try {
+            const data = await adminFetch("/api/admin/events/credentials", { method: "POST", body: JSON.stringify({ action: "reveal", credentialId: cred.id }) });
+            showToast(`${cred.label}'s current password: ${data.password}`, "info");
+        } catch (err) {
+            showToast(err instanceof ApiError ? err.message : "Could not look up this password.", "error");
+        }
+    };
+
     const rotatePassword = async (cred: Credential) => {
+        if (!confirm(`This creates a new password for ${cred.label} and immediately stops the current one from working. Continue?`)) return;
         try {
             const data = await adminFetch("/api/admin/events/credentials", { method: "POST", body: JSON.stringify({ action: "rotate", credentialId: cred.id }) });
-            showToast(`New password for ${cred.label}: ${data.password} (copy it now — it won't be shown again)`, "success");
+            showToast(`New password for ${cred.label}: ${data.password} (the old one no longer works)`, "success");
         } catch (err) {
             showToast(err instanceof ApiError ? err.message : "Could not rotate password.", "error");
         }
@@ -88,8 +131,8 @@ export function AdminEventDetail() {
 
     const sendCredentialEmail = async (cred: Credential) => {
         try {
-            await adminFetch("/api/admin/events/credentials-email", { method: "POST", body: JSON.stringify({ credentialId: cred.id }) });
-            showToast(`Login sent to ${cred.email}.`, "success");
+            await adminFetch("/api/admin/events/credentials-email", { method: "POST", body: JSON.stringify({ credentialId: cred.id, rotate: false }) });
+            showToast(`Current login resent to ${cred.email} — unchanged.`, "success");
         } catch (err) {
             showToast(err instanceof ApiError ? err.message : "Could not send login email.", "error");
         }
@@ -103,6 +146,79 @@ export function AdminEventDetail() {
         } catch (err) {
             showToast(err instanceof ApiError ? err.message : "Could not update this request.", "error");
         }
+    };
+
+    const decideImport = async (id: string, decision: "approved" | "denied") => {
+        try {
+            const data = await adminFetch("/api/admin/events/imports", { method: "POST", body: JSON.stringify({ action: decision === "approved" ? "approve" : "deny", requestId: id }) });
+            showToast(
+                decision === "approved" ? `Approved — ${data.imported} added${data.skipped ? `, ${data.skipped} skipped` : ""}.` : "Guest list upload denied.",
+                decision === "approved" ? "success" : "info"
+            );
+            loadAll();
+        } catch (err) {
+            showToast(err instanceof ApiError ? err.message : "Could not update this request.", "error");
+        }
+    };
+
+    const replaceAndApproveImport = async (id: string, file: File) => {
+        setIsProcessingImport(true);
+        try {
+            const csvContent = await file.text();
+            const data = await adminFetch("/api/admin/events/imports", {
+                method: "POST",
+                body: JSON.stringify({ action: "replace-and-approve", requestId: id, csvContent, fileName: file.name }),
+            });
+            showToast(`Replaced and approved — ${data.imported} added${data.skipped ? `, ${data.skipped} skipped` : ""}.`, "success");
+            loadAll();
+        } catch (err) {
+            showToast(err instanceof ApiError ? err.message : "Could not process that file.", "error");
+        } finally {
+            setIsProcessingImport(false);
+        }
+    };
+
+    const importNow = async (file: File) => {
+        if (!eventId) return;
+        setIsProcessingImport(true);
+        try {
+            const csvContent = await file.text();
+            const data = await adminFetch("/api/admin/events/imports", {
+                method: "POST",
+                body: JSON.stringify({ action: "import-now", eventId, csvContent, fileName: file.name }),
+            });
+            showToast(`Imported ${data.imported} attendees${data.skipped ? `, ${data.skipped} skipped` : ""}.`, "success");
+            loadAll();
+        } catch (err) {
+            showToast(err instanceof ApiError ? err.message : "Could not import that file.", "error");
+        } finally {
+            setIsProcessingImport(false);
+        }
+    };
+
+    const saveWalkinFields = async (fields: string[]) => {
+        if (!eventId) return;
+        setIsSavingFields(true);
+        try {
+            await adminFetch("/api/admin/events/update", { method: "POST", body: JSON.stringify({ id: eventId, walkinFields: fields }) });
+            setEvent((prev) => (prev ? { ...prev, walkin_fields: fields } : prev));
+        } catch (err) {
+            showToast(err instanceof ApiError ? err.message : "Could not update the custom fields.", "error");
+        } finally {
+            setIsSavingFields(false);
+        }
+    };
+
+    const addCustomField = () => {
+        const name = newFieldName.trim();
+        if (!name || !event || event.walkin_fields.some((f) => f.toLowerCase() === name.toLowerCase())) return;
+        setNewFieldName("");
+        saveWalkinFields([...event.walkin_fields, name]);
+    };
+
+    const removeCustomField = (name: string) => {
+        if (!event) return;
+        saveWalkinFields(event.walkin_fields.filter((f) => f !== name));
     };
 
     const uploadFlier = async (file: File) => {
@@ -135,6 +251,21 @@ export function AdminEventDetail() {
         }
     };
 
+    const deleteEvent = async () => {
+        if (!eventId || !event) return;
+        const confirmed = confirm(
+            `Permanently delete "${event.title}"? This also deletes every login, attendee, check-in, and upload for this event. There's no undo.`
+        );
+        if (!confirmed) return;
+        try {
+            await adminFetch(`/api/admin/events?id=${eventId}`, { method: "DELETE" });
+            showToast(`"${event.title}" deleted.`, "warning");
+            navigate("/admin");
+        } catch (err) {
+            showToast(err instanceof ApiError ? err.message : "Could not delete this event.", "error");
+        }
+    };
+
     const issueCredential = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!eventId) return;
@@ -161,6 +292,7 @@ export function AdminEventDetail() {
     }
 
     const pendingExports = exportRequests.filter((r) => r.status === "pending");
+    const pendingImports = importRequests.filter((r) => r.status === "pending");
 
     return (
         <div className="space-y-10">
@@ -202,6 +334,42 @@ export function AdminEventDetail() {
                 </div>
             </section>
 
+            {/* Custom walk-in fields */}
+            <section className="space-y-4">
+                <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Custom Walk-in Fields</h2>
+                <div className="border border-border bg-card p-6 space-y-3">
+                    <p className="text-xs text-muted-foreground max-w-md">
+                        Beyond name, email, and phone — these appear on the walk-in form, in CSV imports/exports,
+                        and get saved instantly. Changing them doesn't touch attendees already on file.
+                    </p>
+                    {event.walkin_fields.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                            {event.walkin_fields.map((field) => (
+                                <span key={field} className="inline-flex items-center gap-1.5 pl-3 pr-1.5 py-1.5 bg-secondary text-xs font-medium">
+                                    {field}
+                                    <button onClick={() => removeCustomField(field)} disabled={isSavingFields} className="text-muted-foreground hover:text-destructive transition-colors">
+                                        <X size={12} />
+                                    </button>
+                                </span>
+                            ))}
+                        </div>
+                    )}
+                    <div className="flex gap-2 max-w-sm">
+                        <input
+                            value={newFieldName}
+                            onChange={(e) => setNewFieldName(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustomField(); } }}
+                            placeholder="e.g. Company"
+                            disabled={isSavingFields}
+                            className="flex-1 px-4 py-2.5 bg-background border border-border outline-none focus:border-primary text-sm min-w-0"
+                        />
+                        <button onClick={addCustomField} disabled={isSavingFields} className="px-4 py-2.5 border border-border text-xs font-bold uppercase tracking-widest hover:bg-muted transition-colors shrink-0 disabled:opacity-50">
+                            {isSavingFields ? <RefreshCw size={13} className="animate-spin" /> : "Add"}
+                        </button>
+                    </div>
+                </div>
+            </section>
+
             {/* Credentials */}
             <section className="space-y-4">
                 <div className="flex items-center justify-between">
@@ -238,10 +406,13 @@ export function AdminEventDetail() {
                                 </p>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
-                                <button onClick={() => sendCredentialEmail(cred)} title="Email login to event owner" className="p-2 border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                                <button onClick={() => viewPassword(cred)} title="View current password (doesn't change it)" className="p-2 border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                                    <KeyRound size={14} />
+                                </button>
+                                <button onClick={() => sendCredentialEmail(cred)} title="Resend current login by email (doesn't change it)" className="p-2 border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
                                     <Mail size={14} />
                                 </button>
-                                <button onClick={() => rotatePassword(cred)} title="Rotate password" className="p-2 border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                                <button onClick={() => rotatePassword(cred)} title="Rotate password — invalidates the current one" className="p-2 border border-destructive/30 text-destructive hover:bg-destructive/10 transition-colors">
                                     <RotateCw size={14} />
                                 </button>
                                 <button
@@ -295,6 +466,71 @@ export function AdminEventDetail() {
                 </div>
             </section>
 
+            {/* Guest list uploads */}
+            <section className="space-y-4">
+                <div className="flex items-center justify-between gap-4">
+                    <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
+                        Guest List Uploads {pendingImports.length > 0 && <span className="text-destructive">({pendingImports.length} pending)</span>}
+                    </h2>
+                    <label className="inline-flex items-center gap-2 px-4 py-2.5 border border-border text-xs font-bold uppercase tracking-widest hover:bg-muted transition-colors cursor-pointer whitespace-nowrap">
+                        {isProcessingImport ? <RefreshCw size={13} className="animate-spin" /> : <FileUp size={13} />}
+                        Import Directly
+                        <input
+                            type="file"
+                            accept=".csv,text/csv"
+                            disabled={isProcessingImport}
+                            className="hidden"
+                            onChange={(e) => { const f = e.target.files?.[0]; if (f) importNow(f); e.target.value = ""; }}
+                        />
+                    </label>
+                </div>
+                <div className="border border-border bg-card divide-y divide-border">
+                    {importRequests.length === 0 && <p className="p-5 text-sm text-muted-foreground">No uploads yet.</p>}
+                    {importRequests.map((req) => (
+                        <div key={req.id} className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                    <p className="text-sm font-medium truncate">{req.file_name}</p>
+                                    {req.reviewUrl && (
+                                        <a href={req.reviewUrl} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-foreground transition-colors shrink-0" title="Review the raw file">
+                                            <ExternalLink size={12} />
+                                        </a>
+                                    )}
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                    {req.row_count} rows · {new Date(req.uploaded_at).toLocaleString()}
+                                    {req.status === "approved" && typeof req.imported_count === "number" && ` · ${req.imported_count} added${req.skipped_count ? `, ${req.skipped_count} skipped` : ""}`}
+                                </p>
+                            </div>
+                            {req.status === "pending" ? (
+                                <div className="flex flex-wrap gap-2 shrink-0">
+                                    <button onClick={() => decideImport(req.id, "denied")} className="px-4 py-2 text-xs font-bold uppercase tracking-widest border border-border hover:bg-muted transition-colors">
+                                        Deny
+                                    </button>
+                                    <label className="inline-flex items-center gap-2 px-4 py-2 border border-border text-xs font-bold uppercase tracking-widest hover:bg-muted transition-colors cursor-pointer">
+                                        Reupload &amp; Approve
+                                        <input
+                                            type="file"
+                                            accept=".csv,text/csv"
+                                            disabled={isProcessingImport}
+                                            className="hidden"
+                                            onChange={(e) => { const f = e.target.files?.[0]; if (f) replaceAndApproveImport(req.id, f); e.target.value = ""; }}
+                                        />
+                                    </label>
+                                    <button onClick={() => decideImport(req.id, "approved")} className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-xs font-bold uppercase tracking-widest hover:opacity-90 transition-all">
+                                        <CheckCircle2 size={13} /> Approve
+                                    </button>
+                                </div>
+                            ) : (
+                                <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-1 shrink-0 ${req.status === "approved" ? "bg-emerald-500/10 text-emerald-600" : "bg-destructive/10 text-destructive"}`}>
+                                    {req.status}
+                                </span>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            </section>
+
             {/* Retention */}
             <section className="space-y-4">
                 <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Guest Data</h2>
@@ -330,6 +566,26 @@ export function AdminEventDetail() {
                             <p className="text-xs text-muted-foreground shrink-0">{new Date(entry.created_at).toLocaleString()}</p>
                         </div>
                     ))}
+                </div>
+            </section>
+
+            {/* Danger zone */}
+            <section className="space-y-4">
+                <h2 className="text-sm font-bold uppercase tracking-widest text-destructive">Danger Zone</h2>
+                <div className="border border-destructive/30 bg-destructive/5 p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <p className="text-sm font-medium mb-1">Delete this event</p>
+                        <p className="text-xs text-muted-foreground max-w-md">
+                            Removes the event and everything under it — logins, attendees, check-ins, and uploads.
+                            There's no undo.
+                        </p>
+                    </div>
+                    <button
+                        onClick={deleteEvent}
+                        className="inline-flex items-center gap-2 px-5 py-3 bg-destructive text-destructive-foreground text-xs font-bold uppercase tracking-widest hover:opacity-90 transition-all whitespace-nowrap shrink-0"
+                    >
+                        <Trash2 size={14} /> Delete Event
+                    </button>
                 </div>
             </section>
 

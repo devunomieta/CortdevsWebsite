@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
-import { Clock, FileDown, CheckCheck, RefreshCw } from "lucide-react";
+import { Clock, FileDown, FileUp, CheckCheck, RefreshCw } from "lucide-react";
 import { adminFetch, ApiError } from "../lib/api";
 import { useToast } from "../../app/components/Toast";
+import { subscribeToChannel } from "../lib/realtime";
 
 interface Notification {
     id: string;
-    kind: "retention" | "export";
+    kind: "retention" | "export" | "import";
     title: string;
     detail: string;
     created_at: string;
@@ -25,6 +26,9 @@ export function AdminNotifications() {
     };
 
     useEffect(load, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // New requests/reminders show up here live, without a reload.
+    useEffect(() => subscribeToChannel("admin-notifications", "update", load), []); // eslint-disable-line react-hooks/exhaustive-deps
 
     const unreadCount = notifications?.filter((n) => !n.read).length || 0;
 
@@ -71,8 +75,8 @@ export function AdminNotifications() {
                 <div className="border border-border bg-card divide-y divide-border">
                     {notifications.map((n) => (
                         <div key={n.id} className={`p-5 flex items-start gap-4 ${!n.read ? "bg-primary/[0.03]" : ""}`}>
-                            <div className={`w-9 h-9 flex items-center justify-center shrink-0 ${n.kind === "export" ? "bg-amber-500/10 text-amber-600" : "bg-primary/10 text-primary"}`}>
-                                {n.kind === "export" ? <FileDown size={16} /> : <Clock size={16} />}
+                            <div className={`w-9 h-9 flex items-center justify-center shrink-0 ${n.kind === "export" || n.kind === "import" ? "bg-amber-500/10 text-amber-600" : "bg-primary/10 text-primary"}`}>
+                                {n.kind === "export" ? <FileDown size={16} /> : n.kind === "import" ? <FileUp size={16} /> : <Clock size={16} />}
                             </div>
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2">

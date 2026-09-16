@@ -2,13 +2,10 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabase } from '../../../_lib/supabase.js';
 import { verifyAdmin } from '../../../_lib/auth.js';
 import { logEventActivity } from '../../../_lib/eventAuditLog.js';
+import { broadcastEventUpdate } from '../../../_lib/eventRealtime.js';
+import { csvEscape } from '../../../_lib/csv.js';
 
 const SIGNED_URL_TTL_SECONDS = 60 * 60 * 24; // 24h — the requester has a day to download once approved
-
-function csvEscape(value: unknown): string {
-    const str = String(value ?? '');
-    return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
-}
 
 async function buildAttendeeCsv(eventId: string): Promise<string> {
     const [{ data: attendees }, { data: days }, { data: records }] = await Promise.all([
@@ -75,6 +72,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (action === 'deny') {
             await supabase.from('export_requests').update({ status: 'denied', decided_by: admin.id, decided_at: new Date().toISOString() }).eq('id', requestId);
             await logEventActivity({ eventId: request.event_id, actorType: 'admin', actorId: admin.id, actorLabel: `Admin — ${admin.email}`, action: 'Denied export request' });
+            await broadcastEventUpdate(request.event_id, 'export');
             return res.status(200).json({ success: true });
         }
 
@@ -97,6 +95,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }).eq('id', requestId);
 
         await logEventActivity({ eventId: request.event_id, actorType: 'admin', actorId: admin.id, actorLabel: `Admin — ${admin.email}`, action: 'Approved export request' });
+        await broadcastEventUpdate(request.event_id, 'export');
 
         return res.status(200).json({ success: true, fileUrl: signed.signedUrl });
     } catch (err: any) {

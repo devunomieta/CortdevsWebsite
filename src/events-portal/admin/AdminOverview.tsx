@@ -34,11 +34,21 @@ export function AdminOverview() {
     const [days, setDays] = useState<DayInput[]>([{ date: todayISO(), label: "Day 1" }]);
     const [flierFile, setFlierFile] = useState<File | null>(null);
     const [flierPreview, setFlierPreview] = useState<string | null>(null);
+    const [customFields, setCustomFields] = useState<string[]>([]);
+    const [newFieldName, setNewFieldName] = useState("");
 
     const addDay = () => setDays((prev) => [...prev, { date: todayISO(), label: `Day ${prev.length + 1}` }]);
     const removeDay = (index: number) => setDays((prev) => prev.filter((_, i) => i !== index));
     const updateDay = (index: number, patch: Partial<DayInput>) =>
         setDays((prev) => prev.map((d, i) => (i === index ? { ...d, ...patch } : d)));
+
+    const addCustomField = () => {
+        const name = newFieldName.trim();
+        if (!name || customFields.some((f) => f.toLowerCase() === name.toLowerCase())) return;
+        setCustomFields((prev) => [...prev, name]);
+        setNewFieldName("");
+    };
+    const removeCustomField = (name: string) => setCustomFields((prev) => prev.filter((f) => f !== name));
 
     const handleFlierChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0] || null;
@@ -68,6 +78,20 @@ export function AdminOverview() {
         }
     };
 
+    const deleteEvent = async (event: EventRow) => {
+        const confirmed = confirm(
+            `Permanently delete "${event.title}"? This also deletes every login, attendee, check-in, and upload for this event. There's no undo.`
+        );
+        if (!confirmed) return;
+        try {
+            await adminFetch(`/api/admin/events?id=${event.id}`, { method: "DELETE" });
+            setEvents((prev) => prev!.filter((e) => e.id !== event.id));
+            showToast(`"${event.title}" deleted.`, "warning");
+        } catch (err) {
+            showToast(err instanceof ApiError ? err.message : "Could not delete this event.", "error");
+        }
+    };
+
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
         if (days.length === 0) {
@@ -85,13 +109,14 @@ export function AdminOverview() {
                 flierUrl = supabase.storage.from("assets").getPublicUrl(path).data.publicUrl;
             }
 
-            await adminFetch("/api/admin/events", { method: "POST", body: JSON.stringify({ ...form, flierUrl, days }) });
+            await adminFetch("/api/admin/events", { method: "POST", body: JSON.stringify({ ...form, flierUrl, days, walkinFields: customFields }) });
             showToast(`"${form.title}" created. Add logins from its event page next.`, "success");
             setShowCreate(false);
             setForm({ title: "", organizerName: "", organizerEmail: "", websiteUrl: "" });
             setDays([{ date: todayISO(), label: "Day 1" }]);
             setFlierFile(null);
             setFlierPreview(null);
+            setCustomFields([]);
             loadEvents();
         } catch (err) {
             showToast(err instanceof ApiError ? err.message : "Could not create event.", "error");
@@ -197,6 +222,13 @@ export function AdminOverview() {
                                 >
                                     <ExternalLink size={16} />
                                 </a>
+                                <button
+                                    onClick={() => deleteEvent(event)}
+                                    title="Delete event permanently"
+                                    className="text-muted-foreground hover:text-destructive transition-colors"
+                                >
+                                    <Trash2 size={16} />
+                                </button>
                             </div>
                         </div>
                     ))}
@@ -312,6 +344,40 @@ export function AdminOverview() {
                                             )}
                                         </div>
                                     ))}
+                                </div>
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                    Custom Walk-in Fields (optional)
+                                </label>
+                                <p className="text-[11px] text-muted-foreground">
+                                    Beyond name, email, and phone — e.g. "Company" or "T-shirt size". These also
+                                    become the extra columns in this event's CSV import/export.
+                                </p>
+                                {customFields.length > 0 && (
+                                    <div className="flex flex-wrap gap-2 py-1">
+                                        {customFields.map((field) => (
+                                            <span key={field} className="inline-flex items-center gap-1.5 pl-3 pr-1.5 py-1.5 bg-secondary text-xs font-medium">
+                                                {field}
+                                                <button type="button" onClick={() => removeCustomField(field)} className="text-muted-foreground hover:text-destructive transition-colors">
+                                                    <X size={12} />
+                                                </button>
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
+                                <div className="flex gap-2">
+                                    <input
+                                        value={newFieldName}
+                                        onChange={(e) => setNewFieldName(e.target.value)}
+                                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustomField(); } }}
+                                        placeholder="e.g. Company"
+                                        className="flex-1 px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm min-w-0"
+                                    />
+                                    <button type="button" onClick={addCustomField} className="px-4 py-3 border border-border text-xs font-bold uppercase tracking-widest hover:bg-muted transition-colors shrink-0">
+                                        Add Field
+                                    </button>
                                 </div>
                             </div>
 

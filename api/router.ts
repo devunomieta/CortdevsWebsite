@@ -18,6 +18,7 @@ import adminEventsExportRequestsHandler from './_handlers/admin/events/export-re
 import adminEventsNotificationsHandler from './_handlers/admin/events/notifications.js';
 import adminEventsPurgeHandler from './_handlers/admin/events/purge.js';
 import adminEventsUpdateHandler from './_handlers/admin/events/update.js';
+import adminEventsImportsHandler from './_handlers/admin/events/imports.js';
 
 import authRequestResetHandler from './_handlers/auth/request-reset.js';
 import authResetPasswordHandler from './_handlers/auth/reset-password.js';
@@ -32,6 +33,8 @@ import eventsExportRequestHandler from './_handlers/events/export-request.js';
 import eventsLoginHandler from './_handlers/events/login.js';
 import eventsRegisterHandler from './_handlers/events/register.js';
 import eventsStatsHandler from './_handlers/events/stats.js';
+import eventsImportRequestHandler from './_handlers/events/import-request.js';
+import eventsImportTemplateHandler from './_handlers/events/import-template.js';
 
 import paymentsVerifyHandler from './_handlers/payments/verify.js';
 
@@ -52,6 +55,7 @@ const routes: Record<string, (req: VercelRequest, res: VercelResponse) => any> =
   'admin/events/notifications': adminEventsNotificationsHandler,
   'admin/events/purge': adminEventsPurgeHandler,
   'admin/events/update': adminEventsUpdateHandler,
+  'admin/events/imports': adminEventsImportsHandler,
   'auth/request-reset': authRequestResetHandler,
   'auth/reset-password': authResetPasswordHandler,
   'auth/verify-password': authVerifyPasswordHandler,
@@ -63,6 +67,8 @@ const routes: Record<string, (req: VercelRequest, res: VercelResponse) => any> =
   'events/login': eventsLoginHandler,
   'events/register': eventsRegisterHandler,
   'events/stats': eventsStatsHandler,
+  'events/import-request': eventsImportRequestHandler,
+  'events/import-template': eventsImportTemplateHandler,
   'payments/verify': paymentsVerifyHandler,
 };
 

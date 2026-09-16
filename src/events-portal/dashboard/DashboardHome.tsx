@@ -6,11 +6,14 @@ import {
     CheckCircle2,
     Clock,
     FileDown,
+    FileUp,
+    Download,
     X,
+    RefreshCw,
 } from "lucide-react";
 import { useToast } from "../../app/components/Toast";
 import { eventFetch, ApiError } from "../lib/api";
-import { supabase } from "../../lib/supabase";
+import { subscribeToChannel } from "../lib/realtime";
 import type { DashboardContext } from "./DashboardLayout";
 
 interface SearchResult {
@@ -35,6 +38,16 @@ interface ExportStatus {
     fileUrl?: string | null;
 }
 
+interface ImportStatus {
+    id: string;
+    file_name: string;
+    row_count: number;
+    status: "pending" | "approved" | "denied";
+    uploaded_at: string;
+    imported_count?: number | null;
+    skipped_count?: number | null;
+}
+
 export function DashboardHome() {
     const ctx = useOutletContext<DashboardContext>();
     const { showToast } = useToast();
@@ -48,6 +61,8 @@ export function DashboardHome() {
     const [showWalkIn, setShowWalkIn] = useState(false);
     const [walkInForm, setWalkInForm] = useState<Record<string, string>>({ fullName: "", email: "", phone: "" });
     const [latestExport, setLatestExport] = useState<ExportStatus | null>(null);
+    const [latestImport, setLatestImport] = useState<ImportStatus | null>(null);
+    const [isUploadingCsv, setIsUploadingCsv] = useState(false);
 
     const loadStats = useCallback(async () => {
         if (!activeDayId) return;
@@ -69,19 +84,30 @@ export function DashboardHome() {
         }
     }, [ctx.token, isFull]);
 
+    const loadImportStatus = useCallback(async () => {
+        if (!isFull) return;
+        try {
+            const data = await eventFetch("/api/events/import-request", ctx.token);
+            setLatestImport(data.latest);
+        } catch {
+            // non-critical
+        }
+    }, [ctx.token, isFull]);
+
     useEffect(() => { loadStats(); }, [loadStats]);
     useEffect(() => { loadExportStatus(); }, [loadExportStatus]);
+    useEffect(() => { loadImportStatus(); }, [loadImportStatus]);
 
-    // Live multi-device sync (PRD §08/§09/§11): any check-in anywhere on this
-    // event re-triggers a refetch here, so two stations never drift apart.
+    // Live multi-device sync (PRD §08/§09/§11): any check-in, or a decision on
+    // an export/import request, re-triggers a refetch here — no one has to
+    // reload to see the latest state.
     useEffect(() => {
-        const channel = supabase.channel(`event-${ctx.eventId}`);
-        channel.on("broadcast", { event: "attendance:update" }, () => {
+        return subscribeToChannel(`event-${ctx.eventId}`, "update", (payload) => {
+            if (payload?.kind === "export") { loadExportStatus(); return; }
+            if (payload?.kind === "import") { loadImportStatus(); return; }
             loadStats();
             if (query.trim()) runSearch(query);
         });
-        channel.subscribe();
-        return () => { supabase.removeChannel(channel); };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [ctx.eventId]);
 
@@ -153,6 +179,39 @@ export function DashboardHome() {
             loadExportStatus();
         } catch (err) {
             showToast(err instanceof ApiError ? err.message : "Could not request export.", "error");
+        }
+    };
+
+    const uploadCsv = async (file: File) => {
+        setIsUploadingCsv(true);
+        try {
+            const csvContent = await file.text();
+            const data = await eventFetch("/api/events/import-request", ctx.token, {
+                method: "POST",
+                body: JSON.stringify({ csvContent, fileName: file.name }),
+            });
+            const skippedNote = data.preview?.skipped ? ` (${data.preview.skipped} row${data.preview.skipped === 1 ? "" : "s"} skipped — missing a name)` : "";
+            showToast(`Uploaded ${data.preview?.usable ?? ""} attendees${skippedNote} — an admin will review it before it's added.`, "info");
+            loadImportStatus();
+        } catch (err) {
+            showToast(err instanceof ApiError ? err.message : "Could not upload that file.", "error");
+        } finally {
+            setIsUploadingCsv(false);
+        }
+    };
+
+    const downloadSampleCsv = async () => {
+        try {
+            const data = await eventFetch("/api/events/import-template", ctx.token);
+            const blob = new Blob([data.csv], { type: "text/csv" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = data.fileName || "guest-list-template.csv";
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            showToast(err instanceof ApiError ? err.message : "Could not get the sample file.", "error");
         }
     };
 
@@ -293,6 +352,56 @@ export function DashboardHome() {
                         >
                             <FileDown size={14} /> Request Export
                         </button>
+                    </div>
+
+                    {/* Guest list upload */}
+                    <div className="border border-border p-6 bg-card flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div>
+                            <p className="text-sm font-medium mb-1">Upload a guest list</p>
+                            <p className="text-xs text-muted-foreground max-w-md">
+                                Upload a CSV of pre-registered guests. An admin reviews it before anyone's added —
+                                use the sample file to get the format right first.
+                            </p>
+                            {latestImport && (
+                                <p className="text-xs mt-2 flex items-center gap-1.5">
+                                    <Clock size={12} className="text-muted-foreground" />
+                                    {latestImport.file_name} ({latestImport.row_count} rows) —{" "}
+                                    <span
+                                        className={
+                                            latestImport.status === "approved"
+                                                ? "text-emerald-600 font-semibold"
+                                                : latestImport.status === "denied"
+                                                    ? "text-destructive font-semibold"
+                                                    : "text-amber-600 font-semibold"
+                                        }
+                                    >
+                                        {latestImport.status}
+                                    </span>
+                                    {latestImport.status === "approved" && typeof latestImport.imported_count === "number" && (
+                                        <span className="text-muted-foreground"> · {latestImport.imported_count} added{!!latestImport.skipped_count && `, ${latestImport.skipped_count} skipped`}</span>
+                                    )}
+                                </p>
+                            )}
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                            <button
+                                onClick={downloadSampleCsv}
+                                className="inline-flex items-center justify-center gap-2 px-4 py-3 text-xs font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap"
+                            >
+                                <Download size={14} /> Sample CSV
+                            </button>
+                            <label className="inline-flex items-center justify-center gap-2 px-6 py-3 border border-border text-xs font-bold uppercase tracking-widest hover:bg-muted transition-colors whitespace-nowrap cursor-pointer">
+                                {isUploadingCsv ? <RefreshCw size={14} className="animate-spin" /> : <FileUp size={14} />}
+                                {isUploadingCsv ? "Uploading…" : "Upload CSV"}
+                                <input
+                                    type="file"
+                                    accept=".csv,text/csv"
+                                    disabled={isUploadingCsv}
+                                    className="hidden"
+                                    onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadCsv(f); e.target.value = ""; }}
+                                />
+                            </label>
+                        </div>
                     </div>
                 </>
             )}

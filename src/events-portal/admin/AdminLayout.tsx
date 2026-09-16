@@ -10,6 +10,8 @@ import {
 } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { adminFetch } from "../lib/api";
+import { subscribeToChannel } from "../lib/realtime";
+import { useToast } from "../../app/components/Toast";
 
 export function EventsAdminLayout() {
     const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
@@ -17,6 +19,13 @@ export function EventsAdminLayout() {
     const [unreadCount, setUnreadCount] = useState(0);
     const navigate = useNavigate();
     const location = useLocation();
+    const { showToast } = useToast();
+
+    const refreshUnreadCount = () => {
+        adminFetch("/api/admin/events/notifications")
+            .then((data) => setUnreadCount(data.unreadCount))
+            .catch(() => { });
+    };
 
     useEffect(() => {
         const checkAuth = async () => {
@@ -24,9 +33,7 @@ export function EventsAdminLayout() {
             if (session?.user) {
                 setIsAuthenticated(true);
                 setUserEmail(session.user.email || "");
-                adminFetch("/api/admin/events/notifications")
-                    .then((data) => setUnreadCount(data.unreadCount))
-                    .catch(() => { });
+                refreshUnreadCount();
             } else {
                 setIsAuthenticated(false);
                 navigate("/admin/login");
@@ -34,6 +41,16 @@ export function EventsAdminLayout() {
         };
         checkAuth();
     }, [navigate, location.pathname]);
+
+    // Live notifications (export/import requests, retention reminders) — no
+    // reload needed to see the badge update or a toast for what just happened.
+    useEffect(() => {
+        if (!isAuthenticated) return;
+        return subscribeToChannel("admin-notifications", "update", (payload) => {
+            refreshUnreadCount();
+            if (payload?.title) showToast(payload.title, "info");
+        });
+    }, [isAuthenticated]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const handleLogout = async () => {
         await supabase.auth.signOut();

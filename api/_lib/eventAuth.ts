@@ -12,19 +12,47 @@ if (!TOKEN_SECRET) {
 }
 const TOKEN_TTL_SECONDS = 60 * 60 * 8; // 8 hours — long enough for a shift, short enough that a revoke takes effect same day
 
-export function hashPassword(password: string): string {
-    const salt = crypto.randomBytes(16).toString('hex');
-    const hash = crypto.scryptSync(password, salt, 64).toString('hex');
-    return `${salt}:${hash}`;
+// Event credential passwords are stored reversibly (AES-256-GCM, keyed off
+// EVENTS_TOKEN_SECRET) rather than one-way hashed. Deliberate tradeoff for
+// this specific credential type: they're shared, low-entropy, admin-issued
+// logins already mitigated by revocation/rate-limiting/RLS, not high-value
+// per-user accounts — and it lets an admin view or resend the *current*
+// password without rotating it, which one-way hashing can never support
+// (that gap was the actual cause of "the password expires after every use":
+// resending it had no choice but to silently issue a new one every time).
+const ENC_KEY = crypto.createHash('sha256').update(TOKEN_SECRET || 'insecure-dev-key-do-not-use-in-prod').digest();
+
+export function encryptSecret(plaintext: string): string {
+    const iv = crypto.randomBytes(12);
+    const cipher = crypto.createCipheriv('aes-256-gcm', ENC_KEY, iv);
+    const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
+    const authTag = cipher.getAuthTag();
+    return `${iv.toString('base64url')}.${authTag.toString('base64url')}.${encrypted.toString('base64url')}`;
 }
 
-export function verifyPassword(password: string, stored: string): boolean {
-    const [salt, hash] = stored.split(':');
-    if (!salt || !hash) return false;
-    const candidate = crypto.scryptSync(password, salt, 64);
-    const expected = Buffer.from(hash, 'hex');
-    if (candidate.length !== expected.length) return false;
-    return crypto.timingSafeEqual(candidate, expected);
+export function decryptSecret(stored: string): string | null {
+    try {
+        const [ivB64, tagB64, dataB64] = stored.split('.');
+        const iv = Buffer.from(ivB64, 'base64url');
+        const authTag = Buffer.from(tagB64, 'base64url');
+        const data = Buffer.from(dataB64, 'base64url');
+        const decipher = crypto.createDecipheriv('aes-256-gcm', ENC_KEY, iv);
+        decipher.setAuthTag(authTag);
+        return Buffer.concat([decipher.update(data), decipher.final()]).toString('utf8');
+    } catch {
+        // Covers both corruption and credentials stored under the old
+        // one-way-hash scheme, pre-migration — either way, treat as invalid.
+        return null;
+    }
+}
+
+export function verifyStoredPassword(password: string, stored: string): boolean {
+    const decrypted = decryptSecret(stored);
+    if (decrypted === null) return false;
+    const a = Buffer.from(decrypted);
+    const b = Buffer.from(password);
+    if (a.length !== b.length) return false;
+    return crypto.timingSafeEqual(a, b);
 }
 
 export interface EventTokenPayload {

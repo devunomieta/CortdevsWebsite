@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabase } from '../../_lib/supabase.js';
-import { verifyPassword, signEventToken, getClientIp } from '../../_lib/eventAuth.js';
+import { verifyStoredPassword, signEventToken, getClientIp } from '../../_lib/eventAuth.js';
 import { checkLoginLockout, recordLoginAttempt } from '../../_lib/rateLimit.js';
 import { getEventContext, todayInTimezone } from '../../_lib/eventContext.js';
 import { logEventActivity } from '../../_lib/eventAuditLog.js';
@@ -48,7 +48,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             .ilike('email', normalizedEmail)
             .maybeSingle();
 
-        if (!credential || !credential.is_active || !verifyPassword(password, credential.password_hash)) {
+        if (!credential || !credential.is_active || !verifyStoredPassword(password, credential.password_hash)) {
             await recordLoginAttempt(normalizedEmail, ip, event.id, false);
             return res.status(401).json({ error: 'Invalid login, or this access has been revoked.' });
         }
