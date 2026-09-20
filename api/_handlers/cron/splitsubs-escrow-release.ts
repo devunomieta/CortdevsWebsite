@@ -2,10 +2,12 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabase } from '../../_lib/supabase.js';
 import { releaseEscrowForSeat } from '../../_lib/splitsubsPayments.js';
 
-// Runs every 15 min (see vercel.json). Auto-releases any escrow whose hold
-// window has lapsed with no dispute raised — the second half of "held until
-// the joiner confirms access, OR the window lapses with no dispute" (PRD
-// "Escrow is the core safety mechanism"). Gated by CRON_SECRET.
+// Runs daily (see vercel.json — Vercel's Hobby plan caps custom crons at once
+// a day; escrow hold windows are 48-96h, so a daily sweep is still well
+// within tolerance). Auto-releases any escrow whose hold window has lapsed
+// with no dispute raised — the second half of "held until the joiner
+// confirms access, OR the window lapses with no dispute" (PRD "Escrow is the
+// core safety mechanism"). Gated by CRON_SECRET.
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     const cronSecret = process.env.CRON_SECRET;
     if (cronSecret && req.headers.authorization !== `Bearer ${cronSecret}`) {

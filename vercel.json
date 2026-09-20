@@ -16,7 +16,7 @@
         },
         {
             "path": "/api/cron/splitsubs-escrow-release",
-            "schedule": "0 * * * *"
+            "schedule": "0 10 * * *"
         },
         {
             "path": "/api/cron/splitsubs-renewal-reminders",
