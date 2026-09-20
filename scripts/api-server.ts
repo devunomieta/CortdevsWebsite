@@ -71,6 +71,7 @@ const server = http.createServer(async (req, res) => {
                         buffers.push(chunk);
                     }
                     const data = Buffer.concat(buffers).toString();
+                    vercelReq.rawBody = data; // needed for webhook signature verification (e.g. splitsubs/payments-webhook)
                     try {
                         vercelReq.body = JSON.parse(data);
                     } catch (e) {

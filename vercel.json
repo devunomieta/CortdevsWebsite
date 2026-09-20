@@ -13,6 +13,14 @@
         {
             "path": "/api/cron/event-retention",
             "schedule": "0 9 * * *"
+        },
+        {
+            "path": "/api/cron/splitsubs-escrow-release",
+            "schedule": "0 * * * *"
+        },
+        {
+            "path": "/api/cron/splitsubs-renewal-reminders",
+            "schedule": "0 8 * * *"
         }
     ]
 }
