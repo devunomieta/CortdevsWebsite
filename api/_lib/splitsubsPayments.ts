@@ -3,23 +3,33 @@ import { escrowHoldHours, computeWalletEligibleAt, billingCycleDays } from './sp
 import { logSplitsubsActivity } from './splitsubsAuditLog.js';
 import { sendSeatPaidToJoiner, sendNewJoinerToHost } from './splitsubsEmail.js';
 
-// Shared by the Paystack webhook and the verify-on-redirect fallback so a
-// payment is finalized exactly once however its confirmation arrives first.
-// Idempotent: a payment already 'success' is a no-op.
+// Shared by the Paystack webhook and the verify-on-redirect fallback, which
+// commonly race each other (a joiner is redirected back and calls
+// payments-verify within a second or two of paying, often before Paystack's
+// own webhook has landed) — so "idempotent" here means an atomic
+// UPDATE ... WHERE status = 'pending' claim, not just a status check before
+// acting. A plain read-then-write (SELECT status, branch in JS, then UPDATE)
+// leaves a window where both callers read 'pending' and both proceed, which
+// used to double-insert ss_escrow and double-send emails; the escrow row
+// left releaseEscrowForSeat's .maybeSingle() erroring on >1 row later, so a
+// host's payout could get stuck until a human noticed. The UPDATE's WHERE
+// clause is evaluated under Postgres's row lock, so only one of two
+// concurrent callers can ever match it — the loser sees 0 rows updated and
+// backs off instead of continuing.
 export async function finalizeSuccessfulPayment(paymentId: string) {
     const { data: payment, error: paymentError } = await supabase
         .from('ss_payments')
-        .select('*, ss_seats(*, ss_listings(*, ss_services(*)))')
+        .update({ status: 'success', verified_at: new Date().toISOString() })
         .eq('id', paymentId)
+        .eq('status', 'pending')
+        .select('*, ss_seats(*, ss_listings(*, ss_services(*)))')
         .maybeSingle();
-    if (paymentError || !payment) throw new Error('Payment not found.');
-    if (payment.status === 'success') return { alreadyProcessed: true };
+    if (paymentError) throw paymentError;
+    if (!payment) return { alreadyProcessed: true }; // already claimed by the other caller, not pending, or doesn't exist
 
     const seat = payment.ss_seats;
     const listing = seat.ss_listings;
     const service = listing.ss_services;
-
-    await supabase.from('ss_payments').update({ status: 'success', verified_at: new Date().toISOString() }).eq('id', paymentId);
 
     const { data: settings } = await supabase.from('ss_platform_settings').select('*').eq('id', 1).single();
     let holdHours = escrowHoldHours(service.risk_tier, settings);
@@ -84,6 +94,15 @@ export async function finalizeSuccessfulPayment(paymentId: string) {
 // the host's wallet (locked until computeWalletEligibleAt — the 80%-of-cycle
 // anti-scam gate, independent of how fast escrow itself cleared) and credits
 // the insurance pool its configured slice of the service charge.
+//
+// Called from three independent places (access.ts's manual confirm, the
+// daily cron sweep, and dispute resolution) that can legitimately overlap —
+// e.g. a joiner clicks "confirm access" in the same window the cron sweep
+// picks up the same seat because its hold lapsed a moment earlier. Same
+// atomic-claim fix as finalizeSuccessfulPayment above: the release is an
+// UPDATE ... WHERE status = 'held' (not a SELECT-then-UPDATE), so only one
+// caller can ever win it — otherwise this used to double-insert a wallet
+// credit and pay a host twice for one seat.
 export async function releaseEscrowForSeat(seatId: string, reason: string) {
     const { data: seat, error } = await supabase
         .from('ss_seats')
@@ -91,14 +110,6 @@ export async function releaseEscrowForSeat(seatId: string, reason: string) {
         .eq('id', seatId)
         .maybeSingle();
     if (error || !seat) throw new Error('Seat not found.');
-
-    const { data: escrow } = await supabase
-        .from('ss_escrow')
-        .select('id, status')
-        .eq('seat_id', seatId)
-        .eq('status', 'held')
-        .maybeSingle();
-    if (!escrow) return; // already released/refunded, or no escrow (shouldn't happen post-payment)
 
     const { data: openDispute } = await supabase
         .from('ss_disputes')
@@ -108,11 +119,15 @@ export async function releaseEscrowForSeat(seatId: string, reason: string) {
         .maybeSingle();
     if (openDispute) return; // frozen until the dispute resolves
 
-    await supabase.from('ss_escrow').update({
-        status: 'released',
-        released_at: new Date().toISOString(),
-        release_reason: reason,
-    }).eq('id', escrow.id);
+    const { data: escrow, error: claimError } = await supabase
+        .from('ss_escrow')
+        .update({ status: 'released', released_at: new Date().toISOString(), release_reason: reason })
+        .eq('seat_id', seatId)
+        .eq('status', 'held')
+        .select('id')
+        .maybeSingle();
+    if (claimError) throw claimError;
+    if (!escrow) return; // already released/refunded by another caller, or no escrow (shouldn't happen post-payment)
 
     await supabase.from('ss_seats').update({
         status: 'confirmed',
@@ -143,7 +158,11 @@ export async function releaseEscrowForSeat(seatId: string, reason: string) {
     const contribution = Math.round(seat.service_charge * settings.insurance_pool_contribution_rate * 100) / 100;
     if (contribution > 0) {
         await supabase.from('ss_insurance_pool_ledger').insert([{ direction: 'credit', amount: contribution, reason: 'Service charge contribution', seat_id: seatId }]);
-        await supabase.from('ss_platform_settings').update({ insurance_pool_balance: settings.insurance_pool_balance + contribution }).eq('id', 1);
+        // Atomic (ss_increment_insurance_pool does `SET x = x + n` in SQL) —
+        // settings.insurance_pool_balance above was read moments earlier for
+        // the eligibility calc; adding to it in JS here would lose an update
+        // whenever two releases finish close together.
+        await supabase.rpc('ss_increment_insurance_pool', { p_amount: contribution });
     }
 
     await logSplitsubsActivity({

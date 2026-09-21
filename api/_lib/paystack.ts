@@ -159,7 +159,13 @@ export async function verifyWebhookSignature(rawBody: string, signatureHeader: s
             continue;
         }
         const hash = crypto.createHmac('sha512', key).update(rawBody).digest('hex');
-        if (hash === signatureHeader) return mode;
+        // timingSafeEqual over a plain === so an attacker probing this endpoint
+        // can't use response-time differences to guess the signature byte by
+        // byte — both buffers must be equal length first, since timingSafeEqual
+        // throws (rather than returning false) on a length mismatch.
+        const hashBuf = Buffer.from(hash, 'hex');
+        const sigBuf = Buffer.from(signatureHeader, 'hex');
+        if (hashBuf.length === sigBuf.length && crypto.timingSafeEqual(hashBuf, sigBuf)) return mode;
     }
     return null;
 }

@@ -134,6 +134,21 @@ export function AdminSettings() {
                 </div>
 
                 <div className="border border-border p-4 bg-card space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Callback URL &amp; public key — nothing to configure here</label>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                        Every checkout SplitSubs starts sends its own <code>callback_url</code> straight to Paystack's
+                        <code> /transaction/initialize</code> call, so it overrides whatever "Callback URL" is set in the
+                        Paystack dashboard for that account — sharing an account with another system that has its own
+                        dashboard callback URL is safe, since that setting only applies to transactions started
+                        <em> without</em> one of their own.
+                        <br /><br />
+                        There's also no public key field above on purpose — checkout redirects to Paystack's hosted
+                        payment page (<code>authorization_url</code>), rather than opening the Paystack Inline popup
+                        in-page, so only the secret key is ever needed, server-side.
+                    </p>
+                </div>
+
+                <div className="border border-border p-4 bg-card space-y-2">
                     <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Webhook URL — paste into Paystack → Settings → API Keys & Webhooks</label>
                     <div className="flex gap-2">
                         <input readOnly value="https://splitsubs.cortdevs.com/api/splitsubs/payments-webhook" onFocus={(e) => e.target.select()} className="flex-1 px-4 py-3 bg-secondary border border-border outline-none text-sm font-mono" />
