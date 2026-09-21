@@ -17,7 +17,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         let result;
 
         switch (action) {
-            case 'clear_leads_and_projects':
+            case 'clear_leads_and_projects': {
                 // Clear leads and projects
                 const { error: leadsError } = await supabase.from('leads').delete().neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all
                 if (leadsError) throw leadsError;
@@ -29,20 +29,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 const { error: clientsError } = await supabase.from('clients').delete().neq('id', '00000000-0000-0000-0000-000000000000');
                 if (clientsError) throw clientsError;
                 break;
+            }
 
-            case 'clear_clients_data':
+            case 'clear_clients_data': {
                 // "delete all clients data including client details, project details and payment details"
                 const { error: cError } = await supabase.from('clients').delete().neq('id', '00000000-0000-0000-0000-000000000000');
                 if (cError) throw cError;
-                // Payment details are in transactions, tied to client_id. 
+                // Payment details are in transactions, tied to client_id.
                 // Supabase RLS or ON DELETE CASCADE should handle this if configured.
                 break;
+            }
 
-            case 'clear_transaction_data':
+            case 'clear_transaction_data': {
                 // "delete all transaction data including income and expenses record"
                 const { error: tError } = await supabase.from('transactions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
                 if (tError) throw tError;
                 break;
+            }
 
             case 'clear_analytics_report':
                 // "clear data in analytics hub for the current session month and ALL"

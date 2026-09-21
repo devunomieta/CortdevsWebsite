@@ -6,9 +6,12 @@ import { releaseEscrowForSeat } from '../../../_lib/splitsubsPayments.js';
 import { logSplitsubsActivity } from '../../../_lib/splitsubsAuditLog.js';
 import { sendDisputeUpdate } from '../../../_lib/splitsubsEmail.js';
 import { withinLength, LIMITS } from '../../../_lib/validation.js';
+import { parseListParams, likeTerm } from '../../../_lib/splitsubsListQuery.js';
 
-// GET  — every dispute with seat/listing/party context (PRD "Dispute &
-//         resolution center — queue with full transaction context").
+// GET ?filter=open|resolved|all&page=&pageSize=&search=&sort=&order= — dispute
+//     queue with seat/listing/party context (PRD "Dispute & resolution
+//     center — queue with full transaction context"), paginated/searchable
+//     (by reason)/sortable. `filter` defaults to 'open' (open + investigating).
 // PATCH { id, resolution, notes } — resolution: 'resolved_refund' (host-caused
 //        failure: refund the joiner via Paystack, strike the host) |
 //        'resolved_release' (dispute unfounded: release escrow as normal) |
@@ -19,12 +22,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (req.method === 'GET') {
         try {
-            const { data: disputes, error } = await supabase
+            const filter = String(req.query.filter || 'open');
+            const params = parseListParams(req, { allowedSorts: ['created_at', 'status'], defaultSort: 'created_at' });
+            let query = supabase
                 .from('ss_disputes')
-                .select('*, ss_seats(id, total_paid, status, ss_listings(id, title, host_id))')
-                .order('created_at', { ascending: false });
+                .select('*, ss_seats(id, total_paid, status, ss_listings(id, title, host_id))', { count: 'exact' });
+            if (filter === 'open') query = query.in('status', ['open', 'investigating']);
+            else if (filter === 'resolved') query = query.in('status', ['resolved_refund', 'resolved_release', 'dismissed']);
+            if (params.search) query = query.ilike('reason', likeTerm(params.search));
+            const { data: disputes, error, count } = await query.order(params.sort, { ascending: params.order === 'asc' }).range(params.from, params.to);
             if (error) throw error;
-            return res.status(200).json({ disputes: disputes || [] });
+            return res.status(200).json({ disputes: disputes || [], total: count || 0, page: params.page, pageSize: params.pageSize });
         } catch (err: any) {
             console.error('admin/splitsubs/disputes get error:', err);
             return res.status(500).json({ error: 'Could not load disputes.' });

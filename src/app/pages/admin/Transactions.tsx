@@ -25,7 +25,8 @@ import {
     Trash2,
     ArrowUp,
     ArrowDown,
-    Printer
+    Printer,
+    ExternalLink
 } from "lucide-react";
 import { useToast } from "../../components/Toast";
 

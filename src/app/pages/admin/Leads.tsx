@@ -71,10 +71,11 @@ export function Leads() {
         setIsLoading(true);
         try {
             // First attempt with join
-            let { data, error } = await supabase
+            const { data: initialData, error } = await supabase
                 .from('leads')
                 .select('*, onboarder:onboarded_by(full_name)')
                 .order('created_at', { ascending: false });
+            let data = initialData;
 
             // If it fails, fallback to basic select
             if (error) {

@@ -512,10 +512,11 @@ export function Clients() {
         setIsLoading(true);
         try {
             // First attempt with join
-            let { data, error } = await supabase
+            const { data: initialData, error } = await supabase
                 .from('clients')
                 .select('*, onboarder:onboarded_by(full_name)')
                 .order('created_at', { ascending: false });
+            let data = initialData;
 
             // If it fails, likely due to missing onboarded_by column or relation
             if (error) {

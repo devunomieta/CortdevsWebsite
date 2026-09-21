@@ -85,7 +85,7 @@ export function AdminEventDetail() {
         adminFetch(`/api/admin/events/audit-log?eventId=${eventId}`).then((d) => setAuditLog(d.entries)).catch(() => { });
     };
 
-    useEffect(loadAll, [eventId]); // eslint-disable-line react-hooks/exhaustive-deps
+    useEffect(loadAll, [eventId]);  
 
     // Live: check-in activity and decisions made from this same page.
     useEffect(() => {

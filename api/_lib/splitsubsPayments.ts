@@ -22,7 +22,17 @@ export async function finalizeSuccessfulPayment(paymentId: string) {
     await supabase.from('ss_payments').update({ status: 'success', verified_at: new Date().toISOString() }).eq('id', paymentId);
 
     const { data: settings } = await supabase.from('ss_platform_settings').select('*').eq('id', 1).single();
-    const holdHours = escrowHoldHours(service.risk_tier, settings);
+    let holdHours = escrowHoldHours(service.risk_tier, settings);
+
+    // A host with zero prior confirmed splits gets the extra new-host delay
+    // added to THIS seat's hold window — their first-ever payout, not every
+    // payout, per the PRD's "New/unverified hosts held to a longer first-
+    // settlement delay until they build a track record."
+    const { data: hostProfile } = await supabase.from('ss_host_profiles').select('completed_splits').eq('id', listing.host_id).maybeSingle();
+    if (!hostProfile || hostProfile.completed_splits === 0) {
+        holdHours += settings.new_host_settlement_delay_days * 24;
+    }
+
     const releaseAt = new Date(Date.now() + holdHours * 60 * 60 * 1000).toISOString();
 
     await supabase.from('ss_escrow').insert([{

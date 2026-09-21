@@ -51,11 +51,12 @@ export function Profile() {
             }
 
             // 1. Fetch Profile
-            let { data, error } = await supabase
+            const { data: initialData, error } = await supabase
                 .from('profiles')
                 .select('*')
                 .eq('id', user.id)
                 .single();
+            let data = initialData;
 
             // 2. Auto-Creation Logic: If profile missing, establish dashboard entry
             if (error && error.code === 'PGRST116') {

@@ -1,0 +1,16 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    // This codebase's serverless handlers lean on Supabase's untyped
+    // `.select('*')` results throughout (no generated DB types), so
+    // noImplicitAny would flag every `.map(row => ...)` callback across
+    // dozens of pre-existing files for no real type-safety gain. Off here;
+    // strictNullChecks and the rest of `strict` (from the base config) still
+    // catch the errors worth catching.
+    "noImplicitAny": false
+  },
+  "include": ["**/*.ts", "../scripts/**/*.ts"]
+}

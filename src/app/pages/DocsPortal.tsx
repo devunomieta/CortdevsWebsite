@@ -63,7 +63,7 @@ export function DocsPortal() {
     const fetchData = async () => {
         setIsLoading(true);
         const { data: { session } } = await supabase.auth.getSession();
-        let currentUserId = null;
+        let currentUserId: string | null = null;
         if (session) {
             setUser(session.user);
             currentUserId = session.user.id;

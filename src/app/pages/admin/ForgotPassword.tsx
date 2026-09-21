@@ -26,7 +26,7 @@ export function ForgotPassword() {
                 body: JSON.stringify({ email })
             });
 
-            let rateData = { error: "Security subsystem oscillation." };
+            let rateData: { error: string; details?: string } = { error: "Security subsystem oscillation." };
             try {
                 if (rateResponse.headers.get("content-type")?.includes("application/json")) {
                     rateData = await rateResponse.json();

@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { RefreshCw, Plus, Send } from "lucide-react";
 import { ssFetch } from "../lib/api";
 import { useToast } from "../../app/components/Toast";
+import { usePaginatedList } from "../lib/usePaginatedList";
+import { SearchBar, SortButton, Pagination } from "../components/ListControls";
 
 const CATEGORIES = [
     { value: "payment", label: "Payment issue" },
@@ -65,17 +67,13 @@ function TicketThread({ ticketId, onBack }: { ticketId: string; onBack: () => vo
 
 export function Support() {
     const { showToast } = useToast();
-    const [tickets, setTickets] = useState<any[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
     const [selected, setSelected] = useState<string | null>(null);
     const [showNew, setShowNew] = useState(false);
     const [category, setCategory] = useState("other");
     const [subject, setSubject] = useState("");
     const [message, setMessage] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
-
-    const load = () => ssFetch("/api/splitsubs/tickets").then((d) => setTickets(d.tickets || [])).catch(() => { }).finally(() => setIsLoading(false));
-    useEffect(() => { load(); }, []);
+    const list = usePaginatedList<any>("/api/splitsubs/tickets", "tickets", { defaultSort: "updated_at" });
 
     const submitTicket = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -84,7 +82,7 @@ export function Support() {
             await ssFetch("/api/splitsubs/tickets", { method: "POST", body: JSON.stringify({ category, subject, message }) });
             showToast("Ticket opened.", "success");
             setShowNew(false); setSubject(""); setMessage("");
-            load();
+            list.reload();
         } catch (err: any) {
             showToast(err.message || "Could not open ticket.", "error");
         } finally {
@@ -92,7 +90,7 @@ export function Support() {
         }
     };
 
-    if (selected) return <TicketThread ticketId={selected} onBack={() => { setSelected(null); load(); }} />;
+    if (selected) return <TicketThread ticketId={selected} onBack={() => { setSelected(null); list.reload(); }} />;
 
     return (
         <div className="max-w-3xl space-y-6">
@@ -126,13 +124,18 @@ export function Support() {
                 </form>
             )}
 
-            {isLoading ? (
+            <div className="flex flex-wrap gap-2 items-center">
+                <SearchBar value={list.searchInput} onChange={list.setSearchInput} placeholder="Search by subject..." />
+                <SortButton label="Updated" active={list.sort === "updated_at"} order={list.order} onClick={() => { list.setSort("updated_at"); list.setOrder(list.sort === "updated_at" && list.order === "asc" ? "desc" : "asc"); }} />
+            </div>
+
+            {list.isLoading ? (
                 <div className="flex justify-center py-20"><RefreshCw className="animate-spin text-muted-foreground" size={24} /></div>
-            ) : tickets.length === 0 ? (
-                <div className="text-center py-20 border border-dashed border-border"><p className="text-muted-foreground text-sm">No tickets yet.</p></div>
+            ) : list.items.length === 0 ? (
+                <div className="text-center py-20 border border-dashed border-border"><p className="text-muted-foreground text-sm">No tickets match.</p></div>
             ) : (
                 <div className="space-y-3">
-                    {tickets.map((t) => (
+                    {list.items.map((t) => (
                         <button key={t.id} onClick={() => setSelected(t.id)} className="w-full text-left border border-border p-4 bg-card hover:border-primary transition-colors flex items-center justify-between">
                             <div>
                                 <p className="font-medium text-sm">{t.subject}</p>
@@ -143,6 +146,7 @@ export function Support() {
                     ))}
                 </div>
             )}
+            <Pagination page={list.page} totalPages={list.totalPages} total={list.total} pageSize={list.pageSize} onPage={list.setPage} />
         </div>
     );
 }

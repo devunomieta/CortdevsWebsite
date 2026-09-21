@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { RefreshCw, Plus, Power } from "lucide-react";
 import { ssFetch } from "../lib/api";
 import { useToast } from "../../app/components/Toast";
+import { usePaginatedList } from "../lib/usePaginatedList";
+import { SearchBar, SortButton, Pagination } from "../components/ListControls";
 
 const DEFAULT_FIELDS_HELP = '[{"key":"email","label":"Email","type":"email","required":true}]';
 
@@ -90,17 +92,13 @@ function ServiceForm({ onSaved }: { onSaved: () => void }) {
 
 export function AdminCatalog() {
     const { showToast } = useToast();
-    const [services, setServices] = useState<any[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
-
-    const load = () => ssFetch("/api/admin/splitsubs/services").then((d) => setServices(d.services || [])).catch(() => { }).finally(() => setIsLoading(false));
-    useEffect(() => { load(); }, []);
+    const list = usePaginatedList<any>("/api/admin/splitsubs/services", "services", { defaultSort: "name", defaultOrder: "asc" });
 
     const toggleStatus = async (id: string, status: string) => {
         try {
             await ssFetch("/api/admin/splitsubs/services", { method: "PATCH", body: JSON.stringify({ id, status: status === "active" ? "inactive" : "active" }) });
-            load();
+            list.reload();
         } catch (err: any) {
             showToast(err.message || "Could not update service.", "error");
         }
@@ -118,13 +116,22 @@ export function AdminCatalog() {
                 </button>
             </div>
 
-            {showForm && <ServiceForm onSaved={() => { setShowForm(false); load(); }} />}
+            {showForm && <ServiceForm onSaved={() => { setShowForm(false); list.reload(); }} />}
 
-            {isLoading ? (
+            <div className="flex flex-wrap gap-2 items-center">
+                <SearchBar value={list.searchInput} onChange={list.setSearchInput} placeholder="Search by name or category..." />
+                <SortButton label="Name" active={list.sort === "name"} order={list.order} onClick={() => { list.setSort("name"); list.setOrder(list.sort === "name" && list.order === "asc" ? "desc" : "asc"); }} />
+                <SortButton label="Category" active={list.sort === "category"} order={list.order} onClick={() => { list.setSort("category"); list.setOrder(list.sort === "category" && list.order === "asc" ? "desc" : "asc"); }} />
+                <SortButton label="Status" active={list.sort === "status"} order={list.order} onClick={() => { list.setSort("status"); list.setOrder(list.sort === "status" && list.order === "asc" ? "desc" : "asc"); }} />
+            </div>
+
+            {list.isLoading ? (
                 <div className="flex justify-center py-20"><RefreshCw className="animate-spin text-muted-foreground" size={24} /></div>
+            ) : list.items.length === 0 ? (
+                <div className="text-center py-20 border border-dashed border-border"><p className="text-muted-foreground text-sm">No services match.</p></div>
             ) : (
                 <div className="border border-border bg-card divide-y divide-border">
-                    {services.map((s) => (
+                    {list.items.map((s) => (
                         <div key={s.id} className="flex items-center justify-between px-5 py-4">
                             <div>
                                 <p className="font-medium text-sm">{s.name}</p>
@@ -138,6 +145,7 @@ export function AdminCatalog() {
                     ))}
                 </div>
             )}
+            <Pagination page={list.page} totalPages={list.totalPages} total={list.total} pageSize={list.pageSize} onPage={list.setPage} />
         </div>
     );
 }

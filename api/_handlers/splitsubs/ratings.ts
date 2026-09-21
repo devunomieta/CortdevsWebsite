@@ -36,9 +36,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             throw insertError;
         }
 
-        const { data: profile } = await supabase.from('ss_host_profiles').select('rating_sum, rating_count').eq('id', rateeId).maybeSingle();
+        const { data: profile } = await supabase.from('ss_host_profiles').select('rating_sum, rating_count, email').eq('id', rateeId).maybeSingle();
+        const rateeEmail = profile?.email || (await supabase.auth.admin.getUserById(rateeId)).data?.user?.email || null;
         await supabase.from('ss_host_profiles').upsert([{
             id: rateeId,
+            email: rateeEmail,
             rating_sum: (profile?.rating_sum || 0) + rating,
             rating_count: (profile?.rating_count || 0) + 1,
         }], { onConflict: 'id' });

@@ -3,12 +3,14 @@ import { supabase } from '../../../_lib/supabase.js';
 import { verifyAdmin } from '../../../_lib/auth.js';
 import { isNonEmpty, withinLength, LIMITS } from '../../../_lib/validation.js';
 import { logSplitsubsActivity } from '../../../_lib/splitsubsAuditLog.js';
+import { parseListParams, likeTerm } from '../../../_lib/splitsubsListQuery.js';
 
 function slugify(name: string): string {
     return name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 }
 
-// GET               — full catalog, including inactive services (moderation view).
+// GET ?page=&pageSize=&search=&sort=&order= — full catalog, including
+//     inactive services (moderation view), paginated/searchable/sortable.
 // POST              — add a service (PRD "Service catalog management").
 // PATCH { id, ... }  — edit any field, including toggling status active/inactive.
 // This is the ONLY place the catalog changes — public splitsubs/services.ts is read-only.
@@ -18,9 +20,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (req.method === 'GET') {
         try {
-            const { data, error } = await supabase.from('ss_services').select('*').order('name', { ascending: true });
+            const params = parseListParams(req, { allowedSorts: ['name', 'category', 'status', 'risk_tier', 'created_at'], defaultSort: 'name' });
+            let query = supabase.from('ss_services').select('*', { count: 'exact' });
+            if (params.search) query = query.or(`name.ilike.${likeTerm(params.search)},category.ilike.${likeTerm(params.search)}`);
+            const { data, error, count } = await query.order(params.sort, { ascending: params.order === 'asc' }).range(params.from, params.to);
             if (error) throw error;
-            return res.status(200).json({ services: data || [] });
+            return res.status(200).json({ services: data || [], total: count || 0, page: params.page, pageSize: params.pageSize });
         } catch (err: any) {
             console.error('admin/splitsubs/services get error:', err);
             return res.status(500).json({ error: 'Could not load catalog.' });

@@ -60,6 +60,7 @@ interface AuditLog {
     details: any;
     created_at: string;
     actor_email?: string;
+    severity: 'High' | 'Normal';
 }
 
 interface Invitation {
@@ -351,7 +352,7 @@ export function UserManagement() {
     };
 
     const handleDisburse = async (targetUser?: AdminUser) => {
-        const user = targetUser || selectedUserForWallet;
+        const user = targetUser || selectedUserManagement;
         if (!user || !disburseAmount) return;
         setIsProcessing(true);
 
@@ -470,7 +471,7 @@ export function UserManagement() {
         }
         setIsProcessing(true);
         try {
-            let until = new Date();
+            const until = new Date();
             if (duration === "24h") until.setHours(until.getHours() + 24);
             else if (duration === "1w") until.setDate(until.getDate() + 7);
             else if (duration === "30d") until.setDate(until.getDate() + 30);

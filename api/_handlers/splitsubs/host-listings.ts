@@ -3,9 +3,12 @@ import { supabase } from '../../_lib/supabase.js';
 import { verifyAuth } from '../../_lib/auth.js';
 import { computeSeatPricing } from '../../_lib/splitsubsFees.js';
 import { logSplitsubsActivity } from '../../_lib/splitsubsAuditLog.js';
+import { parseListParams, likeTerm } from '../../_lib/splitsubsListQuery.js';
 
-// GET — the signed-in user's own listings, each with its seats and pricing
-// (Host dashboard: "Manage active listings" / "seats filled/open, per-joiner status").
+// GET ?page=&pageSize=&search=&sort=&order= — the signed-in user's own
+// listings, each with its seats and pricing (Host dashboard: "Manage active
+// listings" / "seats filled/open, per-joiner status"), paginated/searchable
+// (by title)/sortable.
 // PATCH { id, status: 'paused'|'active', renewalDay? } — a host can pause/resume
 // their own listing or adjust the renewal day; suspend/reject stays admin-only
 // (admin/splitsubs/listings.ts).
@@ -15,11 +18,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (req.method === 'GET') {
         try {
-            const { data: listings, error } = await supabase
+            const params = parseListParams(req, { allowedSorts: ['created_at', 'plan_cost', 'status'], defaultSort: 'created_at' });
+            let query = supabase
                 .from('ss_listings')
-                .select('*, ss_services(name, category, icon_url)')
-                .eq('host_id', host.id)
-                .order('created_at', { ascending: false });
+                .select('*, ss_services(name, category, icon_url)', { count: 'exact' })
+                .eq('host_id', host.id);
+            if (params.search) query = query.ilike('title', likeTerm(params.search));
+            const { data: listings, error, count } = await query.order(params.sort, { ascending: params.order === 'asc' }).range(params.from, params.to);
             if (error) throw error;
 
             const ids = (listings || []).map((l) => l.id);
@@ -41,7 +46,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 seats: seatsByListing.get(l.id) || [],
             }));
 
-            return res.status(200).json({ listings: enriched });
+            return res.status(200).json({ listings: enriched, total: count || 0, page: params.page, pageSize: params.pageSize });
         } catch (err: any) {
             console.error('splitsubs/host-listings get error:', err);
             return res.status(500).json({ error: 'Could not load your listings.' });

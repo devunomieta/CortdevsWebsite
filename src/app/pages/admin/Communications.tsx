@@ -429,8 +429,8 @@ export function Communications() {
     };
 
     const openCompose = (template?: any, isCustomTemplate: boolean = false) => {
-        let initialBody = template?.body || "";
-        let initialSubject = template?.subject || "";
+        const initialBody = template?.body || "";
+        const initialSubject = template?.subject || "";
         let initialType = template?.type || "Direct";
 
         if (isCustomTemplate) {

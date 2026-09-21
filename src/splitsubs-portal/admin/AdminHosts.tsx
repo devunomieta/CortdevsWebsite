@@ -1,20 +1,17 @@
-import { useEffect, useState } from "react";
 import { RefreshCw, ShieldCheck, ShieldOff } from "lucide-react";
 import { ssFetch } from "../lib/api";
 import { useToast } from "../../app/components/Toast";
+import { usePaginatedList } from "../lib/usePaginatedList";
+import { SearchBar, SortButton, Pagination } from "../components/ListControls";
 
 export function AdminHosts() {
     const { showToast } = useToast();
-    const [hosts, setHosts] = useState<any[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-
-    const load = () => ssFetch("/api/admin/splitsubs/hosts").then((d) => setHosts(d.hosts || [])).catch(() => { }).finally(() => setIsLoading(false));
-    useEffect(() => { load(); }, []);
+    const list = usePaginatedList<any>("/api/admin/splitsubs/hosts", "hosts");
 
     const setTier = async (id: string, verificationTier: string) => {
         try {
             await ssFetch("/api/admin/splitsubs/hosts", { method: "PATCH", body: JSON.stringify({ id, verificationTier }) });
-            load();
+            list.reload();
         } catch (err: any) {
             showToast(err.message || "Could not update.", "error");
         }
@@ -23,7 +20,7 @@ export function AdminHosts() {
     const toggleBan = async (id: string, isBanned: boolean) => {
         try {
             await ssFetch("/api/admin/splitsubs/hosts", { method: "PATCH", body: JSON.stringify({ id, isBanned: !isBanned }) });
-            load();
+            list.reload();
         } catch (err: any) {
             showToast(err.message || "Could not update.", "error");
         }
@@ -36,11 +33,20 @@ export function AdminHosts() {
                 <p className="text-sm text-muted-foreground">Verification tiers, ratings, strikes, and bans.</p>
             </div>
 
-            {isLoading ? (
+            <div className="flex flex-wrap gap-2 items-center">
+                <SearchBar value={list.searchInput} onChange={list.setSearchInput} placeholder="Search by email..." />
+                <SortButton label="Newest" active={list.sort === "created_at"} order={list.order} onClick={() => { list.setSort("created_at"); list.setOrder(list.sort === "created_at" && list.order === "asc" ? "desc" : "asc"); }} />
+                <SortButton label="Splits" active={list.sort === "completed_splits"} order={list.order} onClick={() => { list.setSort("completed_splits"); list.setOrder(list.sort === "completed_splits" && list.order === "asc" ? "desc" : "asc"); }} />
+                <SortButton label="Strikes" active={list.sort === "strikes"} order={list.order} onClick={() => { list.setSort("strikes"); list.setOrder(list.sort === "strikes" && list.order === "asc" ? "desc" : "asc"); }} />
+            </div>
+
+            {list.isLoading ? (
                 <div className="flex justify-center py-20"><RefreshCw className="animate-spin text-muted-foreground" size={24} /></div>
+            ) : list.items.length === 0 ? (
+                <div className="text-center py-20 border border-dashed border-border"><p className="text-muted-foreground text-sm">No hosts match.</p></div>
             ) : (
                 <div className="border border-border bg-card divide-y divide-border">
-                    {hosts.map((h) => (
+                    {list.items.map((h) => (
                         <div key={h.id} className="flex items-center justify-between px-5 py-4 gap-4">
                             <div>
                                 <p className="font-medium text-sm">{h.email || h.id}</p>
@@ -63,6 +69,7 @@ export function AdminHosts() {
                     ))}
                 </div>
             )}
+            <Pagination page={list.page} totalPages={list.totalPages} total={list.total} pageSize={list.pageSize} onPage={list.setPage} />
         </div>
     );
 }

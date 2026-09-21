@@ -2,6 +2,10 @@ import { useEffect, useState } from "react";
 import { RefreshCw, Send } from "lucide-react";
 import { ssFetch } from "../lib/api";
 import { useToast } from "../../app/components/Toast";
+import { usePaginatedList } from "../lib/usePaginatedList";
+import { SearchBar, SortButton, Pagination } from "../components/ListControls";
+
+const STATUS_TABS = ["all", "open", "pending", "resolved", "closed"];
 
 function TicketThread({ ticketId, onBack }: { ticketId: string; onBack: () => void }) {
     const { showToast } = useToast();
@@ -60,14 +64,14 @@ function TicketThread({ ticketId, onBack }: { ticketId: string; onBack: () => vo
 }
 
 export function AdminTickets() {
-    const [tickets, setTickets] = useState<any[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
     const [selected, setSelected] = useState<string | null>(null);
+    const [statusTab, setStatusTab] = useState("all");
+    const list = usePaginatedList<any>("/api/admin/splitsubs/tickets", "tickets", {
+        defaultSort: "priority",
+        extraParams: statusTab === "all" ? {} : { status: statusTab },
+    });
 
-    const load = () => ssFetch("/api/admin/splitsubs/tickets").then((d) => setTickets(d.tickets || [])).catch(() => { }).finally(() => setIsLoading(false));
-    useEffect(() => { load(); }, []);
-
-    if (selected) return <TicketThread ticketId={selected} onBack={() => { setSelected(null); load(); }} />;
+    if (selected) return <TicketThread ticketId={selected} onBack={() => { setSelected(null); list.reload(); }} />;
 
     return (
         <div className="max-w-4xl space-y-6">
@@ -75,11 +79,28 @@ export function AdminTickets() {
                 <h1 className="text-2xl font-light tracking-tight mb-1">Support Tickets</h1>
                 <p className="text-sm text-muted-foreground">Sorted by priority, then most recently updated.</p>
             </div>
-            {isLoading ? (
+
+            <div className="flex flex-wrap gap-2">
+                {STATUS_TABS.map((t) => (
+                    <button key={t} onClick={() => { setStatusTab(t); list.setPage(1); }} className={`px-4 py-2 text-[10px] font-bold uppercase tracking-widest border ${statusTab === t ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:text-foreground"}`}>
+                        {t}
+                    </button>
+                ))}
+            </div>
+
+            <div className="flex flex-wrap gap-2 items-center">
+                <SearchBar value={list.searchInput} onChange={list.setSearchInput} placeholder="Search by subject..." />
+                <SortButton label="Priority" active={list.sort === "priority"} order={list.order} onClick={() => { list.setSort("priority"); list.setOrder(list.sort === "priority" && list.order === "asc" ? "desc" : "asc"); }} />
+                <SortButton label="Updated" active={list.sort === "updated_at"} order={list.order} onClick={() => { list.setSort("updated_at"); list.setOrder(list.sort === "updated_at" && list.order === "asc" ? "desc" : "asc"); }} />
+            </div>
+
+            {list.isLoading ? (
                 <div className="flex justify-center py-20"><RefreshCw className="animate-spin text-muted-foreground" size={24} /></div>
+            ) : list.items.length === 0 ? (
+                <div className="text-center py-20 border border-dashed border-border"><p className="text-muted-foreground text-sm">No tickets match.</p></div>
             ) : (
                 <div className="border border-border bg-card divide-y divide-border">
-                    {tickets.map((t) => (
+                    {list.items.map((t) => (
                         <button key={t.id} onClick={() => setSelected(t.id)} className="w-full text-left px-5 py-4 hover:bg-secondary/50 transition-colors flex items-center justify-between">
                             <div>
                                 <p className="font-medium text-sm">{t.subject}</p>
@@ -91,9 +112,9 @@ export function AdminTickets() {
                             </div>
                         </button>
                     ))}
-                    {tickets.length === 0 && <p className="px-5 py-4 text-sm text-muted-foreground">No tickets.</p>}
                 </div>
             )}
+            <Pagination page={list.page} totalPages={list.totalPages} total={list.total} pageSize={list.pageSize} onPage={list.setPage} />
         </div>
     );
 }

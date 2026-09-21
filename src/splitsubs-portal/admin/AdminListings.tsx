@@ -1,21 +1,16 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { RefreshCw, Check, X, Pause } from "lucide-react";
 import { ssFetch } from "../lib/api";
 import { useToast } from "../../app/components/Toast";
+import { usePaginatedList } from "../lib/usePaginatedList";
+import { SearchBar, SortButton, Pagination } from "../components/ListControls";
 
 const TABS = ["pending_review", "active", "paused", "suspended", "rejected"];
 
 export function AdminListings() {
     const { showToast } = useToast();
     const [status, setStatus] = useState("pending_review");
-    const [listings, setListings] = useState<any[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-
-    const load = () => {
-        setIsLoading(true);
-        ssFetch(`/api/admin/splitsubs/listings?status=${status}`).then((d) => setListings(d.listings || [])).catch(() => { }).finally(() => setIsLoading(false));
-    };
-    useEffect(() => { load(); }, [status]);
+    const list = usePaginatedList<any>("/api/admin/splitsubs/listings", "listings", { extraParams: { status } });
 
     const act = async (id: string, action: "approve" | "reject" | "suspend") => {
         let rejectionReason: string | undefined;
@@ -25,7 +20,7 @@ export function AdminListings() {
         try {
             await ssFetch("/api/admin/splitsubs/listings", { method: "PATCH", body: JSON.stringify({ id, action, rejectionReason }) });
             showToast("Updated.", "success");
-            load();
+            list.reload();
         } catch (err: any) {
             showToast(err.message || "Could not update listing.", "error");
         }
@@ -40,19 +35,25 @@ export function AdminListings() {
 
             <div className="flex flex-wrap gap-2">
                 {TABS.map((t) => (
-                    <button key={t} onClick={() => setStatus(t)} className={`px-4 py-2 text-[10px] font-bold uppercase tracking-widest border ${status === t ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:text-foreground"}`}>
+                    <button key={t} onClick={() => { setStatus(t); list.setPage(1); }} className={`px-4 py-2 text-[10px] font-bold uppercase tracking-widest border ${status === t ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:text-foreground"}`}>
                         {t.replace(/_/g, " ")}
                     </button>
                 ))}
             </div>
 
-            {isLoading ? (
+            <div className="flex flex-wrap gap-2 items-center">
+                <SearchBar value={list.searchInput} onChange={list.setSearchInput} placeholder="Search by title..." />
+                <SortButton label="Newest" active={list.sort === "created_at"} order={list.order} onClick={() => { list.setSort("created_at"); list.setOrder(list.sort === "created_at" && list.order === "asc" ? "desc" : "asc"); }} />
+                <SortButton label="Price" active={list.sort === "plan_cost"} order={list.order} onClick={() => { list.setSort("plan_cost"); list.setOrder(list.sort === "plan_cost" && list.order === "asc" ? "desc" : "asc"); }} />
+            </div>
+
+            {list.isLoading ? (
                 <div className="flex justify-center py-20"><RefreshCw className="animate-spin text-muted-foreground" size={24} /></div>
-            ) : listings.length === 0 ? (
+            ) : list.items.length === 0 ? (
                 <div className="text-center py-20 border border-dashed border-border"><p className="text-muted-foreground text-sm">Nothing here.</p></div>
             ) : (
                 <div className="border border-border bg-card divide-y divide-border">
-                    {listings.map((l) => (
+                    {list.items.map((l) => (
                         <div key={l.id} className="flex items-center justify-between px-5 py-4">
                             <div>
                                 <p className="font-medium text-sm">{l.title}</p>
@@ -73,6 +74,7 @@ export function AdminListings() {
                     ))}
                 </div>
             )}
+            <Pagination page={list.page} totalPages={list.totalPages} total={list.total} pageSize={list.pageSize} onPage={list.setPage} />
         </div>
     );
 }

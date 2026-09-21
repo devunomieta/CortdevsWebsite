@@ -2,8 +2,10 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabase } from '../../../_lib/supabase.js';
 import { verifyAdmin } from '../../../_lib/auth.js';
 import { logSplitsubsActivity } from '../../../_lib/splitsubsAuditLog.js';
+import { parseListParams, likeTerm } from '../../../_lib/splitsubsListQuery.js';
 
-// GET ?status=pending_review  — moderation queue (defaults to pending_review).
+// GET ?status=pending_review&page=&pageSize=&search=&sort=&order= — moderation
+//     queue (defaults to pending_review), paginated/searchable/sortable.
 // GET ?id=                     — one listing's full detail (proof, host fields, seats).
 // PATCH { id, action }         — action: 'approve' | 'reject' | 'suspend'.
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -34,13 +36,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method === 'GET') {
         try {
             const status = String(req.query.status || 'pending_review');
-            const { data: listings, error } = await supabase
+            const params = parseListParams(req, { allowedSorts: ['created_at', 'plan_cost', 'total_seats', 'title'], defaultSort: 'created_at' });
+            let query = supabase
                 .from('ss_listings')
-                .select('id, title, plan_cost, total_seats, status, created_at, host_id, ss_services(name)')
-                .eq('status', status)
-                .order('created_at', { ascending: true });
+                .select('id, title, plan_cost, total_seats, status, created_at, host_id, ss_services(name)', { count: 'exact' })
+                .eq('status', status);
+            if (params.search) query = query.ilike('title', likeTerm(params.search));
+            const { data: listings, error, count } = await query.order(params.sort, { ascending: params.order === 'asc' }).range(params.from, params.to);
             if (error) throw error;
-            return res.status(200).json({ listings: listings || [] });
+            return res.status(200).json({ listings: listings || [], total: count || 0, page: params.page, pageSize: params.pageSize });
         } catch (err: any) {
             console.error('admin/splitsubs/listings list error:', err);
             return res.status(500).json({ error: 'Could not load listings.' });

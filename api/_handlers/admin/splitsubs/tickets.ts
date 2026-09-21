@@ -4,9 +4,12 @@ import { verifyAdmin } from '../../../_lib/auth.js';
 import { withinLength, LIMITS } from '../../../_lib/validation.js';
 import { logSplitsubsActivity } from '../../../_lib/splitsubsAuditLog.js';
 import { sendTicketUpdate } from '../../../_lib/splitsubsEmail.js';
+import { parseListParams, likeTerm } from '../../../_lib/splitsubsListQuery.js';
 
 // GET ?id=          — one ticket's full thread (admin view).
-// GET (default)      — every ticket, newest-updated first (SLA queue).
+// GET ?status=&priority=&page=&pageSize=&search=&sort=&order= — the SLA
+//     queue, paginated/searchable (by subject)/sortable; sorted by priority
+//     then most-recently-updated by default.
 // PATCH { id, status?, reply? } — change status and/or post an admin reply.
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     const admin = await verifyAdmin(req, res);
@@ -29,9 +32,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (req.method === 'GET') {
         try {
-            const { data: tickets, error } = await supabase.from('ss_tickets').select('*').order('priority', { ascending: true }).order('updated_at', { ascending: false });
+            const params = parseListParams(req, { allowedSorts: ['priority', 'status', 'updated_at', 'created_at'], defaultSort: 'priority' });
+            let query = supabase.from('ss_tickets').select('*', { count: 'exact' });
+            if (req.query.status) query = query.eq('status', String(req.query.status));
+            if (req.query.priority) query = query.eq('priority', String(req.query.priority));
+            if (params.search) query = query.ilike('subject', likeTerm(params.search));
+            query = query.order(params.sort, { ascending: params.order === 'asc' });
+            if (params.sort === 'priority') query = query.order('updated_at', { ascending: false }); // secondary sort, same as before
+            const { data: tickets, error, count } = await query.range(params.from, params.to);
             if (error) throw error;
-            return res.status(200).json({ tickets: tickets || [] });
+            return res.status(200).json({ tickets: tickets || [], total: count || 0, page: params.page, pageSize: params.pageSize });
         } catch (err: any) {
             console.error('admin/splitsubs/tickets list error:', err);
             return res.status(500).json({ error: 'Could not load tickets.' });

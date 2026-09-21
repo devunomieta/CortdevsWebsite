@@ -5,9 +5,13 @@ import { verifyAdmin } from '../../../_lib/auth.js';
 import { createTransferRecipient, initiateTransfer } from '../../../_lib/paystack.js';
 import { logSplitsubsActivity } from '../../../_lib/splitsubsAuditLog.js';
 import { sendPayoutProcessedToHost } from '../../../_lib/splitsubsEmail.js';
+import { parseListParams } from '../../../_lib/splitsubsListQuery.js';
 
-// GET      — pending settlement rows grouped by host, each with a payable total
-//            (PRD "Settlement to hosts runs on a schedule... daily batch").
+// GET ?page=&pageSize=&search=&sort=&order= — pending settlement rows grouped
+//     by host, each with a payable total (PRD "Settlement to hosts runs on a
+//     schedule... daily batch"). Grouping happens in-memory (pending rows are
+//     fetched, then rolled up by host), so pagination/search/sort here apply
+//     to the resulting host list, not the raw settlement rows.
 // POST { hostId } — sums that host's pending rows into ONE Paystack transfer,
 //            marks them 'processing' immediately and 'paid'/'failed' when the
 //            transfer.success/failed webhook lands (payments-webhook.ts).
@@ -17,11 +21,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (req.method === 'GET') {
         try {
+            const params = parseListParams(req, { allowedSorts: ['total', 'hostEmail'], defaultSort: 'total' });
+
             const { data: pending, error } = await supabase
                 .from('ss_settlements')
                 .select('*, ss_listings(title)')
                 .eq('status', 'pending')
-                .order('scheduled_for', { ascending: true });
+                .order('scheduled_for', { ascending: true })
+                .limit(5000);
             if (error) throw error;
 
             const byHost = new Map<string, { hostId: string; total: number; rows: any[] }>();
@@ -32,15 +39,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 entry.rows.push(row);
             }
 
-            const grouped = await Promise.all(Array.from(byHost.values()).map(async (entry) => {
+            let grouped = await Promise.all(Array.from(byHost.values()).map(async (entry) => {
                 const [{ data: profile }, { data: user }] = await Promise.all([
                     supabase.from('ss_host_profiles').select('bank_account_name, bank_account_number, bank_code, paystack_recipient_code, verification_tier').eq('id', entry.hostId).maybeSingle(),
                     supabase.auth.admin.getUserById(entry.hostId),
                 ]);
-                return { ...entry, hostEmail: user?.user?.email, payoutReady: Boolean(profile?.bank_account_number && profile?.bank_code), profile };
+                return { ...entry, hostEmail: user?.user?.email || '', payoutReady: Boolean(profile?.bank_account_number && profile?.bank_code), profile };
             }));
 
-            return res.status(200).json({ hosts: grouped });
+            if (params.search) grouped = grouped.filter((h) => h.hostEmail.toLowerCase().includes(params.search.toLowerCase()));
+            grouped.sort((a, b) => {
+                const cmp = params.sort === 'hostEmail' ? a.hostEmail.localeCompare(b.hostEmail) : a.total - b.total;
+                return params.order === 'asc' ? cmp : -cmp;
+            });
+
+            const total = grouped.length;
+            const pageItems = grouped.slice(params.from, params.to + 1);
+
+            return res.status(200).json({ hosts: pageItems, total, page: params.page, pageSize: params.pageSize });
         } catch (err: any) {
             console.error('admin/splitsubs/settlements get error:', err);
             return res.status(500).json({ error: 'Could not load settlements.' });

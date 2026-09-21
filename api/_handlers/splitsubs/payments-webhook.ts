@@ -11,7 +11,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
     const rawBody: string = (req as any).rawBody || JSON.stringify(req.body || {});
-    const mode = verifyWebhookSignature(rawBody, req.headers['x-paystack-signature'] as string | undefined);
+    const mode = await verifyWebhookSignature(rawBody, req.headers['x-paystack-signature'] as string | undefined);
     if (!mode) {
         console.warn('splitsubs/payments-webhook: signature verification failed');
         return res.status(401).json({ error: 'Invalid signature' });

@@ -3,6 +3,7 @@ import { supabase } from '../../_lib/supabase.js';
 import { verifyAuth } from '../../_lib/auth.js';
 import { isNonEmpty, withinLength, LIMITS } from '../../_lib/validation.js';
 import { logSplitsubsActivity } from '../../_lib/splitsubsAuditLog.js';
+import { parseListParams, likeTerm } from '../../_lib/splitsubsListQuery.js';
 
 const CATEGORY_PRIORITY: Record<string, 'P1' | 'P2' | 'P3'> = {
     payment: 'P1',
@@ -36,9 +37,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (req.method === 'GET') {
         try {
-            const { data: tickets, error } = await supabase.from('ss_tickets').select('*').eq('user_id', user.id).order('updated_at', { ascending: false });
+            const params = parseListParams(req, { allowedSorts: ['updated_at', 'created_at', 'priority', 'status'], defaultSort: 'updated_at' });
+            let query = supabase.from('ss_tickets').select('*', { count: 'exact' }).eq('user_id', user.id);
+            if (req.query.status) query = query.eq('status', String(req.query.status));
+            if (params.search) query = query.ilike('subject', likeTerm(params.search));
+            const { data: tickets, error, count } = await query.order(params.sort, { ascending: params.order === 'asc' }).range(params.from, params.to);
             if (error) throw error;
-            return res.status(200).json({ tickets: tickets || [] });
+            return res.status(200).json({ tickets: tickets || [], total: count || 0, page: params.page, pageSize: params.pageSize });
         } catch (err: any) {
             console.error('splitsubs/tickets list error:', err);
             return res.status(500).json({ error: 'Could not load your tickets.' });

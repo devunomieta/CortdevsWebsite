@@ -3,10 +3,14 @@ import { supabase } from '../../../_lib/supabase.js';
 import { verifyAdmin } from '../../../_lib/auth.js';
 import { logSplitsubsActivity } from '../../../_lib/splitsubsAuditLog.js';
 import { sendHostVerificationStatus } from '../../../_lib/splitsubsEmail.js';
+import { parseListParams, likeTerm } from '../../../_lib/splitsubsListQuery.js';
 
-// GET   — every host profile, with email joined in from auth (fraud review /
-//         verification queue: "review new-host listings... verify bank-account-
-//         name matches, approve/reject/flag accounts").
+// GET ?page=&pageSize=&search=&sort=&order= — every host profile (fraud
+//     review / verification queue: "review new-host listings... verify
+//     bank-account-name matches, approve/reject/flag accounts"). `search`
+//     matches the cached email column (kept in sync on every profile write —
+//     see host-listings.ts / host-profile.ts / ratings.ts); a profile from
+//     before that column existed self-heals its email on this read.
 // PATCH { id, verificationTier?, isBanned?, strikeDelta? }
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     const admin = await verifyAdmin(req, res);
@@ -14,15 +18,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (req.method === 'GET') {
         try {
-            const { data: profiles, error } = await supabase.from('ss_host_profiles').select('*').order('created_at', { ascending: false });
+            const params = parseListParams(req, { allowedSorts: ['created_at', 'completed_splits', 'strikes', 'verification_tier', 'email'], defaultSort: 'created_at' });
+            let query = supabase.from('ss_host_profiles').select('*', { count: 'exact' });
+            if (params.search) query = query.ilike('email', likeTerm(params.search));
+            const { data: profiles, error, count } = await query.order(params.sort, { ascending: params.order === 'asc' }).range(params.from, params.to);
             if (error) throw error;
 
             const enriched = await Promise.all((profiles || []).map(async (p) => {
+                if (p.email) return p;
                 const { data: u } = await supabase.auth.admin.getUserById(p.id);
-                return { ...p, email: u?.user?.email || null };
+                const email = u?.user?.email || null;
+                if (email) await supabase.from('ss_host_profiles').update({ email }).eq('id', p.id);
+                return { ...p, email };
             }));
 
-            return res.status(200).json({ hosts: enriched });
+            return res.status(200).json({ hosts: enriched, total: count || 0, page: params.page, pageSize: params.pageSize });
         } catch (err: any) {
             console.error('admin/splitsubs/hosts get error:', err);
             return res.status(500).json({ error: 'Could not load hosts.' });

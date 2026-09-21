@@ -4,7 +4,7 @@
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const URL_RE = /^https?:\/\/[^\s]+\.[^\s]+$/i;
-const FIELD_NAME_RE = /^[a-zA-Z0-9 &/'.\-]{1,40}$/;
+const FIELD_NAME_RE = /^[a-zA-Z0-9 &/'.-]{1,40}$/;
 
 export function isValidEmail(value: string): boolean {
     return EMAIL_RE.test(value.trim());

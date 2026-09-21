@@ -4,9 +4,15 @@ import { verifyAuth } from '../../_lib/auth.js';
 import { computeSeatPricing } from '../../_lib/splitsubsFees.js';
 import { isNonEmpty, withinLength, LIMITS } from '../../_lib/validation.js';
 import { logSplitsubsActivity } from '../../_lib/splitsubsAuditLog.js';
+import { parseListParams } from '../../_lib/splitsubsListQuery.js';
 
 // GET ?id=          — one listing's public detail (service + open-seat count).
-// GET (no id)        — public browse, filterable by ?service= / ?maxPrice=.
+// GET (no id)        — public browse: ?service=&maxPrice=&page=&pageSize=&search=&sort=&order=.
+//     Whether a seat is "open" only exists after joining seat counts in memory
+//     (see below), so pagination/sort/filter here run on that in-memory list —
+//     fine at MVP scale (capped at the 500 newest active listings); a
+//     materialized open-seat column + trigger would be the fix once volume
+//     makes that cap bite.
 // POST                — a host creates a listing (goes to pending_review).
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method === 'GET' && req.query.id) {
@@ -53,13 +59,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (req.method === 'GET') {
         try {
+            const params = parseListParams(req, { allowedSorts: ['created_at', 'price'], defaultSort: 'created_at' });
+
             let query = supabase
                 .from('ss_listings')
                 .select('id, title, plan_cost, total_seats, charge_rate, created_at, ss_services(id, name, category, icon_url)')
                 .eq('status', 'active')
                 .order('created_at', { ascending: false })
-                .limit(100);
+                .limit(500);
             if (req.query.service) query = query.eq('service_id', String(req.query.service));
+            if (params.search) query = query.ilike('title', `%${params.search.replace(/[%_]/g, (c) => `\\${c}`)}%`);
             const { data: listings, error } = await query;
             if (error) throw error;
 
@@ -82,7 +91,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 .filter((l) => l.openSeats > 0)
                 .filter((l) => !req.query.maxPrice || l.pricing.totalPaid <= Number(req.query.maxPrice));
 
-            return res.status(200).json({ listings: enriched });
+            if (params.sort === 'price') {
+                enriched.sort((a, b) => params.order === 'asc' ? a.pricing.totalPaid - b.pricing.totalPaid : b.pricing.totalPaid - a.pricing.totalPaid);
+            } else if (params.order === 'asc') {
+                enriched.reverse(); // already newest-first from the query; asc = oldest-first
+            }
+
+            const total = enriched.length;
+            const pageItems = enriched.slice(params.from, params.to + 1);
+
+            return res.status(200).json({ listings: pageItems, total, page: params.page, pageSize: params.pageSize });
         } catch (err: any) {
             console.error('splitsubs/listings browse error:', err);
             return res.status(500).json({ error: 'Could not load listings.' });
@@ -138,7 +156,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 .single();
             if (error) throw error;
 
-            await supabase.from('ss_host_profiles').upsert([{ id: host.id }], { onConflict: 'id', ignoreDuplicates: true });
+            // Merge-upsert (no ignoreDuplicates) so a profile created before this
+            // column existed still gets its email backfilled on the next listing.
+            await supabase.from('ss_host_profiles').upsert([{ id: host.id, email: host.email }], { onConflict: 'id' });
 
             await logSplitsubsActivity({
                 actorType: 'host',

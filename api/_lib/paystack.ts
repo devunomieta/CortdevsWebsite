@@ -1,35 +1,57 @@
 import crypto from 'crypto';
+import { supabase } from './supabase.js';
+import { decryptSecret } from './splitsubsCrypto.js';
 
 // Thin wrapper around the Paystack REST API. Live/Test key selection is a
 // runtime decision (ss_platform_settings.paystack_mode), not a build-time one,
 // per the PRD's "Live and Test key pairs... Admin Dashboard has a Live/Test
 // mode switch" requirement — so every call here takes `mode` explicitly rather
 // than reading a single baked-in key.
+//
+// The keys themselves can come from either the Admin Settings UI (encrypted
+// in ss_platform_settings — see admin/splitsubs/settings.ts) or the
+// PAYSTACK_LIVE_SECRET_KEY / PAYSTACK_TEST_SECRET_KEY env vars, in that order
+// — env vars are the pre-deploy fallback so the platform still works before
+// an admin has ever opened Settings.
 
 const PAYSTACK_BASE = 'https://api.paystack.co';
 
-function keyFor(mode: 'live' | 'test'): string {
-    const key = mode === 'live' ? process.env.PAYSTACK_LIVE_SECRET_KEY : process.env.PAYSTACK_TEST_SECRET_KEY;
-    if (!key) {
-        throw new Error(`Paystack ${mode} secret key is not configured.`);
+export async function getPaystackSecretKey(mode: 'live' | 'test'): Promise<string> {
+    const column = mode === 'live' ? 'paystack_live_secret_key_enc' : 'paystack_test_secret_key_enc';
+    const { data } = await supabase.from('ss_platform_settings').select(column).eq('id', 1).maybeSingle();
+    const encrypted = (data as any)?.[column] as string | null | undefined;
+    if (encrypted) {
+        const decrypted = decryptSecret(encrypted);
+        if (decrypted) return decrypted;
     }
-    return key;
+
+    const envKey = mode === 'live' ? process.env.PAYSTACK_LIVE_SECRET_KEY : process.env.PAYSTACK_TEST_SECRET_KEY;
+    if (envKey) return envKey;
+
+    throw new Error(`Paystack ${mode} secret key is not configured — set it in Admin Settings or the PAYSTACK_${mode.toUpperCase()}_SECRET_KEY env var.`);
 }
 
-async function paystackFetch(mode: 'live' | 'test', path: string, init: RequestInit = {}) {
+interface PaystackEnvelope {
+    status: boolean;
+    message: string;
+    data: any;
+}
+
+async function paystackFetch(mode: 'live' | 'test', path: string, init: RequestInit = {}): Promise<PaystackEnvelope> {
+    const key = await getPaystackSecretKey(mode);
     const res = await fetch(`${PAYSTACK_BASE}${path}`, {
         ...init,
         headers: {
-            Authorization: `Bearer ${keyFor(mode)}`,
+            Authorization: `Bearer ${key}`,
             'Content-Type': 'application/json',
             ...(init.headers || {}),
         },
     });
-    const body = await res.json().catch(() => ({}));
+    const body = await res.json().catch(() => ({})) as Partial<PaystackEnvelope>;
     if (!res.ok || body.status === false) {
         throw new Error(body.message || `Paystack request failed (${res.status})`);
     }
-    return body;
+    return body as PaystackEnvelope;
 }
 
 export async function initializeTransaction(mode: 'live' | 'test', params: {
@@ -118,13 +140,18 @@ export async function initiateTransfer(mode: 'live' | 'test', params: {
 
 // Paystack signs webhook bodies with HMAC-SHA512 of the raw payload, keyed on
 // the secret key for whichever mode sent it. We verify against both live and
-// test secrets since a webhook can arrive for either mode and carries no
-// separate "which key" flag beyond matching one of the two signatures.
-export function verifyWebhookSignature(rawBody: string, signatureHeader: string | undefined): 'live' | 'test' | null {
+// test secrets (DB-configured first, env var fallback) since a webhook can
+// arrive for either mode and carries no separate "which key" flag beyond
+// matching one of the two signatures.
+export async function verifyWebhookSignature(rawBody: string, signatureHeader: string | undefined): Promise<'live' | 'test' | null> {
     if (!signatureHeader) return null;
     for (const mode of ['live', 'test'] as const) {
-        const key = mode === 'live' ? process.env.PAYSTACK_LIVE_SECRET_KEY : process.env.PAYSTACK_TEST_SECRET_KEY;
-        if (!key) continue;
+        let key: string;
+        try {
+            key = await getPaystackSecretKey(mode);
+        } catch {
+            continue;
+        }
         const hash = crypto.createHmac('sha512', key).update(rawBody).digest('hex');
         if (hash === signatureHeader) return mode;
     }

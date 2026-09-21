@@ -4,6 +4,8 @@ import { motion } from "framer-motion";
 import { Helmet } from "react-helmet-async";
 import { ShieldCheck, Users, Wallet, RefreshCw } from "lucide-react";
 import { ssPublicFetch } from "../lib/api";
+import { usePaginatedList } from "../lib/usePaginatedList";
+import { SearchBar, SortButton, Pagination } from "../components/ListControls";
 
 interface Listing {
     id: string;
@@ -24,23 +26,15 @@ interface Service {
 const money = (n: number) => `₦${n.toLocaleString("en-NG", { minimumFractionDigits: 0 })}`;
 
 export function SplitSubsHome() {
-    const [listings, setListings] = useState<Listing[]>([]);
     const [services, setServices] = useState<Service[]>([]);
     const [serviceFilter, setServiceFilter] = useState<string>("");
-    const [isLoading, setIsLoading] = useState(true);
+    const list = usePaginatedList<Listing>("/api/splitsubs/listings", "listings", {
+        extraParams: serviceFilter ? { service: serviceFilter } : {},
+    });
 
     useEffect(() => {
         ssPublicFetch("/api/splitsubs/services").then((d) => setServices(d.services || [])).catch(() => { });
     }, []);
-
-    useEffect(() => {
-        setIsLoading(true);
-        const qs = serviceFilter ? `?service=${encodeURIComponent(serviceFilter)}` : "";
-        ssPublicFetch(`/api/splitsubs/listings${qs}`)
-            .then((d) => setListings(d.listings || []))
-            .catch(() => setListings([]))
-            .finally(() => setIsLoading(false));
-    }, [serviceFilter]);
 
     return (
         <div>
@@ -85,11 +79,11 @@ export function SplitSubsHome() {
 
             <section id="listings" className="py-20 lg:py-28">
                 <div className="max-w-7xl mx-auto px-6 lg:px-8">
-                    <div className="flex flex-wrap items-center justify-between gap-4 mb-10">
+                    <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
                         <h2 className="text-2xl font-light tracking-tight">Open seats</h2>
                         <div className="flex flex-wrap gap-2">
                             <button
-                                onClick={() => setServiceFilter("")}
+                                onClick={() => { setServiceFilter(""); list.setPage(1); }}
                                 className={`px-4 py-2 text-[10px] font-bold uppercase tracking-widest border ${!serviceFilter ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
                             >
                                 All
@@ -97,7 +91,7 @@ export function SplitSubsHome() {
                             {services.map((s) => (
                                 <button
                                     key={s.id}
-                                    onClick={() => setServiceFilter(s.id)}
+                                    onClick={() => { setServiceFilter(s.id); list.setPage(1); }}
                                     className={`px-4 py-2 text-[10px] font-bold uppercase tracking-widest border ${serviceFilter === s.id ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
                                 >
                                     {s.name}
@@ -106,15 +100,21 @@ export function SplitSubsHome() {
                         </div>
                     </div>
 
-                    {isLoading ? (
+                    <div className="flex flex-wrap gap-2 items-center mb-10">
+                        <SearchBar value={list.searchInput} onChange={list.setSearchInput} placeholder="Search listings..." />
+                        <SortButton label="Newest" active={list.sort === "created_at"} order={list.order} onClick={() => { list.setSort("created_at"); list.setOrder(list.sort === "created_at" && list.order === "asc" ? "desc" : "asc"); }} />
+                        <SortButton label="Price" active={list.sort === "price"} order={list.order} onClick={() => { list.setSort("price"); list.setOrder(list.sort === "price" && list.order === "asc" ? "desc" : "asc"); }} />
+                    </div>
+
+                    {list.isLoading ? (
                         <div className="flex justify-center py-20"><RefreshCw className="animate-spin text-muted-foreground" size={24} /></div>
-                    ) : listings.length === 0 ? (
+                    ) : list.items.length === 0 ? (
                         <div className="text-center py-20 border border-dashed border-border">
                             <p className="text-muted-foreground text-sm">No open seats right now — check back soon, or list your own.</p>
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {listings.map((listing) => (
+                            {list.items.map((listing) => (
                                 <Link
                                     key={listing.id}
                                     to={`/listing/${listing.id}`}
@@ -137,6 +137,9 @@ export function SplitSubsHome() {
                             ))}
                         </div>
                     )}
+                    <div className="mt-10">
+                        <Pagination page={list.page} totalPages={list.totalPages} total={list.total} pageSize={list.pageSize} onPage={list.setPage} />
+                    </div>
                 </div>
             </section>
         </div>

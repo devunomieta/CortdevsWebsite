@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { RefreshCw, ShieldCheck, Star, AlertTriangle } from "lucide-react";
 import { ssFetch } from "../lib/api";
 import { useToast } from "../../app/components/Toast";
+import { usePaginatedList } from "../lib/usePaginatedList";
+import { SortButton, Pagination } from "../components/ListControls";
 
 const STATUS_LABEL: Record<string, string> = {
     pending_payment: "Payment pending",
@@ -16,19 +18,15 @@ const STATUS_LABEL: Record<string, string> = {
 
 export function MySeats() {
     const { showToast } = useToast();
-    const [seats, setSeats] = useState<any[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
     const [busyId, setBusyId] = useState<string | null>(null);
-
-    const load = () => ssFetch("/api/splitsubs/my-seats").then((d) => setSeats(d.seats || [])).catch(() => { }).finally(() => setIsLoading(false));
-    useEffect(() => { load(); }, []);
+    const list = usePaginatedList<any>("/api/splitsubs/my-seats", "seats");
 
     const confirmAccess = async (seatId: string) => {
         setBusyId(seatId);
         try {
             await ssFetch("/api/splitsubs/access", { method: "POST", body: JSON.stringify({ action: "confirm", seatId }) });
             showToast("Access confirmed — the host's payout is released.", "success");
-            load();
+            list.reload();
         } catch (err: any) {
             showToast(err.message || "Could not confirm access.", "error");
         } finally {
@@ -43,7 +41,7 @@ export function MySeats() {
         try {
             await ssFetch("/api/splitsubs/disputes", { method: "POST", body: JSON.stringify({ seatId, reason }) });
             showToast("Dispute opened — an admin will review it.", "success");
-            load();
+            list.reload();
         } catch (err: any) {
             showToast(err.message || "Could not open dispute.", "error");
         } finally {
@@ -60,22 +58,25 @@ export function MySeats() {
         }
     };
 
-    if (isLoading) return <div className="flex justify-center py-20"><RefreshCw className="animate-spin text-muted-foreground" size={24} /></div>;
-
     return (
         <div className="max-w-4xl space-y-6">
-            <div>
-                <h1 className="text-2xl font-light tracking-tight mb-1">My Seats</h1>
-                <p className="text-sm text-muted-foreground">Every subscription you've joined.</p>
+            <div className="flex flex-wrap items-end justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-light tracking-tight mb-1">My Seats</h1>
+                    <p className="text-sm text-muted-foreground">Every subscription you've joined.</p>
+                </div>
+                <SortButton label="Newest" active={list.sort === "created_at"} order={list.order} onClick={() => { list.setSort("created_at"); list.setOrder(list.sort === "created_at" && list.order === "asc" ? "desc" : "asc"); }} />
             </div>
 
-            {seats.length === 0 ? (
+            {list.isLoading ? (
+                <div className="flex justify-center py-20"><RefreshCw className="animate-spin text-muted-foreground" size={24} /></div>
+            ) : list.items.length === 0 ? (
                 <div className="text-center py-20 border border-dashed border-border">
                     <p className="text-muted-foreground text-sm">You haven't joined any seats yet.</p>
                 </div>
             ) : (
                 <div className="space-y-4">
-                    {seats.map((seat) => (
+                    {list.items.map((seat) => (
                         <div key={seat.id} className="border border-border p-6 bg-card">
                             <div className="flex flex-wrap items-start justify-between gap-4 mb-3">
                                 <div>
@@ -115,6 +116,7 @@ export function MySeats() {
                     ))}
                 </div>
             )}
+            <Pagination page={list.page} totalPages={list.totalPages} total={list.total} pageSize={list.pageSize} onPage={list.setPage} />
         </div>
     );
 }

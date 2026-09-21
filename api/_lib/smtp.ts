@@ -32,7 +32,10 @@ export const getTransporter = () => {
         requireTLS: Number(port) === 587,
         logger: true,
         debug: true,
-        pool: false // Disable pooling for debugging to ensure fresh handshake
+        // `pool` isn't a property of SMTPTransport.Options (it only exists on the
+        // separate SMTPPool.Options type, selected via `pool: true`) — omitted
+        // rather than set to false, which is the default anyway and was
+        // tripping createTransport's overload resolution.
     });
 };
 

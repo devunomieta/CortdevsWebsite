@@ -36,7 +36,7 @@ export function withinLength(value: string, max: number): boolean {
 // Walk-in field / custom field names — letters, numbers, spaces, and a few
 // common punctuation marks. Blocks anything that would look broken as a CSV
 // header or a UI label.
-const FIELD_NAME_RE = /^[a-zA-Z0-9 &/'.\-]{1,40}$/;
+const FIELD_NAME_RE = /^[a-zA-Z0-9 &/'.-]{1,40}$/;
 export function isValidFieldName(value: string): boolean {
     return FIELD_NAME_RE.test(String(value).trim());
 }

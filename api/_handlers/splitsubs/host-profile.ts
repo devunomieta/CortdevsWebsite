@@ -49,6 +49,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             await supabase.from('ss_host_profiles').upsert([{
                 id: user.id,
+                email: user.email,
                 bank_account_name: resolved.account_name,
                 bank_account_number: accountNumber,
                 bank_code: bankCode,
