@@ -22,4 +22,15 @@ export default defineConfig({
     },
   },
   assetsInclude: ['**/*.svg', '**/*.csv'],
+  build: {
+    rollupOptions: {
+      input: {
+        // Both entries boot the exact same React app (src/main.tsx) — this is only
+        // about which static <head> a host's raw HTML request gets before JS runs.
+        // See vercel.json's host-matched rewrite for splitsubs.cortdevs.com.
+        main: path.resolve(__dirname, 'index.html'),
+        splitsubs: path.resolve(__dirname, 'splitsubs.html'),
+      },
+    },
+  },
 })

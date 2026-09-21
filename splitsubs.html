@@ -1,0 +1,43 @@
+
+  <!DOCTYPE html>
+  <html lang="en">
+    <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <meta name="theme-color" content="#030213" />
+
+      <!-- Static, crawler-visible fallback for splitsubs.cortdevs.com — react-helmet-async
+           overrides this per-page once JS runs, but most social/chat link-preview bots
+           (WhatsApp, Slack, Discord, iMessage, X, and most "copy link" browser previews)
+           fetch the raw HTML and never execute JavaScript, so the real tags have to live
+           here too. Served only on this host — see vercel.json's host-matched rewrite. -->
+      <title>SplitSubs — Stop Paying Full Price for Netflix, Spotify & More</title>
+      <meta name="description" content="Split Netflix, Spotify, YouTube Premium and more with real people — your money stays safe until access is confirmed working. Join a seat or list yours today." />
+      <link rel="canonical" href="https://splitsubs.cortdevs.com/" />
+
+      <link rel="icon" type="image/svg+xml" href="/splitsubs-icon.svg" />
+      <link rel="icon" type="image/png" sizes="32x32" href="/splitsubs-icon-32.png" />
+      <link rel="icon" type="image/png" sizes="16x16" href="/splitsubs-icon-16.png" />
+      <link rel="shortcut icon" href="/splitsubs-icon.ico" />
+      <link rel="apple-touch-icon" sizes="180x180" href="/splitsubs-icon-180.png" />
+
+      <meta property="og:title" content="SplitSubs — Stop Paying Full Price for Netflix, Spotify & More" />
+      <meta property="og:description" content="Split Netflix, Spotify, YouTube Premium and more with real people — your money stays safe until access is confirmed working." />
+      <meta property="og:type" content="website" />
+      <meta property="og:url" content="https://splitsubs.cortdevs.com/" />
+      <meta property="og:image" content="https://splitsubs.cortdevs.com/og-image-splitsubs.png" />
+      <meta property="og:image:width" content="1200" />
+      <meta property="og:image:height" content="630" />
+      <meta property="og:site_name" content="SplitSubs" />
+
+      <meta name="twitter:card" content="summary_large_image" />
+      <meta name="twitter:title" content="SplitSubs — Stop Paying Full Price for Netflix, Spotify & More" />
+      <meta name="twitter:description" content="Split Netflix, Spotify, YouTube Premium and more with real people — your money stays safe until access is confirmed working." />
+      <meta name="twitter:image" content="https://splitsubs.cortdevs.com/og-image-splitsubs.png" />
+    </head>
+
+    <body>
+      <div id="root"></div>
+      <script type="module" src="/src/main.tsx"></script>
+    </body>
+  </html>

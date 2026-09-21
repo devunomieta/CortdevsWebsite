@@ -6,6 +6,11 @@
         },
         {
             "source": "/((?!api/).*)",
+            "has": [{ "type": "host", "value": "splitsubs.cortdevs.com" }],
+            "destination": "/splitsubs.html"
+        },
+        {
+            "source": "/((?!api/).*)",
             "destination": "/index.html"
         }
     ],
