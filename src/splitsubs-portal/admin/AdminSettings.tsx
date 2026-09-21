@@ -61,6 +61,9 @@ export function AdminSettings() {
                 escrowHoldHoursMedium: settings.escrow_hold_hours_medium,
                 escrowHoldHoursHigh: settings.escrow_hold_hours_high,
                 newHostSettlementDelayDays: settings.new_host_settlement_delay_days,
+                payoutChargeRate: settings.payout_charge_rate,
+                payoutMinCyclePct: settings.payout_min_cycle_pct,
+                subscriptionCycleDays: settings.subscription_cycle_days,
             };
             // Only sent when the admin actually typed something — leaving these
             // blank keeps whatever key is already configured untouched.
@@ -150,6 +153,11 @@ export function AdminSettings() {
 
             <div className="space-y-3">
                 <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">Fees</h2>
+                <p className="text-xs text-muted-foreground -mt-1">
+                    Hosts absorb none of the plan cost — the price is split only across joiner seats, so a fully-booked
+                    listing recoups the host the entire subscription. The only thing ever taken from a host is the
+                    payout charge below, deducted when they actually withdraw.
+                </p>
                 <div className="grid grid-cols-2 gap-4">
                     <Field label="Default service charge" help="The % added on top of every seat's base price and paid by joiners — this is the platform's revenue per seat. New catalog services default to this rate; each one can still be overridden individually. 0.15 = 15%.">
                         <input type="number" step="0.01" min={0} max={0.5} value={settings.default_service_charge_rate} onChange={(e) => setSettings({ ...settings, default_service_charge_rate: Number(e.target.value) })} className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm" />
@@ -158,6 +166,25 @@ export function AdminSettings() {
                         <input type="number" step="0.01" min={0} max={0.1} value={settings.insurance_pool_contribution_rate} onChange={(e) => setSettings({ ...settings, insurance_pool_contribution_rate: Number(e.target.value) })} className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm" />
                     </Field>
                 </div>
+            </div>
+
+            <div className="space-y-3">
+                <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">Wallet & Withdrawal Controls</h2>
+                <p className="text-xs text-muted-foreground -mt-1">
+                    Escrow release credits a host's wallet, not their bank account directly. These settings control
+                    the second anti-scam gate: how much of a credit a host can actually withdraw, and when.
+                </p>
+                <div className="grid grid-cols-2 gap-4">
+                    <Field label="Payout charge" help="The only cost a host ever bears — a % deducted from a withdrawal, not from the plan cost. 0.01 = 1%. Covers Paystack transfer fees and platform overhead.">
+                        <input type="number" step="0.001" min={0} max={0.2} value={settings.payout_charge_rate} onChange={(e) => setSettings({ ...settings, payout_charge_rate: Number(e.target.value) })} className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm" />
+                    </Field>
+                    <Field label="Min. cycle before withdrawal" help="How far into the subscription's billing cycle a seat must be before its wallet credit becomes withdrawable — independent of the escrow hold above. 0.80 = 80%. Stops a host clearing escrow fast, then withdrawing and cancelling before the joiner's paid month is over.">
+                        <input type="number" step="0.05" min={0} max={1} value={settings.payout_min_cycle_pct} onChange={(e) => setSettings({ ...settings, payout_min_cycle_pct: Number(e.target.value) })} className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm" />
+                    </Field>
+                </div>
+                <Field label="Subscription cycle length (days)" help="The billing cycle length used to calculate the withdrawal hold above — 30 for a standard monthly plan. A credit becomes withdrawable this-many-days × the % above after its seat is confirmed.">
+                    <input type="number" min={1} max={365} value={settings.subscription_cycle_days} onChange={(e) => setSettings({ ...settings, subscription_cycle_days: Number(e.target.value) })} className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm" />
+                </Field>
             </div>
 
             <div className="space-y-3">

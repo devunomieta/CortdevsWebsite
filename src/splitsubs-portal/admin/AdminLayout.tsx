@@ -46,7 +46,7 @@ export function SplitSubsAdminLayout() {
         { label: "Listings", path: "/admin/listings", icon: ClipboardList },
         { label: "Hosts", path: "/admin/hosts", icon: Users },
         { label: "Disputes", path: "/admin/disputes", icon: Scale },
-        { label: "Settlements", path: "/admin/settlements", icon: Wallet },
+        { label: "Payouts", path: "/admin/settlements", icon: Wallet },
         { label: "Tickets", path: "/admin/tickets", icon: LifeBuoy },
         { label: "Audit Log", path: "/admin/audit-log", icon: ScrollText },
         { label: "Settings", path: "/admin/settings", icon: Settings },

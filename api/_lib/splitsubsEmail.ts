@@ -55,11 +55,11 @@ export async function sendAccessGrantedToJoiner(to: string, params: { serviceNam
   `);
 }
 
-export async function sendPayoutProcessedToHost(to: string, params: { amount: number; listingTitle: string }) {
+export async function sendPayoutProcessedToHost(to: string, params: { amount: number }) {
     await sendSplitsubsEmail(to, `💸 ${money(params.amount)} is on its way to you`, `
-    <h2 style="font-weight: 600;">Payout sent — nice work</h2>
-    <p><strong>${money(params.amount)}</strong> for <strong>${params.listingTitle}</strong> has been sent to your verified bank account.</p>
-    <p>Got more unused seats sitting idle? List them too and keep the money coming in.</p>
+    <h2 style="font-weight: 600;">Withdrawal sent — nice work</h2>
+    <p><strong>${money(params.amount)}</strong> from your SplitSubs wallet has been sent to your verified bank account.</p>
+    <p>Got more unused seats sitting idle? List them too and keep the wallet growing.</p>
   `);
 }
 

@@ -1,7 +1,4 @@
-import { useState } from "react";
-import { RefreshCw, Send } from "lucide-react";
-import { ssFetch } from "../lib/api";
-import { useToast } from "../../app/components/Toast";
+import { RefreshCw, Wallet, Lock } from "lucide-react";
 import { usePaginatedList } from "../lib/usePaginatedList";
 import { SearchBar, SortButton, Pagination } from "../components/ListControls";
 import { SEO } from "../components/SEO";
@@ -9,57 +6,51 @@ import { SEO } from "../components/SEO";
 const money = (n: number) => `₦${Number(n).toLocaleString("en-NG", { minimumFractionDigits: 2 })}`;
 
 export function AdminSettlements() {
-    const { showToast } = useToast();
-    const [busyId, setBusyId] = useState<string | null>(null);
-    const list = usePaginatedList<any>("/api/admin/splitsubs/settlements", "hosts", { defaultSort: "total", defaultOrder: "desc" });
-
-    const pay = async (hostId: string) => {
-        setBusyId(hostId);
-        try {
-            const result = await ssFetch("/api/admin/splitsubs/settlements", { method: "POST", body: JSON.stringify({ hostId }) });
-            showToast(`Payout of ${money(result.amount)} initiated.`, "success");
-            list.reload();
-        } catch (err: any) {
-            showToast(err.message || "Could not process payout.", "error");
-        } finally {
-            setBusyId(null);
-        }
-    };
+    const list = usePaginatedList<any>("/api/admin/splitsubs/settlements", "hosts", { defaultSort: "balance", defaultOrder: "desc" });
 
     return (
         <div className="max-w-4xl space-y-6">
-            <SEO title="Settlements" description="Pending host payouts." path="/admin/settlements" noindex />
+            <SEO title="Payouts" description="Host wallet balances." path="/admin/settlements" noindex />
             <div>
-                <h1 className="text-2xl font-light tracking-tight mb-1">Settlements</h1>
-                <p className="text-sm text-muted-foreground">Pending payouts, grouped by host.</p>
+                <h1 className="text-2xl font-light tracking-tight mb-1">Payouts</h1>
+                <p className="text-sm text-muted-foreground">Withdrawals are self-service from a host's wallet now — this is oversight, not a place to trigger one.</p>
             </div>
 
             <div className="flex flex-wrap gap-2 items-center">
                 <SearchBar value={list.searchInput} onChange={list.setSearchInput} placeholder="Search by host email..." />
-                <SortButton label="Amount" active={list.sort === "total"} order={list.order} onClick={() => { list.setSort("total"); list.setOrder(list.sort === "total" && list.order === "asc" ? "desc" : "asc"); }} />
+                <SortButton label="Balance" active={list.sort === "balance"} order={list.order} onClick={() => { list.setSort("balance"); list.setOrder(list.sort === "balance" && list.order === "asc" ? "desc" : "asc"); }} />
+                <SortButton label="Available" active={list.sort === "available"} order={list.order} onClick={() => { list.setSort("available"); list.setOrder(list.sort === "available" && list.order === "asc" ? "desc" : "asc"); }} />
                 <SortButton label="Host" active={list.sort === "hostEmail"} order={list.order} onClick={() => { list.setSort("hostEmail"); list.setOrder(list.sort === "hostEmail" && list.order === "asc" ? "desc" : "asc"); }} />
             </div>
 
             {list.isLoading ? (
                 <div className="flex justify-center py-20"><RefreshCw className="animate-spin text-muted-foreground" size={24} /></div>
             ) : list.items.length === 0 ? (
-                <div className="text-center py-20 border border-dashed border-border"><p className="text-muted-foreground text-sm">Nothing pending.</p></div>
+                <div className="text-center py-20 border border-dashed border-border"><p className="text-muted-foreground text-sm">No wallet activity yet.</p></div>
             ) : (
-                <div className="space-y-4">
+                <div className="space-y-3">
                     {list.items.map((h) => (
                         <div key={h.hostId} className="border border-border p-5 bg-card flex items-center justify-between gap-4">
                             <div>
                                 <p className="font-medium text-sm">{h.hostEmail || h.hostId}</p>
-                                <p className="text-xs text-muted-foreground">{h.rows.length} seat(s) · {money(h.total)}</p>
-                                {!h.payoutReady && <p className="text-xs text-rose-500 mt-1">No verified payout account yet</p>}
+                                {!h.payoutReady && <p className="text-xs text-rose-500 mt-1">No verified payout account yet — can't withdraw even once eligible</p>}
                             </div>
-                            <button
-                                onClick={() => pay(h.hostId)}
-                                disabled={!h.payoutReady || busyId === h.hostId}
-                                className="px-4 py-2.5 bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 disabled:opacity-50 shrink-0"
-                            >
-                                {busyId === h.hostId ? <RefreshCw size={14} className="animate-spin" /> : <Send size={14} />} Pay out
-                            </button>
+                            <div className="flex items-center gap-5 shrink-0 text-right">
+                                <div>
+                                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold flex items-center gap-1 justify-end"><Wallet size={11} /> Balance</p>
+                                    <p className="font-semibold">{money(h.balance)}</p>
+                                </div>
+                                <div>
+                                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Available</p>
+                                    <p className="font-semibold text-primary">{money(h.available)}</p>
+                                </div>
+                                {h.locked > 0 && (
+                                    <div>
+                                        <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold flex items-center gap-1 justify-end"><Lock size={11} /> Locked</p>
+                                        <p className="font-semibold text-muted-foreground">{money(h.locked)}</p>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     ))}
                 </div>

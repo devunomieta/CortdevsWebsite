@@ -48,7 +48,7 @@ export function DashboardLayout() {
         { label: "Overview", path: "/dashboard", icon: LayoutDashboard },
         { label: "My Seats", path: "/dashboard/seats", icon: Users },
         { label: "My Listings", path: "/dashboard/listings", icon: ListPlus },
-        { label: "Payout Account", path: "/dashboard/payout", icon: Wallet },
+        { label: "Wallet", path: "/dashboard/payout", icon: Wallet },
         { label: "Support", path: "/dashboard/support", icon: LifeBuoy },
     ];
 

@@ -53,6 +53,7 @@ import splitsubsRatingsHandler from './_handlers/splitsubs/ratings.js';
 import splitsubsDisputesHandler from './_handlers/splitsubs/disputes.js';
 import splitsubsPaymentsWebhookHandler from './_handlers/splitsubs/payments-webhook.js';
 import splitsubsPaymentsVerifyHandler from './_handlers/splitsubs/payments-verify.js';
+import splitsubsWalletHandler from './_handlers/splitsubs/wallet.js';
 
 import adminSplitsubsServicesHandler from './_handlers/admin/splitsubs/services.js';
 import adminSplitsubsListingsHandler from './_handlers/admin/splitsubs/listings.js';
@@ -120,6 +121,7 @@ const routes: Record<string, (req: VercelRequest, res: VercelResponse) => any> =
   'splitsubs/disputes': splitsubsDisputesHandler,
   'splitsubs/payments-webhook': splitsubsPaymentsWebhookHandler,
   'splitsubs/payments-verify': splitsubsPaymentsVerifyHandler,
+  'splitsubs/wallet': splitsubsWalletHandler,
   'admin/splitsubs/services': adminSplitsubsServicesHandler,
   'admin/splitsubs/listings': adminSplitsubsListingsHandler,
   'admin/splitsubs/settings': adminSplitsubsSettingsHandler,

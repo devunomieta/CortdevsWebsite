@@ -1,5 +1,5 @@
 import { supabase } from './supabase.js';
-import { escrowHoldHours } from './splitsubsFees.js';
+import { escrowHoldHours, computeWalletEligibleAt } from './splitsubsFees.js';
 import { logSplitsubsActivity } from './splitsubsAuditLog.js';
 import { sendSeatPaidToJoiner, sendNewJoinerToHost } from './splitsubsEmail.js';
 
@@ -80,9 +80,10 @@ export async function finalizeSuccessfulPayment(paymentId: string) {
 }
 
 // Releases one seat's escrow — either the joiner explicitly confirmed access,
-// or (cron) the hold window lapsed with no open dispute. Either path creates
-// the pending settlement row that the admin payout run later sweeps up, and
-// credits the insurance pool its configured slice of the service charge.
+// or (cron) the hold window lapsed with no open dispute. Either path credits
+// the host's wallet (locked until computeWalletEligibleAt — the 80%-of-cycle
+// anti-scam gate, independent of how fast escrow itself cleared) and credits
+// the insurance pool its configured slice of the service charge.
 export async function releaseEscrowForSeat(seatId: string, reason: string) {
     const { data: seat, error } = await supabase
         .from('ss_seats')
@@ -121,18 +122,22 @@ export async function releaseEscrowForSeat(seatId: string, reason: string) {
     const listing = seat.ss_listings;
 
     await supabase.rpc('ss_increment_completed_splits', { p_host_id: listing.host_id }).catch(() => {
-        // Best-effort — a missing profile row here shouldn't block the payout.
+        // Best-effort — a missing profile row here shouldn't block the credit.
     });
 
-    await supabase.from('ss_settlements').insert([{
+    const { data: settings } = await supabase.from('ss_platform_settings').select('*').eq('id', 1).single();
+
+    const eligibleAt = computeWalletEligibleAt(new Date(), settings);
+    await supabase.from('ss_wallet_transactions').insert([{
         host_id: listing.host_id,
-        listing_id: listing.id,
-        seat_ids: [seatId],
+        type: 'credit',
         amount: seat.seat_base,
-        status: 'pending',
+        source: 'escrow_release',
+        seat_id: seatId,
+        listing_id: listing.id,
+        eligible_at: eligibleAt.toISOString(),
     }]);
 
-    const { data: settings } = await supabase.from('ss_platform_settings').select('insurance_pool_contribution_rate, insurance_pool_balance').eq('id', 1).single();
     const contribution = Math.round(seat.service_charge * settings.insurance_pool_contribution_rate * 100) / 100;
     if (contribution > 0) {
         await supabase.from('ss_insurance_pool_ledger').insert([{ direction: 'credit', amount: contribution, reason: 'Service charge contribution', seat_id: seatId }]);

@@ -72,6 +72,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 await supabase.from('ss_seats').update({ status: 'refunded' }).eq('id', seat.id);
                 const { data: hostProfile } = await supabase.from('ss_host_profiles').select('strikes').eq('id', listing.host_id).maybeSingle();
                 await supabase.from('ss_host_profiles').upsert([{ id: listing.host_id, strikes: (hostProfile?.strikes || 0) + 1 }], { onConflict: 'id' });
+
+                // If escrow had already released before the dispute landed (seat was
+                // 'confirmed'), the host's wallet was already credited for it — claw
+                // that credit back with an offsetting debit so a refunded joiner can
+                // never coexist with the host still holding that money.
+                const { data: priorCredit } = await supabase
+                    .from('ss_wallet_transactions')
+                    .select('amount')
+                    .eq('seat_id', seat.id)
+                    .eq('type', 'credit')
+                    .eq('source', 'escrow_release')
+                    .maybeSingle();
+                if (priorCredit) {
+                    await supabase.from('ss_wallet_transactions').insert([{
+                        host_id: listing.host_id,
+                        type: 'debit',
+                        amount: priorCredit.amount,
+                        source: 'dispute_reversal',
+                        seat_id: seat.id,
+                        listing_id: listing.id,
+                        reason: `Dispute resolved in the joiner's favor: ${notes || 'no notes'}`,
+                    }]);
+                }
             } else if (resolution === 'resolved_release') {
                 await releaseEscrowForSeat(seat.id, 'dispute_resolved_release');
             }

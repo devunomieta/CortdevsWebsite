@@ -31,10 +31,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (event.event === 'transfer.success' || event.event === 'transfer.failed') {
             const transferCode = event.data?.transfer_code;
             const status = event.event === 'transfer.success' ? 'paid' : 'failed';
-            await supabase
-                .from('ss_settlements')
-                .update({ status, paid_at: status === 'paid' ? new Date().toISOString() : null, failure_reason: status === 'failed' ? event.data?.reason || 'Transfer failed' : null })
-                .eq('paystack_transfer_code', transferCode);
+
+            const { data: debit } = await supabase
+                .from('ss_wallet_transactions')
+                .select('id, host_id, amount, withdrawal_status')
+                .eq('withdrawal_transfer_code', transferCode)
+                .eq('type', 'debit')
+                .maybeSingle();
+
+            if (debit && debit.withdrawal_status === 'processing') {
+                await supabase.from('ss_wallet_transactions').update({ withdrawal_status: status }).eq('id', debit.id);
+
+                // A failed transfer never left the platform — put the money
+                // straight back in the host's wallet so the debit's failure
+                // doesn't just silently disappear their balance.
+                if (status === 'failed') {
+                    await supabase.from('ss_wallet_transactions').insert([{
+                        host_id: debit.host_id,
+                        type: 'credit',
+                        amount: debit.amount,
+                        source: 'admin_adjustment',
+                        reason: `Reversal — withdrawal transfer ${transferCode} failed: ${event.data?.reason || 'no reason given'}`,
+                    }]);
+                }
+            }
         }
 
         return res.status(200).json({ received: true });

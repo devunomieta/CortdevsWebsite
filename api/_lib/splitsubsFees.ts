@@ -1,13 +1,16 @@
-// The SplitSubs pricing formula (PRD "Pricing & Service Charge Model"):
+// The SplitSubs pricing formula:
 //
-//   SeatBase       = PlanCost / TotalSeats
+//   SeatBase       = PlanCost / (TotalSeats - 1)   [only joiner seats divide the cost]
 //   JoinerPays     = SeatBase * (1 + r)
-//   HostSettlement = (TotalSeats - 1) * SeatBase
+//   HostSettlement = (TotalSeats - 1) * SeatBase = PlanCost
 //
-// A host's own seat is never billed through the platform — they already pay
-// the provider directly — so it's excluded from what they're owed at
-// settlement. Only joiners' base contributions are paid out; the service
-// charge is retained as platform revenue (minus the insurance-pool slice).
+// Business rule: hosts absorb none of the plan cost. TotalSeats always
+// includes the host's own seat, but that seat is excluded from the division —
+// a fully-booked listing recoups the host the ENTIRE plan cost, not
+// PlanCost * (TotalSeats-1)/TotalSeats. The only thing ever taken from a host
+// is the payout charge deducted at withdrawal time (see computePayoutSplit),
+// not the plan cost itself. Joiners still pay the full service charge on top
+// of their base share, same as before.
 //
 // Amounts round to the kobo (2dp) at the point a joiner-facing figure is
 // produced, never mid-calculation, so a listing's displayed seat price always
@@ -24,7 +27,7 @@ export function round2(n: number): number {
 }
 
 export function computeSeatBase(planCost: number, totalSeats: number): number {
-    return round2(planCost / totalSeats);
+    return round2(planCost / (totalSeats - 1));
 }
 
 export function computeSeatPricing(planCost: number, totalSeats: number, chargeRate: number): SeatPricing {
@@ -47,4 +50,29 @@ export function escrowHoldHours(
     if (riskTier === 'low') return settings.escrow_hold_hours_low;
     if (riskTier === 'high') return settings.escrow_hold_hours_high;
     return settings.escrow_hold_hours_medium;
+}
+
+// The second anti-scam gate: even after escrow releases a seat's payment
+// into the host's wallet, that credit stays locked until this much of the
+// subscription's billing cycle has actually elapsed since the seat was
+// confirmed — a host can't clear escrow fast then withdraw and vanish before
+// the joiner's paid-for month is mostly over.
+export function computeWalletEligibleAt(
+    confirmedAt: Date,
+    settings: { payout_min_cycle_pct: number; subscription_cycle_days: number }
+): Date {
+    const holdMs = settings.payout_min_cycle_pct * settings.subscription_cycle_days * 24 * 60 * 60 * 1000;
+    return new Date(confirmedAt.getTime() + holdMs);
+}
+
+export interface PayoutSplit {
+    fee: number;
+    net: number;
+}
+
+// The payout charge — the only cost a host ever bears — taken out of a
+// withdrawal, not out of the plan cost itself.
+export function computePayoutSplit(amount: number, payoutChargeRate: number): PayoutSplit {
+    const fee = round2(amount * payoutChargeRate);
+    return { fee, net: round2(amount - fee) };
 }
