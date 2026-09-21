@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { RefreshCw, ShieldCheck, Star } from "lucide-react";
 import { ssFetch } from "../lib/api";
 import { useToast } from "../../app/components/Toast";
+import { SEO } from "../components/SEO";
 
 export function PayoutSettings() {
     const { showToast } = useToast();
@@ -37,10 +38,18 @@ export function PayoutSettings() {
 
     return (
         <div className="max-w-lg space-y-8">
+            <SEO title="Payout Account" description="Where your SplitSubs settlement money goes." path="/dashboard/payout" noindex />
             <div>
                 <h1 className="text-2xl font-light tracking-tight mb-1">Payout Account</h1>
-                <p className="text-sm text-muted-foreground">Where your settlement money goes when you host a listing.</p>
+                <p className="text-sm text-muted-foreground">Add this now so your money doesn't hold when your first payout is ready.</p>
             </div>
+
+            {!profile?.bank_account_name && (
+                <div className="border border-amber-500/30 bg-amber-500/5 p-4">
+                    <p className="text-sm font-medium">No payout account yet — you can't get paid without one.</p>
+                    <p className="text-xs text-muted-foreground mt-1">Takes less than a minute. Add your bank details below and you're set for every future payout.</p>
+                </div>
+            )}
 
             <div className="border border-border p-5 bg-card flex items-center gap-4">
                 <div className="flex items-center gap-2">
@@ -62,7 +71,7 @@ export function PayoutSettings() {
             )}
 
             <form onSubmit={handleSave} className="space-y-5 border border-border p-6 bg-card">
-                <h3 className="font-medium text-sm">{profile?.bank_account_name ? "Update account" : "Add payout account"}</h3>
+                <h3 className="font-medium text-sm">{profile?.bank_account_name ? "Update account" : "Add your account — get paid, no wahala"}</h3>
                 <div className="space-y-1.5">
                     <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Bank</label>
                     <select required value={bankCode} onChange={(e) => setBankCode(e.target.value)} className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm">

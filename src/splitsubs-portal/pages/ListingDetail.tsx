@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router";
-import { Helmet } from "react-helmet-async";
 import { RefreshCw, ShieldCheck, Star, ArrowRight } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { ssPublicFetch, ssFetch } from "../lib/api";
 import { useToast } from "../../app/components/Toast";
+import { SEO } from "../components/SEO";
 
 interface JoinerField { key: string; label: string; type: string; required: boolean; help?: string }
 
@@ -27,7 +27,7 @@ export function ListingDetail() {
 
     const handleJoin = async () => {
         if (!isAuthed) {
-            navigate(`/dashboard/login?redirect=/listing/${id}`);
+            navigate(`/dashboard/login?redirect=${encodeURIComponent(`/listing/${id}`)}`);
             return;
         }
         const missing = (listing.ss_services.joiner_fields || []).filter((f: JoinerField) => f.required && !fields[f.key]?.trim());
@@ -56,7 +56,11 @@ export function ListingDetail() {
 
     return (
         <div className="max-w-5xl mx-auto px-6 lg:px-8 py-16">
-            <Helmet><title>{listing.ss_services.name} — SplitSubs</title></Helmet>
+            <SEO
+                title={`${listing.ss_services.name} Seat Available — ${money(listing.pricing.totalPaid)}/mo`}
+                description={`Join a ${listing.ss_services.name} seat for ${money(listing.pricing.totalPaid)}/month. Money held safe until your access is confirmed working — ${listing.openSeats} seat(s) left.`}
+                path={`/listing/${id}`}
+            />
 
             <Link to="/" className="text-xs text-muted-foreground hover:text-foreground mb-8 inline-block">← Back to browse</Link>
 
@@ -69,7 +73,7 @@ export function ListingDetail() {
                     </div>
 
                     <div className="border border-border p-6 bg-card">
-                        <h3 className="text-sm font-semibold uppercase tracking-widest mb-4">What you'll need to provide</h3>
+                        <h3 className="text-sm font-semibold uppercase tracking-widest mb-4">Just fill this — no long story</h3>
                         <div className="space-y-4">
                             {(listing.ss_services.joiner_fields || []).map((f: JoinerField) => (
                                 <div key={f.key} className="space-y-1.5">
@@ -86,7 +90,7 @@ export function ListingDetail() {
                                 </div>
                             ))}
                             {(listing.ss_services.joiner_fields || []).length === 0 && (
-                                <p className="text-sm text-muted-foreground">No extra information needed — just pay to claim your seat.</p>
+                                <p className="text-sm text-muted-foreground">Nothing else needed — pay now and your seat is locked in.</p>
                             )}
                         </div>
                     </div>
@@ -94,11 +98,11 @@ export function ListingDetail() {
                     <div className="border border-border p-6 bg-secondary/30 flex gap-4">
                         <ShieldCheck className="w-6 h-6 text-primary shrink-0" />
                         <div>
-                            <h3 className="text-sm font-semibold mb-1">How escrow protects you</h3>
+                            <h3 className="text-sm font-semibold mb-1">Relax — your money is protected</h3>
                             <p className="text-xs text-muted-foreground leading-relaxed">
-                                Your payment is held by SplitSubs, not sent to the host directly. Once the host
-                                grants access, you confirm it works — that's what releases their payout. If access
-                                never arrives, you're covered: open a dispute from your dashboard.
+                                We hold your payment, not the host. The host has to grant your access first —
+                                then you confirm it's working before they see a kobo. Access never comes? You're
+                                covered: open a dispute from your dashboard and we sort it out for you.
                             </p>
                         </div>
                     </div>
@@ -107,16 +111,18 @@ export function ListingDetail() {
                 <div className="lg:col-span-2">
                     <div className="border border-border p-6 bg-card sticky top-28 space-y-6">
                         <div>
-                            <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Per seat, total</p>
+                            <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Per seat, every month</p>
                             <p className="text-4xl font-light">{money(listing.pricing.totalPaid)}</p>
                             <p className="text-xs text-muted-foreground mt-2">
-                                {money(listing.pricing.seatBase)} base + {money(listing.pricing.serviceCharge)} service charge
+                                {money(listing.pricing.seatBase)} base + {money(listing.pricing.serviceCharge)} service charge — no other charges, we promise
                             </p>
                         </div>
 
                         <div className="flex items-center justify-between text-sm border-t border-border pt-4">
                             <span className="text-muted-foreground">Seats open</span>
-                            <span className="font-semibold">{listing.openSeats} of {listing.total_seats - 1}</span>
+                            <span className={`font-semibold ${listing.openSeats <= 2 ? "text-rose-500" : ""}`}>
+                                {listing.openSeats} of {listing.total_seats - 1}{listing.openSeats <= 2 && listing.openSeats > 0 ? " — almost gone!" : ""}
+                            </span>
                         </div>
 
                         {listing.host.rating !== null && (
@@ -131,9 +137,10 @@ export function ListingDetail() {
                             disabled={isJoining || listing.openSeats < 1}
                             className="w-full py-4 bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-[0.2em] flex items-center justify-center gap-2 hover:opacity-90 transition-all disabled:opacity-50"
                         >
-                            {isJoining ? <RefreshCw className="w-4 h-4 animate-spin" /> : listing.openSeats < 1 ? "Fully claimed" : <>Pay & Join Seat <ArrowRight className="w-4 h-4" /></>}
+                            {isJoining ? <RefreshCw className="w-4 h-4 animate-spin" /> : listing.openSeats < 1 ? "Fully Claimed — Check Back Soon" : <>Secure My Seat Now <ArrowRight className="w-4 h-4" /></>}
                         </button>
-                        {!isAuthed && <p className="text-xs text-muted-foreground text-center">You'll be asked to sign in first.</p>}
+                        {!isAuthed && <p className="text-xs text-muted-foreground text-center">Quick sign-in first — takes less than a minute.</p>}
+                        <p className="text-[10px] text-center text-muted-foreground">Backed by escrow. Your money moves only when your access works.</p>
                     </div>
                 </div>
             </div>

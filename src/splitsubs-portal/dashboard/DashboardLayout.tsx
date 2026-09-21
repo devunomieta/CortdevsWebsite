@@ -3,6 +3,7 @@ import { Outlet, Link, useNavigate, useLocation } from "react-router";
 import { Helmet } from "react-helmet-async";
 import { LayoutDashboard, Users, ListPlus, LifeBuoy, Wallet, LogOut, ExternalLink, RefreshCw } from "lucide-react";
 import { supabase } from "../../lib/supabase";
+import { SplitSubsMark } from "../components/SplitSubsLogo";
 
 export function DashboardLayout() {
     const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
@@ -18,11 +19,15 @@ export function DashboardLayout() {
                 setUserEmail(session.user.email || "");
             } else {
                 setIsAuthenticated(false);
-                navigate(`/dashboard/login?redirect=${encodeURIComponent(location.pathname)}`);
+                // Include the query string too (e.g. "?create=1" from the homepage's
+                // "List a seat" CTA) — dropping it here means DashboardLogin's
+                // post-login redirect lands on a blank listings page instead of the
+                // create form the visitor actually clicked through for.
+                navigate(`/dashboard/login?redirect=${encodeURIComponent(location.pathname + location.search)}`);
             }
         };
         checkAuth();
-    }, [navigate, location.pathname]);
+    }, [navigate, location.pathname, location.search]);
 
     const handleLogout = async () => {
         await supabase.auth.signOut();
@@ -54,7 +59,7 @@ export function DashboardLayout() {
             <aside className="w-64 bg-card border-r border-border flex flex-col justify-between p-6 shrink-0">
                 <div className="space-y-8">
                     <div className="flex items-center gap-3 border-b border-border pb-6">
-                        <div className="w-9 h-9 bg-primary text-primary-foreground font-bold text-xs flex items-center justify-center">SS</div>
+                        <SplitSubsMark className="w-9 h-9 text-primary" />
                         <div>
                             <span className="font-semibold text-sm block">SplitSubs</span>
                             <span className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold block">Dashboard</span>

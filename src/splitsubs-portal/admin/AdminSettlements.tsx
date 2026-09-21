@@ -4,6 +4,7 @@ import { ssFetch } from "../lib/api";
 import { useToast } from "../../app/components/Toast";
 import { usePaginatedList } from "../lib/usePaginatedList";
 import { SearchBar, SortButton, Pagination } from "../components/ListControls";
+import { SEO } from "../components/SEO";
 
 const money = (n: number) => `₦${Number(n).toLocaleString("en-NG", { minimumFractionDigits: 2 })}`;
 
@@ -27,6 +28,7 @@ export function AdminSettlements() {
 
     return (
         <div className="max-w-4xl space-y-6">
+            <SEO title="Settlements" description="Pending host payouts." path="/admin/settlements" noindex />
             <div>
                 <h1 className="text-2xl font-light tracking-tight mb-1">Settlements</h1>
                 <p className="text-sm text-muted-foreground">Pending payouts, grouped by host.</p>

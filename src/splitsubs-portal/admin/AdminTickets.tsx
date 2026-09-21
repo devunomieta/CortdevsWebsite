@@ -4,6 +4,7 @@ import { ssFetch } from "../lib/api";
 import { useToast } from "../../app/components/Toast";
 import { usePaginatedList } from "../lib/usePaginatedList";
 import { SearchBar, SortButton, Pagination } from "../components/ListControls";
+import { SEO } from "../components/SEO";
 
 const STATUS_TABS = ["all", "open", "pending", "resolved", "closed"];
 
@@ -75,6 +76,7 @@ export function AdminTickets() {
 
     return (
         <div className="max-w-4xl space-y-6">
+            <SEO title="Support Tickets" description="Support ticket queue." path="/admin/tickets" noindex />
             <div>
                 <h1 className="text-2xl font-light tracking-tight mb-1">Support Tickets</h1>
                 <p className="text-sm text-muted-foreground">Sorted by priority, then most recently updated.</p>

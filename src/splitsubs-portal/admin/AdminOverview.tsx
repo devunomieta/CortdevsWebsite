@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { ssFetch } from "../lib/api";
+import { SEO } from "../components/SEO";
 
 const money = (n: number) => `₦${Number(n || 0).toLocaleString("en-NG", { minimumFractionDigits: 2 })}`;
 
@@ -23,6 +24,7 @@ export function AdminOverview() {
 
     return (
         <div className="space-y-10">
+            <SEO title="Admin Overview" description="SplitSubs platform metrics." path="/admin" noindex />
             <div>
                 <h1 className="text-2xl font-light tracking-tight mb-1">Overview</h1>
                 <p className="text-sm text-muted-foreground">Platform health, per the PRD's core metrics.</p>

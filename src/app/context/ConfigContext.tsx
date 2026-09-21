@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
+import { getIsSplitsubsSubdomain } from '../../lib/subdomain';
 
 export interface BrandingConfig {
     headerLogo: string;
@@ -115,6 +116,15 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     // Apply branding to DOM
     useEffect(() => {
         if (!config) return;
+
+        // SplitSubs manages its own title/description/favicon per page via
+        // react-helmet-async (see src/splitsubs-portal/components/SEO.tsx).
+        // This effect writes straight to the DOM outside of Helmet's
+        // reconciliation, so on that portal it was clobbering every page's
+        // own title/description/favicon shortly after each load with the
+        // shared "main" site_config row's values — the fix is to just not
+        // run it there.
+        if (getIsSplitsubsSubdomain()) return;
 
         // Update Title
         if (config.siteTitle) {

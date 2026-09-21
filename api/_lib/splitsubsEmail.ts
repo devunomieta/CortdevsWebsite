@@ -29,46 +29,47 @@ async function sendSplitsubsEmail(to: string, subject: string, bodyHtml: string)
 const money = (n: number) => `₦${n.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export async function sendSeatPaidToJoiner(to: string, params: { serviceName: string; totalPaid: number; confirmByHours: number }) {
-    await sendSplitsubsEmail(to, `Payment received — ${params.serviceName} seat`, `
-    <h2 style="font-weight: 600;">You're in — payment confirmed</h2>
-    <p>We've received your payment of <strong>${money(params.totalPaid)}</strong> for a ${params.serviceName} seat. It's held in escrow while the host sets up your access.</p>
-    <p>You'll get another email the moment access is granted. Please confirm it works within <strong>${params.confirmByHours} hours</strong> of that email — that's what releases the host's payout, and it's your window to flag a problem before it closes.</p>
+    await sendSplitsubsEmail(to, `You're in! ${params.serviceName} seat secured 🎉`, `
+    <h2 style="font-weight: 600;">Nice one — you just saved yourself real money</h2>
+    <p>Your payment of <strong>${money(params.totalPaid)}</strong> for a ${params.serviceName} seat is confirmed and sitting safe with us — not with the host. That's your protection.</p>
+    <p>You'll get another email the moment your access is ready. When it lands, confirm it's working within <strong>${params.confirmByHours} hours</strong> — that's what releases the host's payout, and it's your window to flag any wahala before it closes.</p>
   `);
 }
 
 export async function sendNewJoinerToHost(to: string, params: { serviceName: string; listingTitle: string; slaHours: number; dashboardUrl: string }) {
-    await sendSplitsubsEmail(to, `New joiner paid for "${params.listingTitle}"`, `
-    <h2 style="font-weight: 600;">A joiner just paid for a seat</h2>
-    <p>Someone joined your <strong>${params.listingTitle}</strong> (${params.serviceName}) listing and payment is confirmed and held in escrow.</p>
-    <p>Please grant their access within <strong>${params.slaHours} hours</strong> — go to your dashboard to see exactly what they need.</p>
-    <p><a href="${params.dashboardUrl}" style="display:inline-block;padding:10px 20px;background:#000;color:#fff;text-decoration:none;border-radius:4px;">Open dashboard</a></p>
+    await sendSplitsubsEmail(to, `💰 Money waiting — grant access on "${params.listingTitle}"`, `
+    <h2 style="font-weight: 600;">Someone just paid for your seat</h2>
+    <p>A joiner secured a seat on your <strong>${params.listingTitle}</strong> (${params.serviceName}) listing and their payment is confirmed, held safe on our side.</p>
+    <p>Grant their access within <strong>${params.slaHours} hours</strong> and your payout moves — the longer you wait, the longer your money waits too. Go to your dashboard to see exactly what they need.</p>
+    <p><a href="${params.dashboardUrl}" style="display:inline-block;padding:10px 20px;background:#000;color:#fff;text-decoration:none;border-radius:4px;">Grant Access Now</a></p>
   `);
 }
 
 export async function sendAccessGrantedToJoiner(to: string, params: { serviceName: string; accessInfoHtml: string; confirmUrl: string }) {
-    await sendSplitsubsEmail(to, `Your ${params.serviceName} access is ready`, `
-    <h2 style="font-weight: 600;">Access granted</h2>
+    await sendSplitsubsEmail(to, `Your ${params.serviceName} access is ready — confirm now`, `
+    <h2 style="font-weight: 600;">You're good to go</h2>
     <p>The host has granted your access to ${params.serviceName}:</p>
     <div style="background:#f9f9f9;padding:16px;border-left:3px solid #000;margin:16px 0;">${params.accessInfoHtml}</div>
-    <p>Please confirm it works — this is what releases the host's payout.</p>
-    <p><a href="${params.confirmUrl}" style="display:inline-block;padding:10px 20px;background:#000;color:#fff;text-decoration:none;border-radius:4px;">Confirm access works</a></p>
+    <p>Please confirm it's working now — don't leave it hanging. This is what releases the host's payout, and it locks in your seat for good.</p>
+    <p><a href="${params.confirmUrl}" style="display:inline-block;padding:10px 20px;background:#000;color:#fff;text-decoration:none;border-radius:4px;">Confirm It's Working</a></p>
   `);
 }
 
 export async function sendPayoutProcessedToHost(to: string, params: { amount: number; listingTitle: string }) {
-    await sendSplitsubsEmail(to, `Payout sent — ${money(params.amount)}`, `
-    <h2 style="font-weight: 600;">Payout on its way</h2>
+    await sendSplitsubsEmail(to, `💸 ${money(params.amount)} is on its way to you`, `
+    <h2 style="font-weight: 600;">Payout sent — nice work</h2>
     <p><strong>${money(params.amount)}</strong> for <strong>${params.listingTitle}</strong> has been sent to your verified bank account.</p>
+    <p>Got more unused seats sitting idle? List them too and keep the money coming in.</p>
   `);
 }
 
 export async function sendRenewalReminder(to: string, params: { role: 'host' | 'joiner'; serviceName: string; renewalDate: string; dashboardUrl: string }) {
-    await sendSplitsubsEmail(to, `Renewal coming up — ${params.serviceName}`, `
-    <h2 style="font-weight: 600;">Renewal reminder</h2>
+    await sendSplitsubsEmail(to, `Heads up — ${params.serviceName} renews on ${params.renewalDate}`, `
+    <h2 style="font-weight: 600;">Renewal is coming — don't get caught out</h2>
     <p>Your ${params.serviceName} split renews on <strong>${params.renewalDate}</strong>.</p>
     ${params.role === 'host'
-            ? `<p>Please confirm you've renewed the plan with the provider before then — joiners are billed based on your confirmation.</p>`
-            : `<p>Your seat will be re-billed automatically unless you cancel before then.</p>`}
+            ? `<p>Please confirm you've renewed the plan with the provider before then — your joiners are billed based on your confirmation, so don't keep them waiting.</p>`
+            : `<p>Your seat will be re-billed automatically unless you cancel before then — no action needed if you're happy to continue.</p>`}
     <p><a href="${params.dashboardUrl}" style="display:inline-block;padding:10px 20px;background:#000;color:#fff;text-decoration:none;border-radius:4px;">Open dashboard</a></p>
   `);
 }
@@ -82,15 +83,16 @@ export async function sendDisputeUpdate(to: string, params: { listingTitle: stri
 }
 
 export async function sendTicketUpdate(to: string, params: { subject: string; status: string }) {
-    await sendSplitsubsEmail(to, `Support ticket update: ${params.subject}`, `
-    <h2 style="font-weight: 600;">Your ticket status is now: ${params.status}</h2>
+    await sendSplitsubsEmail(to, `Update on your ticket: ${params.subject}`, `
+    <h2 style="font-weight: 600;">We're on it — status: ${params.status}</h2>
     <p>Ticket: <strong>${params.subject}</strong></p>
+    <p>Log in to your dashboard to see the full reply and respond if you need to.</p>
   `);
 }
 
 export async function sendHostVerificationStatus(to: string, params: { tier: string; approved: boolean }) {
-    await sendSplitsubsEmail(to, params.approved ? 'Verification approved' : 'Verification needs another look', `
-    <h2 style="font-weight: 600;">${params.approved ? `You're now ${params.tier.replace(/_/g, ' ')} verified` : 'We need more information'}</h2>
-    <p>${params.approved ? 'Faster settlement is now unlocked on your account.' : 'Please check your dashboard for what to resubmit.'}</p>
+    await sendSplitsubsEmail(to, params.approved ? "You're verified! 🎉" : 'One more step for verification', `
+    <h2 style="font-weight: 600;">${params.approved ? `You're now ${params.tier.replace(/_/g, ' ')} verified` : 'We need a little more information'}</h2>
+    <p>${params.approved ? "Faster payouts are unlocked on your account from now on. Go list those extra seats and start earning." : 'Please check your dashboard for what to resubmit — takes a minute, then you\'re fully set.'}</p>
   `);
 }

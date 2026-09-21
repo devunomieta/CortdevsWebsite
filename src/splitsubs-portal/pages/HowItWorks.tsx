@@ -1,28 +1,34 @@
-import { Helmet } from "react-helmet-async";
 import { motion } from "framer-motion";
 import { ShieldCheck, UserCheck, Wallet, Scale, LifeBuoy } from "lucide-react";
+import { SEO } from "../components/SEO";
 
 const steps = [
-    { icon: UserCheck, title: "A host lists an open seat", body: "Someone already paying for Netflix, Spotify, or another multi-seat plan lists their unused seats." },
-    { icon: Wallet, title: "You pay into escrow", body: "Your payment — seat price plus a transparent service charge — is held by SplitSubs, not sent straight to the host." },
-    { icon: ShieldCheck, title: "You confirm access works", body: "The host grants access; you check it works and confirm. That's what releases their payout." },
-    { icon: Scale, title: "Disputes are resolved by us", body: "If access never arrives, or breaks, escrow stays frozen and a SplitSubs admin steps in — not a WhatsApp group argument." },
+    { icon: UserCheck, title: "A host lists their extra seats", body: "Someone already paying for Netflix, Spotify or another multi-seat plan lists the seats they're not using — and starts earning back their money." },
+    { icon: Wallet, title: "You pay us, not the host directly", body: "Your payment — seat price plus a clear service charge, no surprises — sits safe with SplitSubs. The host doesn't touch it yet." },
+    { icon: ShieldCheck, title: "You confirm your access works", body: "Host grants access, you check it's correct, you tap confirm. Only then does the host get paid." },
+    { icon: Scale, title: "Problem? We handle it, not you", body: "If access never comes, or stops working, your money stays locked and a real human on our team steps in — no shouting match in a group chat." },
 ];
 
 export function HowItWorks() {
     return (
         <div>
-            <Helmet><title>How SplitSubs Works</title></Helmet>
+            <SEO
+                title="How SplitSubs Works — Safe Subscription Sharing"
+                description="No more WhatsApp group scams. See how SplitSubs holds your money safe until your Netflix, Spotify or YouTube Premium access is confirmed working."
+                path="/how-it-works"
+            />
 
             <section className="py-20 lg:py-28 bg-neutral-50 border-b border-border">
                 <div className="max-w-4xl mx-auto px-6 lg:px-8 text-center">
                     <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-                        <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-muted-foreground mb-6">How it Works</p>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-primary mb-6">How it Works</p>
                         <h1 className="text-4xl lg:text-5xl font-light tracking-tight mb-6">Not another WhatsApp group.</h1>
                         <p className="text-lg text-muted-foreground leading-relaxed">
-                            The informal way to split a subscription has no escrow and no recourse — a host
-                            can vanish after payment, or a joiner can vanish after access. SplitSubs fixes that
-                            with an actual safety mechanism: escrow.
+                            You know the story: someone starts a "Netflix group" in WhatsApp, collects
+                            everybody's money, and either the account link never comes or it stops working
+                            two weeks later — person don block your number. No escrow, no proof, no one to
+                            complain to. SplitSubs fixes that with one thing the group chat never had: your
+                            money doesn't move until your access actually works.
                         </p>
                     </motion.div>
                 </div>
@@ -43,21 +49,21 @@ export function HowItWorks() {
 
             <section className="py-20 lg:py-28 bg-neutral-50 border-t border-border">
                 <div className="max-w-4xl mx-auto px-6 lg:px-8">
-                    <h2 className="text-2xl font-light tracking-tight mb-8">The service charge</h2>
+                    <h2 className="text-2xl font-light tracking-tight mb-8">About that service charge</h2>
                     <p className="text-muted-foreground leading-relaxed mb-6">
-                        Every seat includes a service charge — typically 15%, shown before you ever pay — on
-                        top of the base seat price. It funds escrow protection, dispute resolution, and support.
-                        Hosts never pay a hidden cut: they receive exactly the base price for every seat that's
-                        confirmed, nothing withheld beyond their own seat.
+                        Every seat has a small, clear service charge — typically 15%, shown to you before
+                        you ever pay a kobo. It's what keeps your money protected, funds our support team,
+                        and pays for sorting out disputes when they happen. Hosts don't lose anything to it:
+                        they get paid the full base price for every confirmed seat, nothing extra held back.
                     </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="border border-border p-5 bg-card flex gap-3">
                             <LifeBuoy className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-                            <p className="text-xs text-muted-foreground">Need help? Every account gets a support ticket system with priority routing for payment and access issues.</p>
+                            <p className="text-xs text-muted-foreground">Wahala? We're here. Every account gets a support ticket system with priority routing for payment and access issues — a real reply, not silence.</p>
                         </div>
                         <div className="border border-border p-5 bg-card flex gap-3">
                             <ShieldCheck className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-                            <p className="text-xs text-muted-foreground">Hosts are bank-verified before their first payout — no anonymous accounts collecting money.</p>
+                            <p className="text-xs text-muted-foreground">Hosts get bank-verified before their first payout ever goes out. No random accounts collecting your money and disappearing.</p>
                         </div>
                     </div>
                 </div>

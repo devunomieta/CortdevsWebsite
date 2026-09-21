@@ -3,6 +3,7 @@ import { ssFetch } from "../lib/api";
 import { useToast } from "../../app/components/Toast";
 import { usePaginatedList } from "../lib/usePaginatedList";
 import { SearchBar, SortButton, Pagination } from "../components/ListControls";
+import { SEO } from "../components/SEO";
 
 export function AdminHosts() {
     const { showToast } = useToast();
@@ -28,6 +29,7 @@ export function AdminHosts() {
 
     return (
         <div className="max-w-5xl space-y-6">
+            <SEO title="Hosts" description="Host verification and management." path="/admin/hosts" noindex />
             <div>
                 <h1 className="text-2xl font-light tracking-tight mb-1">Hosts</h1>
                 <p className="text-sm text-muted-foreground">Verification tiers, ratings, strikes, and bans.</p>

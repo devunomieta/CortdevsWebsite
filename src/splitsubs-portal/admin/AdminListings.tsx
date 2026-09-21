@@ -4,6 +4,7 @@ import { ssFetch } from "../lib/api";
 import { useToast } from "../../app/components/Toast";
 import { usePaginatedList } from "../lib/usePaginatedList";
 import { SearchBar, SortButton, Pagination } from "../components/ListControls";
+import { SEO } from "../components/SEO";
 
 const TABS = ["pending_review", "active", "paused", "suspended", "rejected"];
 
@@ -28,6 +29,7 @@ export function AdminListings() {
 
     return (
         <div className="max-w-4xl space-y-6">
+            <SEO title="Listings" description="Listing moderation queue." path="/admin/listings" noindex />
             <div>
                 <h1 className="text-2xl font-light tracking-tight mb-1">Listings</h1>
                 <p className="text-sm text-muted-foreground">Moderation queue and active listing management.</p>

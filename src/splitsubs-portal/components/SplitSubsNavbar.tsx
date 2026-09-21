@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router";
-import { useConfig } from "../../app/context/ConfigContext";
+import { SplitSubsLogo } from "./SplitSubsLogo";
 
 const navLinks = [
     { to: "/", label: "Browse" },
@@ -9,7 +9,6 @@ const navLinks = [
 ];
 
 export function SplitSubsNavbar() {
-    const { config } = useConfig();
     const location = useLocation();
     const [scrolled, setScrolled] = useState(false);
 
@@ -26,16 +25,7 @@ export function SplitSubsNavbar() {
                 }`}
         >
             <div className="max-w-7xl mx-auto px-6 lg:px-8 flex items-center justify-between">
-                <Link to="/" className="flex items-center gap-3 group">
-                    <img
-                        src={config.headerLogo}
-                        alt="CortDevs"
-                        className="h-7 w-auto object-contain transition-transform group-hover:scale-105"
-                    />
-                    <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-[0.25em] text-muted-foreground border-l border-border pl-3">
-                        SplitSubs
-                    </span>
-                </Link>
+                <SplitSubsLogo className="group" iconClassName="h-8 w-8 text-primary" wordmarkClassName="text-lg text-foreground" />
 
                 <nav className="hidden md:flex items-center gap-10">
                     {navLinks.map((link) => (

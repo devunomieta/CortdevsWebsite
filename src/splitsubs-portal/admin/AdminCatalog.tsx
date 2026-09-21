@@ -4,6 +4,7 @@ import { ssFetch } from "../lib/api";
 import { useToast } from "../../app/components/Toast";
 import { usePaginatedList } from "../lib/usePaginatedList";
 import { SearchBar, SortButton, Pagination } from "../components/ListControls";
+import { SEO } from "../components/SEO";
 
 const DEFAULT_FIELDS_HELP = '[{"key":"email","label":"Email","type":"email","required":true}]';
 
@@ -106,6 +107,7 @@ export function AdminCatalog() {
 
     return (
         <div className="max-w-4xl space-y-6">
+            <SEO title="Service Catalog" description="Manage the SplitSubs service catalog." path="/admin/catalog" noindex />
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-2xl font-light tracking-tight mb-1">Service Catalog</h1>

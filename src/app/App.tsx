@@ -7,6 +7,7 @@ import { eventsRouter } from '../events-portal/routes';
 import { splitsubsRouter } from '../splitsubs-portal/routes';
 import { ConfigProvider } from './context/ConfigContext';
 import { ToastProvider } from './components/Toast';
+import { getIsSplitsubsSubdomain } from '../lib/subdomain';
 
 // Support production subdomain matching AND local dev testing via ?mode=jobs or ?subdomain=jobs query param or jobs.localhost host
 const getIsJobsSubdomain = () => {
@@ -33,20 +34,6 @@ const getIsEventsSubdomain = () => {
     hostname.includes('events.cortdevs.com') ||
     searchParams.get('mode') === 'events' ||
     searchParams.get('subdomain') === 'events'
-  );
-};
-
-// Same pattern again, for splitsubs.cortdevs.com
-const getIsSplitsubsSubdomain = () => {
-  if (typeof window === 'undefined') return false;
-  const hostname = window.location.hostname;
-  const searchParams = new URLSearchParams(window.location.search);
-
-  return (
-    hostname.startsWith('splitsubs.') ||
-    hostname.includes('splitsubs.cortdevs.com') ||
-    searchParams.get('mode') === 'splitsubs' ||
-    searchParams.get('subdomain') === 'splitsubs'
   );
 };
 

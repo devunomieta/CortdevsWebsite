@@ -3,6 +3,7 @@ import { Outlet, Link, useNavigate, useLocation } from "react-router";
 import { Helmet } from "react-helmet-async";
 import { LayoutDashboard, Layers, ClipboardList, Users, Scale, Wallet, LifeBuoy, ScrollText, Settings, LogOut, ExternalLink, RefreshCw } from "lucide-react";
 import { supabase } from "../../lib/supabase";
+import { SplitSubsMark } from "../components/SplitSubsLogo";
 
 export function SplitSubsAdminLayout() {
     const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
@@ -58,7 +59,7 @@ export function SplitSubsAdminLayout() {
             <aside className="w-64 bg-card border-r border-border flex flex-col justify-between p-6 shrink-0 overflow-y-auto">
                 <div className="space-y-8">
                     <div className="flex items-center gap-3 border-b border-border pb-6">
-                        <div className="w-9 h-9 bg-primary text-primary-foreground font-bold text-xs flex items-center justify-center">SS</div>
+                        <SplitSubsMark className="w-9 h-9 text-primary" />
                         <div>
                             <span className="font-semibold text-sm block">SplitSubs Admin</span>
                             <span className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold block">Cortdevs Internal</span>

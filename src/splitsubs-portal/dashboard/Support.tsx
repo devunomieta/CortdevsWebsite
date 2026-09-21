@@ -4,6 +4,7 @@ import { ssFetch } from "../lib/api";
 import { useToast } from "../../app/components/Toast";
 import { usePaginatedList } from "../lib/usePaginatedList";
 import { SearchBar, SortButton, Pagination } from "../components/ListControls";
+import { SEO } from "../components/SEO";
 
 const CATEGORIES = [
     { value: "payment", label: "Payment issue" },
@@ -94,10 +95,11 @@ export function Support() {
 
     return (
         <div className="max-w-3xl space-y-6">
+            <SEO title="Support" description="Get help with a payment or access issue." path="/dashboard/support" noindex />
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-2xl font-light tracking-tight mb-1">Support</h1>
-                    <p className="text-sm text-muted-foreground">Payment or access issues get priority routing.</p>
+                    <p className="text-sm text-muted-foreground">We got you — payment or access issues get priority routing, no long talk.</p>
                 </div>
                 <button onClick={() => setShowNew((v) => !v)} className="px-4 py-2.5 border border-border text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 hover:bg-secondary">
                     <Plus size={14} /> New Ticket

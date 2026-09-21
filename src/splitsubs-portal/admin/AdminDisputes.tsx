@@ -4,6 +4,7 @@ import { ssFetch } from "../lib/api";
 import { useToast } from "../../app/components/Toast";
 import { usePaginatedList } from "../lib/usePaginatedList";
 import { SearchBar, Pagination } from "../components/ListControls";
+import { SEO } from "../components/SEO";
 
 const TABS = ["open", "resolved", "all"];
 
@@ -29,6 +30,7 @@ export function AdminDisputes() {
 
     return (
         <div className="max-w-4xl space-y-6">
+            <SEO title="Disputes" description="Dispute resolution queue." path="/admin/disputes" noindex />
             <div>
                 <h1 className="text-2xl font-light tracking-tight mb-1">Disputes</h1>
                 <p className="text-sm text-muted-foreground">Escrow is frozen on every open dispute below until you resolve it.</p>

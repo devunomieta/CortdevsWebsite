@@ -5,6 +5,7 @@ import { ssFetch } from "../lib/api";
 import { useToast } from "../../app/components/Toast";
 import { usePaginatedList } from "../lib/usePaginatedList";
 import { SearchBar, SortButton, Pagination } from "../components/ListControls";
+import { SEO } from "../components/SEO";
 
 const money = (n: number) => `₦${Number(n).toLocaleString("en-NG", { minimumFractionDigits: 2 })}`;
 
@@ -41,7 +42,10 @@ function CreateListingForm({ onCreated }: { onCreated: () => void }) {
 
     return (
         <form onSubmit={handleSubmit} className="border border-border p-6 bg-card space-y-5">
-            <h3 className="font-medium">List a seat</h3>
+            <div>
+                <h3 className="font-medium">List your extra seats</h3>
+                <p className="text-xs text-muted-foreground mt-1">Two minutes to fill, and you could be earning back your subscription this week.</p>
+            </div>
             <div className="space-y-1.5">
                 <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Service</label>
                 <select required value={serviceId} onChange={(e) => setServiceId(e.target.value)} className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm">
@@ -74,7 +78,7 @@ function CreateListingForm({ onCreated }: { onCreated: () => void }) {
                 </div>
             ))}
             <button type="submit" disabled={isSubmitting} className="px-6 py-3 bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 disabled:opacity-50">
-                {isSubmitting ? <RefreshCw size={14} className="animate-spin" /> : <Send size={14} />} Submit for review
+                {isSubmitting ? <RefreshCw size={14} className="animate-spin" /> : <Send size={14} />} Submit & Start Earning
             </button>
         </form>
     );
@@ -108,13 +112,14 @@ export function MyListings() {
 
     return (
         <div className="max-w-4xl space-y-6">
+            <SEO title="My Listings" description="Subscriptions you're hosting seats on." path="/dashboard/listings" noindex />
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-2xl font-light tracking-tight mb-1">My Listings</h1>
-                    <p className="text-sm text-muted-foreground">Subscriptions you're hosting seats on.</p>
+                    <p className="text-sm text-muted-foreground">Subscriptions you're hosting — and getting paid for.</p>
                 </div>
                 <button onClick={() => { setShowCreate((v) => !v); setSearchParams({}); }} className="px-4 py-2.5 border border-border text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 hover:bg-secondary">
-                    <Plus size={14} /> {showCreate ? "Cancel" : "New Listing"}
+                    <Plus size={14} /> {showCreate ? "Cancel" : "List a Seat"}
                 </button>
             </div>
 
@@ -129,7 +134,10 @@ export function MyListings() {
             {list.isLoading ? (
                 <div className="flex justify-center py-20"><RefreshCw className="animate-spin text-muted-foreground" size={24} /></div>
             ) : list.items.length === 0 ? (
-                <div className="text-center py-20 border border-dashed border-border"><p className="text-muted-foreground text-sm">No listings match.</p></div>
+                <div className="text-center py-20 border border-dashed border-border">
+                    <p className="text-muted-foreground text-sm mb-4">No listings yet — your unused seats are just sitting there costing you money.</p>
+                    <button onClick={() => setShowCreate(true)} className="inline-block px-6 py-3 bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-widest hover:opacity-90 transition-all">List Your First Seat</button>
+                </div>
             ) : (
                 <div className="space-y-4">
                     {list.items.map((listing) => (
@@ -165,6 +173,7 @@ export function MyListings() {
                                             )}
                                             {seat.status === "escrow_held" && (
                                                 <div className="space-y-2">
+                                                    <p className="text-xs text-amber-600 font-medium">Someone already paid — grant their access now to get your money moving.</p>
                                                     <textarea
                                                         placeholder="Access details to send (invite confirmation, login, etc.)"
                                                         value={noteDrafts[seat.id] || ""}
@@ -172,7 +181,7 @@ export function MyListings() {
                                                         rows={2}
                                                         className="w-full px-3 py-2 bg-background border border-border outline-none focus:border-primary text-xs resize-none"
                                                     />
-                                                    <button onClick={() => grantAccess(seat.id)} className="px-4 py-2 bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-widest">Grant Access</button>
+                                                    <button onClick={() => grantAccess(seat.id)} className="px-4 py-2 bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-widest">Grant Access Now</button>
                                                 </div>
                                             )}
                                         </div>

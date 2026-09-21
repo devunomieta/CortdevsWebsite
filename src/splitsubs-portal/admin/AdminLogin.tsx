@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router";
-import { Helmet } from "react-helmet-async";
 import { ShieldCheck, Lock, Mail, ArrowRight, RefreshCw, Eye, EyeOff } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { useToast } from "../../app/components/Toast";
+import { SEO } from "../components/SEO";
 
 export function SplitSubsAdminLogin() {
     const [email, setEmail] = useState("");
@@ -32,7 +32,7 @@ export function SplitSubsAdminLogin() {
 
     return (
         <div className="bg-background min-h-screen flex flex-col justify-center items-center p-6">
-            <Helmet><meta name="robots" content="noindex, nofollow" /></Helmet>
+            <SEO title="Admin Sign In" description="SplitSubs staff access." path="/admin/login" noindex />
             <div className="w-full max-w-md border border-border p-8 lg:p-10 bg-card space-y-8">
                 <div className="text-center space-y-2">
                     <div className="w-12 h-12 bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4">

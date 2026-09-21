@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { RefreshCw, ArrowRight } from "lucide-react";
 import { ssFetch } from "../lib/api";
+import { SEO } from "../components/SEO";
 
 export function DashboardOverview() {
     const [seats, setSeats] = useState<any[]>([]);
@@ -24,6 +25,7 @@ export function DashboardOverview() {
 
     return (
         <div className="space-y-10 max-w-5xl">
+            <SEO title="Dashboard" description="Your SplitSubs seats and listings." path="/dashboard" noindex />
             <div>
                 <h1 className="text-2xl font-light tracking-tight mb-1">Overview</h1>
                 <p className="text-sm text-muted-foreground">Everything you're joined to and everything you're hosting, in one place.</p>
@@ -45,22 +47,22 @@ export function DashboardOverview() {
 
             {needsAction.length > 0 && (
                 <div className="border border-amber-500/30 bg-amber-500/5 p-5">
-                    <p className="text-sm font-semibold mb-1">You have {needsAction.length} seat(s) waiting on your confirmation</p>
-                    <p className="text-xs text-muted-foreground mb-3">Confirming access releases the host's payout — don't leave it hanging.</p>
-                    <Link to="/dashboard/seats" className="text-xs font-bold text-primary flex items-center gap-1">Review now <ArrowRight size={12} /></Link>
+                    <p className="text-sm font-semibold mb-1">Oya, {needsAction.length} seat(s) dey wait for your confirmation</p>
+                    <p className="text-xs text-muted-foreground mb-3">Don't sleep on this — confirming releases the host's payout, and it only takes a second.</p>
+                    <Link to="/dashboard/seats" className="text-xs font-bold text-primary flex items-center gap-1">Confirm now <ArrowRight size={12} /></Link>
                 </div>
             )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="border border-border p-6 bg-card">
-                    <h3 className="font-medium mb-2">Want to join a seat?</h3>
-                    <p className="text-xs text-muted-foreground mb-4">Browse open seats across Netflix, Spotify, YouTube Premium, and more.</p>
-                    <Link to="/" className="text-xs font-bold text-primary flex items-center gap-1">Browse open seats <ArrowRight size={12} /></Link>
+                    <h3 className="font-medium mb-2">Still paying full price alone?</h3>
+                    <p className="text-xs text-muted-foreground mb-4">Stop it. Grab an open seat on Netflix, Spotify, YouTube Premium and more — seats go fast, so don't delay.</p>
+                    <Link to="/" className="text-xs font-bold text-primary flex items-center gap-1">Grab a seat now <ArrowRight size={12} /></Link>
                 </div>
                 <div className="border border-border p-6 bg-card">
                     <h3 className="font-medium mb-2">Already paying for a premium plan?</h3>
-                    <p className="text-xs text-muted-foreground mb-4">List your open seats and get paid — escrow-protected from day one.</p>
-                    <Link to="/dashboard/listings?create=1" className="text-xs font-bold text-primary flex items-center gap-1">List a seat <ArrowRight size={12} /></Link>
+                    <p className="text-xs text-muted-foreground mb-4">You're leaving money on the table. List your extra seats and start earning back your subscription — escrow-protected from day one.</p>
+                    <Link to="/dashboard/listings?create=1" className="text-xs font-bold text-primary flex items-center gap-1">List a seat, start earning <ArrowRight size={12} /></Link>
                 </div>
             </div>
         </div>

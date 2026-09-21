@@ -4,6 +4,7 @@ import { ssFetch } from "../lib/api";
 import { useToast } from "../../app/components/Toast";
 import { usePaginatedList } from "../lib/usePaginatedList";
 import { SortButton, Pagination } from "../components/ListControls";
+import { SEO } from "../components/SEO";
 
 const STATUS_LABEL: Record<string, string> = {
     pending_payment: "Payment pending",
@@ -60,6 +61,7 @@ export function MySeats() {
 
     return (
         <div className="max-w-4xl space-y-6">
+            <SEO title="My Seats" description="Every subscription seat you've joined." path="/dashboard/seats" noindex />
             <div className="flex flex-wrap items-end justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-light tracking-tight mb-1">My Seats</h1>
@@ -72,7 +74,8 @@ export function MySeats() {
                 <div className="flex justify-center py-20"><RefreshCw className="animate-spin text-muted-foreground" size={24} /></div>
             ) : list.items.length === 0 ? (
                 <div className="text-center py-20 border border-dashed border-border">
-                    <p className="text-muted-foreground text-sm">You haven't joined any seats yet.</p>
+                    <p className="text-muted-foreground text-sm mb-4">You haven't joined any seats yet — you're still paying full price somewhere.</p>
+                    <a href="/" className="inline-block px-6 py-3 bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-widest hover:opacity-90 transition-all">Browse Seats & Start Saving</a>
                 </div>
             ) : (
                 <div className="space-y-4">
@@ -93,7 +96,7 @@ export function MySeats() {
                             <div className="flex flex-wrap gap-3 items-center">
                                 {seat.status === "access_pending" && (
                                     <button onClick={() => confirmAccess(seat.id)} disabled={busyId === seat.id} className="px-4 py-2.5 bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 disabled:opacity-50">
-                                        <ShieldCheck size={14} /> Confirm access works
+                                        <ShieldCheck size={14} /> Confirm It's Working
                                     </button>
                                 )}
                                 {["escrow_held", "access_pending", "confirmed"].includes(seat.status) && (

@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router";
-import { Helmet } from "react-helmet-async";
-import { Mail, Lock, ArrowRight, RefreshCw, Eye, EyeOff, Layers } from "lucide-react";
+import { Mail, Lock, ArrowRight, RefreshCw, Eye, EyeOff } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { useToast } from "../../app/components/Toast";
+import { SEO } from "../components/SEO";
+import { SplitSubsMark } from "../components/SplitSubsLogo";
 
 // Hosts and joiners are real Supabase Auth users (unlike the Events portal's
 // per-credential token scheme) — anyone can self-register to either join a
@@ -46,14 +47,14 @@ export function DashboardLogin() {
 
     return (
         <div className="bg-background min-h-screen flex flex-col justify-center items-center p-6">
-            <Helmet><title>{mode === "signin" ? "Sign In" : "Sign Up"} | SplitSubs</title></Helmet>
+            <SEO title={mode === "signin" ? "Sign In" : "Sign Up"} description="Sign in or create a free SplitSubs account to join a seat or start earning from your own." path="/dashboard/login" noindex />
             <div className="w-full max-w-md border border-border p-8 lg:p-10 bg-card space-y-8">
                 <div className="text-center space-y-2">
                     <div className="w-12 h-12 bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4">
-                        <Layers size={24} />
+                        <SplitSubsMark className="w-6 h-6" />
                     </div>
-                    <h1 className="text-2xl font-light tracking-tight">{mode === "signin" ? "Welcome back" : "Create your account"}</h1>
-                    <p className="text-xs text-muted-foreground uppercase tracking-widest font-bold">SplitSubs Dashboard</p>
+                    <h1 className="text-2xl font-light tracking-tight">{mode === "signin" ? "Welcome back" : "Let's get you saving"}</h1>
+                    <p className="text-xs text-muted-foreground uppercase tracking-widest font-bold">{mode === "signin" ? "SplitSubs Dashboard" : "Takes less than a minute"}</p>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-5">
@@ -75,13 +76,13 @@ export function DashboardLogin() {
                         </div>
                     </div>
                     <button type="submit" disabled={isLoading} className="w-full py-4 bg-primary text-primary-foreground text-xs font-bold uppercase tracking-widest hover:opacity-90 transition-all flex items-center justify-center gap-2 disabled:opacity-50">
-                        {isLoading ? <RefreshCw size={16} className="animate-spin" /> : <>{mode === "signin" ? "Sign In" : "Create Account"} <ArrowRight size={14} /></>}
+                        {isLoading ? <RefreshCw size={16} className="animate-spin" /> : <>{mode === "signin" ? "Sign In" : "Create Free Account"} <ArrowRight size={14} /></>}
                     </button>
                 </form>
 
                 <div className="pt-4 border-t border-border text-center space-y-3">
                     <button onClick={() => setMode(mode === "signin" ? "signup" : "signin")} className="text-xs text-muted-foreground hover:text-foreground transition-colors font-medium">
-                        {mode === "signin" ? "New here? Create an account" : "Already have an account? Sign in"}
+                        {mode === "signin" ? "New here? Join free and start splitting" : "Already have an account? Sign in"}
                     </button>
                     <div>
                         <Link to="/" className="text-xs text-muted-foreground hover:text-foreground transition-colors font-medium">← Back to SplitSubs</Link>

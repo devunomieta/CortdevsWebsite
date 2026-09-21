@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Mail, Send, CheckCircle2, RefreshCw, LifeBuoy } from "lucide-react";
-import { Helmet } from "react-helmet-async";
 import { useToast } from "../../app/components/Toast";
+import { SEO } from "../components/SEO";
 
 export function SplitSubsContact() {
     const { showToast } = useToast();
@@ -37,16 +37,21 @@ export function SplitSubsContact() {
 
     return (
         <div>
-            <Helmet><title>Contact | SplitSubs</title></Helmet>
+            <SEO
+                title="Contact"
+                description="Questions about SplitSubs before you sign up? Partnerships or press? Reach us — already joined a seat? Use the support ticket in your dashboard instead."
+                path="/contact"
+            />
 
             <section className="py-20 lg:py-32 bg-neutral-50">
                 <div className="max-w-7xl mx-auto px-6 lg:px-8">
                     <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="max-w-2xl">
-                        <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-muted-foreground mb-6">Contact</p>
-                        <h1 className="text-4xl lg:text-6xl font-light tracking-tight mb-6 leading-[1.1]">Talk to us.</h1>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-primary mb-6">Contact</p>
+                        <h1 className="text-4xl lg:text-6xl font-light tracking-tight mb-6 leading-[1.1]">Got a question? Abeg, ask us.</h1>
                         <p className="text-lg text-muted-foreground leading-relaxed">
-                            Already joined a seat or have an active split? Open a support ticket from your
-                            dashboard instead — it gets tracked and prioritized. This form is for everything else.
+                            Already joined a seat or hosting a split? Open a support ticket from your
+                            dashboard instead — it gets tracked and answered faster. This form is for
+                            everything else — questions before you sign up, partnerships, press.
                         </p>
                     </motion.div>
                 </div>

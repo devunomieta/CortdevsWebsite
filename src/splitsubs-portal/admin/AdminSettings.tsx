@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { RefreshCw, Save, KeyRound, CheckCircle2, AlertCircle } from "lucide-react";
 import { ssFetch } from "../lib/api";
 import { useToast } from "../../app/components/Toast";
+import { SEO } from "../components/SEO";
 
 function Toggle({ checked, onChange, label, description }: { checked: boolean; onChange: (v: boolean) => void; label: string; description: string }) {
     return (
@@ -92,6 +93,7 @@ export function AdminSettings() {
 
     return (
         <div className="max-w-2xl space-y-8">
+            <SEO title="Platform Settings" description="Payment methods, fees, and escrow timing." path="/admin/settings" noindex />
             <div>
                 <h1 className="text-2xl font-light tracking-tight mb-1">Platform Settings</h1>
                 <p className="text-sm text-muted-foreground">Payment methods, fee rates, and escrow timing — live everywhere the moment you save.</p>

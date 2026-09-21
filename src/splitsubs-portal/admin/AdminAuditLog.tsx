@@ -2,6 +2,7 @@ import { useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { usePaginatedList } from "../lib/usePaginatedList";
 import { SearchBar, SortButton, Pagination } from "../components/ListControls";
+import { SEO } from "../components/SEO";
 
 const ACTOR_TABS = ["all", "admin", "host", "joiner", "system"];
 
@@ -13,6 +14,7 @@ export function AdminAuditLog() {
 
     return (
         <div className="max-w-5xl space-y-6">
+            <SEO title="Audit Log" description="Platform audit log." path="/admin/audit-log" noindex />
             <div>
                 <h1 className="text-2xl font-light tracking-tight mb-1">Audit Log</h1>
                 <p className="text-sm text-muted-foreground">Every sensitive action — catalog edits, payouts, dispute resolutions, and reveals.</p>

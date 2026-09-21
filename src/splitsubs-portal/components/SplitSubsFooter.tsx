@@ -1,24 +1,22 @@
 import { Link } from "react-router";
-import { useConfig } from "../../app/context/ConfigContext";
+import { SplitSubsLogo } from "./SplitSubsLogo";
 
 export function SplitSubsFooter() {
-    const { config } = useConfig();
-
     return (
         <footer className="bg-neutral-900 text-white">
             <div className="max-w-7xl mx-auto px-6 lg:px-8 py-16">
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-12">
                     <div className="lg:col-span-2">
-                        <img src={config.footerLogo} alt="CortDevs" className="h-9 w-auto object-contain mb-6" />
+                        <SplitSubsLogo className="mb-6" iconClassName="h-9 w-9 text-white" wordmarkClassName="text-xl text-white" />
                         <p className="text-neutral-400 text-sm leading-relaxed max-w-sm mb-6">
-                            Split the cost of the premium plans you already use. Every seat is
-                            escrow-protected — a host only gets paid once you've confirmed access works.
+                            Stop carrying the full bill alone. Split Netflix, Spotify and more with real
+                            people — your money stays safe with us until your access is confirmed working.
                         </p>
                         <Link
                             to="/dashboard"
                             className="inline-flex items-center justify-center px-6 py-3 bg-white text-neutral-900 text-[10px] font-bold tracking-[0.2em] uppercase hover:opacity-90 transition-all"
                         >
-                            Get Started
+                            Join Free Today
                         </Link>
                     </div>
 
@@ -42,7 +40,7 @@ export function SplitSubsFooter() {
 
                 <div className="border-t border-neutral-800 mt-12 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
                     <p className="text-xs text-neutral-500">© 2026 CortDevs Group. SplitSubs.</p>
-                    <p className="text-xs text-neutral-500">Every seat is escrow-protected.</p>
+                    <p className="text-xs text-neutral-500">Your money dey safe — every seat is escrow-protected.</p>
                 </div>
             </div>
         </footer>
