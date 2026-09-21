@@ -33,7 +33,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === 'POST') {
-        const { name, category, maxSeats, defaultChargeRate, riskTier, hostFields, joinerFields, riskNote, iconUrl } = req.body || {};
+        const { name, category, maxSeats, defaultChargeRate, riskTier, hostFields, joinerFields, riskNote, iconUrl, billingCycleUnit, billingCycleCount } = req.body || {};
         if (!isNonEmpty(name) || !isNonEmpty(category) || !maxSeats) {
             return res.status(400).json({ error: 'name, category, and maxSeats are required.' });
         }
@@ -42,6 +42,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const rate = defaultChargeRate !== undefined ? Number(defaultChargeRate) : 0.15;
         if (rate < 0 || rate > 0.5) return res.status(400).json({ error: 'defaultChargeRate must be between 0 and 0.5.' });
         if (riskTier && !['low', 'medium', 'high'].includes(riskTier)) return res.status(400).json({ error: 'riskTier must be low, medium, or high.' });
+        if (billingCycleUnit && !['day', 'week', 'month', 'quarter', 'biannual', 'year'].includes(billingCycleUnit)) {
+            return res.status(400).json({ error: 'billingCycleUnit must be day, week, month, quarter, biannual, or year.' });
+        }
 
         try {
             const { data, error } = await supabase
@@ -49,6 +52,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 .insert([{
                     name: name.trim(), slug: slugify(name), category: category.trim(), max_seats: Number(maxSeats),
                     default_charge_rate: rate, risk_tier: riskTier || 'medium',
+                    billing_cycle_unit: billingCycleUnit || 'month', billing_cycle_count: billingCycleCount ? Number(billingCycleCount) : 1,
                     host_fields: hostFields || [], joiner_fields: joinerFields || [], risk_note: riskNote || null, icon_url: iconUrl || null,
                 }])
                 .select('id')
@@ -64,7 +68,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === 'PATCH') {
-        const { id, name, category, maxSeats, defaultChargeRate, riskTier, hostFields, joinerFields, riskNote, iconUrl, status } = req.body || {};
+        const { id, name, category, maxSeats, defaultChargeRate, riskTier, hostFields, joinerFields, riskNote, iconUrl, status, billingCycleUnit, billingCycleCount } = req.body || {};
         if (!id) return res.status(400).json({ error: 'id is required.' });
 
         try {
@@ -78,6 +82,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             if (joinerFields !== undefined) patch.joiner_fields = joinerFields;
             if (riskNote !== undefined) patch.risk_note = riskNote;
             if (iconUrl !== undefined) patch.icon_url = iconUrl;
+            if (billingCycleUnit !== undefined) {
+                if (!['day', 'week', 'month', 'quarter', 'biannual', 'year'].includes(billingCycleUnit)) return res.status(400).json({ error: 'Invalid billingCycleUnit.' });
+                patch.billing_cycle_unit = billingCycleUnit;
+            }
+            if (billingCycleCount !== undefined) patch.billing_cycle_count = Number(billingCycleCount);
             if (status !== undefined) {
                 if (!['active', 'inactive'].includes(status)) return res.status(400).json({ error: 'status must be active or inactive.' });
                 patch.status = status;

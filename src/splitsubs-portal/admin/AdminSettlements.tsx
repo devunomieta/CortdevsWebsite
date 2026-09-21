@@ -9,7 +9,7 @@ export function AdminSettlements() {
     const list = usePaginatedList<any>("/api/admin/splitsubs/settlements", "hosts", { defaultSort: "balance", defaultOrder: "desc" });
 
     return (
-        <div className="max-w-4xl space-y-6">
+        <div className="max-w-6xl space-y-6">
             <SEO title="Payouts" description="Host wallet balances." path="/admin/settlements" noindex />
             <div>
                 <h1 className="text-2xl font-light tracking-tight mb-1">Payouts</h1>

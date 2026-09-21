@@ -45,6 +45,8 @@ import splitsubsServicesHandler from './_handlers/splitsubs/services.js';
 import splitsubsListingsHandler from './_handlers/splitsubs/listings.js';
 import splitsubsHostListingsHandler from './_handlers/splitsubs/host-listings.js';
 import splitsubsHostProfileHandler from './_handlers/splitsubs/host-profile.js';
+import splitsubsProfileHandler from './_handlers/splitsubs/profile.js';
+import splitsubsTransactionsHandler from './_handlers/splitsubs/transactions.js';
 import splitsubsMySeatsHandler from './_handlers/splitsubs/my-seats.js';
 import splitsubsJoinHandler from './_handlers/splitsubs/join.js';
 import splitsubsAccessHandler from './_handlers/splitsubs/access.js';
@@ -54,6 +56,7 @@ import splitsubsDisputesHandler from './_handlers/splitsubs/disputes.js';
 import splitsubsPaymentsWebhookHandler from './_handlers/splitsubs/payments-webhook.js';
 import splitsubsPaymentsVerifyHandler from './_handlers/splitsubs/payments-verify.js';
 import splitsubsWalletHandler from './_handlers/splitsubs/wallet.js';
+import splitsubsPrepaidWalletHandler from './_handlers/splitsubs/prepaid-wallet.js';
 
 import adminSplitsubsServicesHandler from './_handlers/admin/splitsubs/services.js';
 import adminSplitsubsListingsHandler from './_handlers/admin/splitsubs/listings.js';
@@ -113,6 +116,8 @@ const routes: Record<string, (req: VercelRequest, res: VercelResponse) => any> =
   'splitsubs/listings': splitsubsListingsHandler,
   'splitsubs/host-listings': splitsubsHostListingsHandler,
   'splitsubs/host-profile': splitsubsHostProfileHandler,
+  'splitsubs/profile': splitsubsProfileHandler,
+  'splitsubs/transactions': splitsubsTransactionsHandler,
   'splitsubs/my-seats': splitsubsMySeatsHandler,
   'splitsubs/join': splitsubsJoinHandler,
   'splitsubs/access': splitsubsAccessHandler,
@@ -122,6 +127,7 @@ const routes: Record<string, (req: VercelRequest, res: VercelResponse) => any> =
   'splitsubs/payments-webhook': splitsubsPaymentsWebhookHandler,
   'splitsubs/payments-verify': splitsubsPaymentsVerifyHandler,
   'splitsubs/wallet': splitsubsWalletHandler,
+  'splitsubs/prepaid-wallet': splitsubsPrepaidWalletHandler,
   'admin/splitsubs/services': adminSplitsubsServicesHandler,
   'admin/splitsubs/listings': adminSplitsubsListingsHandler,
   'admin/splitsubs/settings': adminSplitsubsSettingsHandler,

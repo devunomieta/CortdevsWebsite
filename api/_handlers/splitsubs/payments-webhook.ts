@@ -22,9 +22,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
         if (event.event === 'charge.success') {
             const reference = event.data?.reference;
-            const { data: payment } = await supabase.from('ss_payments').select('id, status').eq('provider', 'paystack').eq('provider_reference', reference).maybeSingle();
-            if (payment && payment.status === 'pending') {
-                await finalizeSuccessfulPayment(payment.id);
+
+            if (String(reference || '').startsWith('ss_tw_')) {
+                // A prepaid wallet top-up, not a seat payment — see splitsubs/prepaid-wallet.ts.
+                await supabase.from('ss_prepaid_wallet_transactions').update({ status: 'success' }).eq('provider_reference', reference).eq('status', 'pending');
+            } else {
+                const { data: payment } = await supabase.from('ss_payments').select('id, status').eq('provider', 'paystack').eq('provider_reference', reference).maybeSingle();
+                if (payment && payment.status === 'pending') {
+                    await finalizeSuccessfulPayment(payment.id);
+                }
             }
         }
 

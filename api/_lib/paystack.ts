@@ -84,8 +84,14 @@ export async function resolveAccountNumber(mode: 'live' | 'test', accountNumber:
     return body.data as { account_number: string; account_name: string };
 }
 
+// Paystack's full Nigerian bank list — every commercial bank plus every
+// licensed microfinance bank it settles NUBAN transfers to (Moniepoint MFB,
+// Sparkle, Fairmoney MFB, etc.), not a hand-picked subset. type=nuban keeps
+// the dropdown to accounts createTransferRecipient below can actually pay
+// out to — Paystack's list also includes mobile-money-only entries that
+// would resolve fine but fail at transfer-recipient creation.
 export async function listBanks(mode: 'live' | 'test') {
-    const body = await paystackFetch(mode, '/bank?country=nigeria');
+    const body = await paystackFetch(mode, '/bank?country=nigeria&type=nuban');
     return body.data as { name: string; code: string; slug: string }[];
 }
 

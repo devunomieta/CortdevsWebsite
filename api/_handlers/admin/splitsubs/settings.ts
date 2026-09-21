@@ -54,7 +54,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             ['newHostSettlementDelayDays', 'new_host_settlement_delay_days', 0, 30],
             ['payoutChargeRate', 'payout_charge_rate', 0, 0.2],
             ['payoutMinCyclePct', 'payout_min_cycle_pct', 0, 1],
-            ['subscriptionCycleDays', 'subscription_cycle_days', 1, 365],
         ];
         for (const [key, column, min, max] of numericFields) {
             if (body[key] !== undefined) {

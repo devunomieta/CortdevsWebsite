@@ -12,6 +12,8 @@ import { MySeats } from "./dashboard/MySeats";
 import { MyListings } from "./dashboard/MyListings";
 import { PayoutSettings } from "./dashboard/PayoutSettings";
 import { Support } from "./dashboard/Support";
+import { Profile } from "./dashboard/Profile";
+import { Transactions } from "./dashboard/Transactions";
 
 import { SplitSubsAdminLogin } from "./admin/AdminLogin";
 import { SplitSubsAdminLayout } from "./admin/AdminLayout";
@@ -44,7 +46,9 @@ export const splitsubsRouter = createBrowserRouter([
             { index: true, element: <DashboardOverview /> },
             { path: "seats", element: <MySeats /> },
             { path: "listings", element: <MyListings /> },
+            { path: "transactions", element: <Transactions /> },
             { path: "payout", element: <PayoutSettings /> },
+            { path: "profile", element: <Profile /> },
             { path: "support", element: <Support /> },
         ],
     },

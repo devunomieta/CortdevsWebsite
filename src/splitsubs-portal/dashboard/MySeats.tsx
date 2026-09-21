@@ -60,7 +60,7 @@ export function MySeats() {
     };
 
     return (
-        <div className="max-w-4xl space-y-6">
+        <div className="max-w-6xl space-y-6">
             <SEO title="My Seats" description="Every subscription seat you've joined." path="/dashboard/seats" noindex />
             <div className="flex flex-wrap items-end justify-between gap-4">
                 <div>

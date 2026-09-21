@@ -129,7 +129,7 @@ export function PayoutSettings() {
     if (isLoading) return <div className="flex justify-center py-20"><RefreshCw className="animate-spin text-muted-foreground" size={24} /></div>;
 
     return (
-        <div className="max-w-lg space-y-8">
+        <div className="max-w-xl mx-auto space-y-8">
             <SEO title="Wallet & Payout Account" description="Your SplitSubs wallet balance and payout account." path="/dashboard/payout" noindex />
             <div>
                 <h1 className="text-2xl font-light tracking-tight mb-1 flex items-center gap-2"><Wallet size={22} /> Wallet</h1>

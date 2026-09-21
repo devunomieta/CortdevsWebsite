@@ -5,12 +5,14 @@ import { verifyAuth } from '../../_lib/auth.js';
 import { computeSeatPricing } from '../../_lib/splitsubsFees.js';
 import { isNonEmpty } from '../../_lib/validation.js';
 import { initializeTransaction } from '../../_lib/paystack.js';
+import { getPrepaidBalance } from '../../_lib/splitsubsPrepaidWallet.js';
+import { finalizeSuccessfulPayment } from '../../_lib/splitsubsPayments.js';
 
 // POST — a joiner claims a seat on a listing and starts payment. Seat claim
-// itself is atomic (ss_claim_seat, row-locked against overselling); payment
-// initialization is Paystack-only for now (Direct Transfer, when enabled,
-// uses a different confirmation path — see payments-verify.ts's provider
-// branch) and is skipped when the admin has Paystack toggled off.
+// itself is atomic (ss_claim_seat, row-locked against overselling). Three
+// providers: Paystack and Direct Transfer both round-trip through a real
+// checkout; 'wallet' (prepaid balance — splitsubs/prepaid-wallet.ts) settles
+// instantly, no checkout at all, straight into finalizeSuccessfulPayment.
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
@@ -38,11 +40,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (missing.length) return res.status(400).json({ error: `Missing required field(s): ${missing.join(', ')}` });
 
         const { data: settings } = await supabase.from('ss_platform_settings').select('paystack_enabled, paystack_mode, direct_transfer_enabled').eq('id', 1).single();
-        const chosenProvider = provider === 'direct_transfer' ? 'direct_transfer' : 'paystack';
+        const chosenProvider = provider === 'direct_transfer' ? 'direct_transfer' : provider === 'wallet' ? 'wallet' : 'paystack';
         if (chosenProvider === 'paystack' && !settings.paystack_enabled) return res.status(400).json({ error: 'Card/bank payment is temporarily unavailable — try Direct Transfer.' });
         if (chosenProvider === 'direct_transfer' && !settings.direct_transfer_enabled) return res.status(400).json({ error: 'Direct Transfer is temporarily unavailable — try Paystack.' });
 
         const pricing = computeSeatPricing(listing.plan_cost, listing.total_seats, listing.charge_rate);
+
+        if (chosenProvider === 'wallet') {
+            const balance = await getPrepaidBalance(joiner.id);
+            if (balance < pricing.totalPaid) {
+                return res.status(400).json({ error: `Your wallet balance (₦${balance.toLocaleString()}) is short of the ₦${pricing.totalPaid.toLocaleString()} needed. Top up or choose another payment method.` });
+            }
+        }
 
         const { data: seatId, error: claimError } = await supabase.rpc('ss_claim_seat', {
             p_listing_id: listing.id,
@@ -60,6 +69,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             };
             const msg = Object.keys(known).find((k) => claimError.message?.includes(k));
             return res.status(409).json({ error: msg ? known[msg] : 'Could not claim a seat — please try again.' });
+        }
+
+        if (chosenProvider === 'wallet') {
+            // Re-check right before spending — narrows (doesn't eliminate) the
+            // race window against a second simultaneous wallet-funded join by
+            // the same user. If it did slip through, cancel the seat we just
+            // claimed rather than leave a phantom unpaid hold on it.
+            const balanceNow = await getPrepaidBalance(joiner.id);
+            if (balanceNow < pricing.totalPaid) {
+                await supabase.from('ss_seats').update({ status: 'cancelled' }).eq('id', seatId);
+                return res.status(409).json({ error: 'Your balance changed — please try again.' });
+            }
+
+            const reference = `ss_wl_${crypto.randomUUID()}`;
+            await supabase.from('ss_prepaid_wallet_transactions').insert([{
+                user_id: joiner.id, type: 'spend', amount: pricing.totalPaid, source: 'seat_payment', seat_id: seatId,
+            }]);
+            const { data: payment, error: paymentError } = await supabase.from('ss_payments').insert([{
+                seat_id: seatId,
+                provider: 'wallet',
+                provider_reference: reference,
+                amount: pricing.totalPaid,
+                mode: settings.paystack_mode,
+                status: 'pending',
+            }]).select('id').single();
+            if (paymentError) throw paymentError;
+
+            await finalizeSuccessfulPayment(payment.id);
+            return res.status(200).json({ seatId, provider: 'wallet', success: true });
         }
 
         if (chosenProvider === 'direct_transfer') {

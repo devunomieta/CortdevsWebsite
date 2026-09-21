@@ -1,5 +1,5 @@
 import { supabase } from './supabase.js';
-import { escrowHoldHours, computeWalletEligibleAt } from './splitsubsFees.js';
+import { escrowHoldHours, computeWalletEligibleAt, billingCycleDays } from './splitsubsFees.js';
 import { logSplitsubsActivity } from './splitsubsAuditLog.js';
 import { sendSeatPaidToJoiner, sendNewJoinerToHost } from './splitsubsEmail.js';
 
@@ -87,7 +87,7 @@ export async function finalizeSuccessfulPayment(paymentId: string) {
 export async function releaseEscrowForSeat(seatId: string, reason: string) {
     const { data: seat, error } = await supabase
         .from('ss_seats')
-        .select('*, ss_listings(id, host_id, title)')
+        .select('*, ss_listings(id, host_id, title, ss_services(billing_cycle_unit, billing_cycle_count))')
         .eq('id', seatId)
         .maybeSingle();
     if (error || !seat) throw new Error('Seat not found.');
@@ -127,7 +127,9 @@ export async function releaseEscrowForSeat(seatId: string, reason: string) {
 
     const { data: settings } = await supabase.from('ss_platform_settings').select('*').eq('id', 1).single();
 
-    const eligibleAt = computeWalletEligibleAt(new Date(), settings);
+    const service = listing.ss_services;
+    const cycleDays = billingCycleDays(service?.billing_cycle_unit || 'month', service?.billing_cycle_count || 1);
+    const eligibleAt = computeWalletEligibleAt(new Date(), cycleDays, settings);
     await supabase.from('ss_wallet_transactions').insert([{
         host_id: listing.host_id,
         type: 'credit',

@@ -75,7 +75,7 @@ export function AdminTickets() {
     if (selected) return <TicketThread ticketId={selected} onBack={() => { setSelected(null); list.reload(); }} />;
 
     return (
-        <div className="max-w-4xl space-y-6">
+        <div className="max-w-6xl space-y-6">
             <SEO title="Support Tickets" description="Support ticket queue." path="/admin/tickets" noindex />
             <div>
                 <h1 className="text-2xl font-light tracking-tight mb-1">Support Tickets</h1>

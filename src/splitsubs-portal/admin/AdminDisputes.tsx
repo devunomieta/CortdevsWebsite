@@ -29,7 +29,7 @@ export function AdminDisputes() {
     };
 
     return (
-        <div className="max-w-4xl space-y-6">
+        <div className="max-w-6xl space-y-6">
             <SEO title="Disputes" description="Dispute resolution queue." path="/admin/disputes" noindex />
             <div>
                 <h1 className="text-2xl font-light tracking-tight mb-1">Disputes</h1>

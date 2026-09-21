@@ -28,7 +28,7 @@ export function AdminListings() {
     };
 
     return (
-        <div className="max-w-4xl space-y-6">
+        <div className="max-w-6xl space-y-6">
             <SEO title="Listings" description="Listing moderation queue." path="/admin/listings" noindex />
             <div>
                 <h1 className="text-2xl font-light tracking-tight mb-1">Listings</h1>

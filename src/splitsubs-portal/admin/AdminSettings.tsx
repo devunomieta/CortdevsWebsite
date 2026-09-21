@@ -63,7 +63,6 @@ export function AdminSettings() {
                 newHostSettlementDelayDays: settings.new_host_settlement_delay_days,
                 payoutChargeRate: settings.payout_charge_rate,
                 payoutMinCyclePct: settings.payout_min_cycle_pct,
-                subscriptionCycleDays: settings.subscription_cycle_days,
             };
             // Only sent when the admin actually typed something — leaving these
             // blank keeps whatever key is already configured untouched.
@@ -95,7 +94,7 @@ export function AdminSettings() {
     if (isLoading || !settings) return <div className="flex justify-center py-20"><RefreshCw className="animate-spin text-muted-foreground" size={24} /></div>;
 
     return (
-        <div className="max-w-2xl space-y-8">
+        <div className="max-w-2xl mx-auto space-y-8">
             <SEO title="Platform Settings" description="Payment methods, fees, and escrow timing." path="/admin/settings" noindex />
             <div>
                 <h1 className="text-2xl font-light tracking-tight mb-1">Platform Settings</h1>
@@ -132,6 +131,26 @@ export function AdminSettings() {
                             <button onClick={() => clearKey("test")} className="px-3 text-xs text-rose-500 border border-border hover:bg-secondary">Clear</button>
                         )}
                     </div>
+                </div>
+
+                <div className="border border-border p-4 bg-card space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Webhook URL — paste into Paystack → Settings → API Keys & Webhooks</label>
+                    <div className="flex gap-2">
+                        <input readOnly value="https://splitsubs.cortdevs.com/api/splitsubs/payments-webhook" onFocus={(e) => e.target.select()} className="flex-1 px-4 py-3 bg-secondary border border-border outline-none text-sm font-mono" />
+                        <button type="button" onClick={() => { navigator.clipboard.writeText("https://splitsubs.cortdevs.com/api/splitsubs/payments-webhook"); showToast("Copied.", "success"); }} className="px-4 text-xs border border-border hover:bg-secondary">Copy</button>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                        Paystack has no separate "webhook secret" to configure — it signs every webhook with the
+                        secret key itself, and this app already verifies against both your live and test keys, so
+                        one URL correctly handles both modes.
+                        <br /><br />
+                        <strong>Sharing this Paystack account with another system that already owns this URL slot?</strong> Two
+                        options: (1) give SplitSubs its own Paystack integration (its own API keys, entered above) —
+                        the clean fix, since each integration gets its own webhook URL; or (2) if it truly must be one
+                        account, have the other system forward the raw webhook body and the <code>x-paystack-signature</code> header,
+                        unmodified, to the URL above — signature verification only depends on the secret key, not on
+                        which URL Paystack originally sent it to, so a forwarded event still verifies correctly.
+                    </p>
                 </div>
             </div>
 
@@ -178,13 +197,15 @@ export function AdminSettings() {
                     <Field label="Payout charge" help="The only cost a host ever bears — a % deducted from a withdrawal, not from the plan cost. 0.01 = 1%. Covers Paystack transfer fees and platform overhead.">
                         <input type="number" step="0.001" min={0} max={0.2} value={settings.payout_charge_rate} onChange={(e) => setSettings({ ...settings, payout_charge_rate: Number(e.target.value) })} className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm" />
                     </Field>
-                    <Field label="Min. cycle before withdrawal" help="How far into the subscription's billing cycle a seat must be before its wallet credit becomes withdrawable — independent of the escrow hold above. 0.80 = 80%. Stops a host clearing escrow fast, then withdrawing and cancelling before the joiner's paid month is over.">
+                    <Field label="Min. cycle before withdrawal" help="How far into the subscription's billing cycle a seat must be before its wallet credit becomes withdrawable — independent of the escrow hold above. 0.80 = 80%. Stops a host clearing escrow fast, then withdrawing and cancelling before the joiner's paid period is over.">
                         <input type="number" step="0.05" min={0} max={1} value={settings.payout_min_cycle_pct} onChange={(e) => setSettings({ ...settings, payout_min_cycle_pct: Number(e.target.value) })} className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm" />
                     </Field>
                 </div>
-                <Field label="Subscription cycle length (days)" help="The billing cycle length used to calculate the withdrawal hold above — 30 for a standard monthly plan. A credit becomes withdrawable this-many-days × the % above after its seat is confirmed.">
-                    <input type="number" min={1} max={365} value={settings.subscription_cycle_days} onChange={(e) => setSettings({ ...settings, subscription_cycle_days: Number(e.target.value) })} className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm" />
-                </Field>
+                <p className="text-xs text-muted-foreground">
+                    The billing cycle itself (daily, weekly, monthly, bi-annual, yearly...) is set per service, not
+                    globally — Netflix and a yearly DSTV plan don't share one cycle length. Set it on each entry in
+                    the <a href="/admin/catalog" className="text-primary underline">Service Catalog</a>.
+                </p>
             </div>
 
             <div className="space-y-3">

@@ -24,7 +24,7 @@ export function DashboardOverview() {
     const pendingReview = listings.filter((l) => l.status === "pending_review");
 
     return (
-        <div className="space-y-10 max-w-5xl">
+        <div className="space-y-10 max-w-7xl">
             <SEO title="Dashboard" description="Your SplitSubs seats and listings." path="/dashboard" noindex />
             <div>
                 <h1 className="text-2xl font-light tracking-tight mb-1">Overview</h1>

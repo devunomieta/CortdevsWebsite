@@ -15,6 +15,8 @@ function ServiceForm({ onSaved }: { onSaved: () => void }) {
     const [maxSeats, setMaxSeats] = useState("4");
     const [defaultChargeRate, setDefaultChargeRate] = useState("0.15");
     const [riskTier, setRiskTier] = useState("medium");
+    const [billingCycleUnit, setBillingCycleUnit] = useState("month");
+    const [billingCycleCount, setBillingCycleCount] = useState("1");
     const [hostFields, setHostFields] = useState("[]");
     const [joinerFields, setJoinerFields] = useState(DEFAULT_FIELDS_HELP);
     const [riskNote, setRiskNote] = useState("");
@@ -28,7 +30,7 @@ function ServiceForm({ onSaved }: { onSaved: () => void }) {
             const joinerFieldsJson = JSON.parse(joinerFields || "[]");
             await ssFetch("/api/admin/splitsubs/services", {
                 method: "POST",
-                body: JSON.stringify({ name, category, maxSeats: Number(maxSeats), defaultChargeRate: Number(defaultChargeRate), riskTier, hostFields: hostFieldsJson, joinerFields: joinerFieldsJson, riskNote }),
+                body: JSON.stringify({ name, category, maxSeats: Number(maxSeats), defaultChargeRate: Number(defaultChargeRate), riskTier, billingCycleUnit, billingCycleCount: Number(billingCycleCount), hostFields: hostFieldsJson, joinerFields: joinerFieldsJson, riskNote }),
             });
             showToast("Service added to catalog.", "success");
             onSaved();
@@ -72,6 +74,23 @@ function ServiceForm({ onSaved }: { onSaved: () => void }) {
             </div>
             <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Billing cycle</label>
+                    <div className="flex gap-2">
+                        <input type="number" min={1} max={60} value={billingCycleCount} onChange={(e) => setBillingCycleCount(e.target.value)} className="w-20 px-3 py-3 bg-background border border-border outline-none focus:border-primary text-sm" />
+                        <select value={billingCycleUnit} onChange={(e) => setBillingCycleUnit(e.target.value)} className="flex-1 px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm">
+                            <option value="day">Day(s)</option>
+                            <option value="week">Week(s)</option>
+                            <option value="month">Month(s)</option>
+                            <option value="quarter">Quarter(s)</option>
+                            <option value="biannual">Half-year(s)</option>
+                            <option value="year">Year(s)</option>
+                        </select>
+                    </div>
+                    <p className="text-xs text-muted-foreground">How often this plan renews — drives the wallet withdrawal hold, not just display.</p>
+                </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
                     <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Host fields (JSON)</label>
                     <textarea value={hostFields} onChange={(e) => setHostFields(e.target.value)} rows={4} className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-xs font-mono resize-none" />
                 </div>
@@ -105,8 +124,17 @@ export function AdminCatalog() {
         }
     };
 
+    const updateCycle = async (id: string, billingCycleUnit: string, billingCycleCount: number) => {
+        try {
+            await ssFetch("/api/admin/splitsubs/services", { method: "PATCH", body: JSON.stringify({ id, billingCycleUnit, billingCycleCount }) });
+            list.reload();
+        } catch (err: any) {
+            showToast(err.message || "Could not update billing cycle.", "error");
+        }
+    };
+
     return (
-        <div className="max-w-4xl space-y-6">
+        <div className="max-w-6xl space-y-6">
             <SEO title="Service Catalog" description="Manage the SplitSubs service catalog." path="/admin/catalog" noindex />
             <div className="flex items-center justify-between">
                 <div>
@@ -140,6 +168,17 @@ export function AdminCatalog() {
                                 <p className="text-xs text-muted-foreground">{s.category} · up to {s.max_seats} seats · {(s.default_charge_rate * 100).toFixed(0)}% charge · {s.risk_tier} risk</p>
                             </div>
                             <div className="flex items-center gap-3">
+                                <div className="flex gap-1">
+                                    <input type="number" min={1} max={60} defaultValue={s.billing_cycle_count} onBlur={(e) => updateCycle(s.id, s.billing_cycle_unit, Number(e.target.value))} className="w-14 px-2 py-2 bg-background border border-border text-xs outline-none" />
+                                    <select value={s.billing_cycle_unit} onChange={(e) => updateCycle(s.id, e.target.value, s.billing_cycle_count)} className="px-2 py-2 bg-background border border-border text-xs outline-none">
+                                        <option value="day">day(s)</option>
+                                        <option value="week">week(s)</option>
+                                        <option value="month">month(s)</option>
+                                        <option value="quarter">quarter(s)</option>
+                                        <option value="biannual">half-yr(s)</option>
+                                        <option value="year">year(s)</option>
+                                    </select>
+                                </div>
                                 <span className={`text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 ${s.status === "active" ? "bg-primary/10 text-primary" : "bg-secondary text-muted-foreground"}`}>{s.status}</span>
                                 <button onClick={() => toggleStatus(s.id, s.status)} className="p-2 border border-border hover:bg-secondary" title="Toggle status"><Power size={14} /></button>
                             </div>

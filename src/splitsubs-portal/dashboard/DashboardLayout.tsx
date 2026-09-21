@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Outlet, Link, useNavigate, useLocation } from "react-router";
 import { Helmet } from "react-helmet-async";
-import { LayoutDashboard, Users, ListPlus, LifeBuoy, Wallet, LogOut, ExternalLink, RefreshCw } from "lucide-react";
+import { LayoutDashboard, Users, ListPlus, Receipt, LifeBuoy, Wallet, UserCircle, LogOut, ExternalLink, RefreshCw } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { SplitSubsMark } from "../components/SplitSubsLogo";
 
@@ -48,15 +48,17 @@ export function DashboardLayout() {
         { label: "Overview", path: "/dashboard", icon: LayoutDashboard },
         { label: "My Seats", path: "/dashboard/seats", icon: Users },
         { label: "My Listings", path: "/dashboard/listings", icon: ListPlus },
+        { label: "Transactions", path: "/dashboard/transactions", icon: Receipt },
         { label: "Wallet", path: "/dashboard/payout", icon: Wallet },
+        { label: "Profile", path: "/dashboard/profile", icon: UserCircle },
         { label: "Support", path: "/dashboard/support", icon: LifeBuoy },
     ];
 
     return (
-        <div className="bg-background min-h-screen flex">
+        <div className="bg-background h-screen flex overflow-hidden">
             <Helmet><meta name="robots" content="noindex, nofollow" /></Helmet>
 
-            <aside className="w-64 bg-card border-r border-border flex flex-col justify-between p-6 shrink-0">
+            <aside className="w-64 bg-card border-r border-border flex flex-col justify-between p-6 shrink-0 overflow-y-auto">
                 <div className="space-y-8">
                     <div className="flex items-center gap-3 border-b border-border pb-6">
                         <SplitSubsMark className="w-9 h-9 text-primary" />

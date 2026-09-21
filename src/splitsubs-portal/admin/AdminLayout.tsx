@@ -44,7 +44,7 @@ export function SplitSubsAdminLayout() {
         { label: "Overview", path: "/admin", icon: LayoutDashboard },
         { label: "Catalog", path: "/admin/catalog", icon: Layers },
         { label: "Listings", path: "/admin/listings", icon: ClipboardList },
-        { label: "Hosts", path: "/admin/hosts", icon: Users },
+        { label: "Users", path: "/admin/hosts", icon: Users },
         { label: "Disputes", path: "/admin/disputes", icon: Scale },
         { label: "Payouts", path: "/admin/settlements", icon: Wallet },
         { label: "Tickets", path: "/admin/tickets", icon: LifeBuoy },
@@ -53,7 +53,7 @@ export function SplitSubsAdminLayout() {
     ];
 
     return (
-        <div className="bg-background min-h-screen flex">
+        <div className="bg-background h-screen flex overflow-hidden">
             <Helmet><meta name="robots" content="noindex, nofollow" /></Helmet>
 
             <aside className="w-64 bg-card border-r border-border flex flex-col justify-between p-6 shrink-0 overflow-y-auto">

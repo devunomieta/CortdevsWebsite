@@ -52,16 +52,32 @@ export function escrowHoldHours(
     return settings.escrow_hold_hours_medium;
 }
 
+// A billing cycle is a property of the SERVICE, not the platform — Netflix
+// and Spotify are monthly, but DSTV is commonly yearly and some data/VPN
+// plans are weekly or even daily. `unit`/`count` are what the catalog form
+// collects ("1 month", "7 day", "1 year"); this converts to an approximate
+// day-count for the wallet hold math below. Approximate on purpose — a
+// calendar-accurate month/year length isn't worth the complexity for a
+// withdrawal-timing gate that only needs to be roughly right.
+const UNIT_DAYS: Record<string, number> = { day: 1, week: 7, month: 30, quarter: 90, biannual: 182, year: 365 };
+
+export function billingCycleDays(unit: string, count: number): number {
+    return (UNIT_DAYS[unit] || UNIT_DAYS.month) * Math.max(1, count);
+}
+
 // The second anti-scam gate: even after escrow releases a seat's payment
 // into the host's wallet, that credit stays locked until this much of the
-// subscription's billing cycle has actually elapsed since the seat was
+// SERVICE's own billing cycle has actually elapsed since the seat was
 // confirmed — a host can't clear escrow fast then withdraw and vanish before
-// the joiner's paid-for month is mostly over.
+// the joiner's paid-for period is mostly over. `cycleDays` comes from the
+// listing's service (billing_cycle_unit/billing_cycle_count via
+// billingCycleDays above), never a single platform-wide number.
 export function computeWalletEligibleAt(
     confirmedAt: Date,
-    settings: { payout_min_cycle_pct: number; subscription_cycle_days: number }
+    cycleDays: number,
+    settings: { payout_min_cycle_pct: number }
 ): Date {
-    const holdMs = settings.payout_min_cycle_pct * settings.subscription_cycle_days * 24 * 60 * 60 * 1000;
+    const holdMs = settings.payout_min_cycle_pct * cycleDays * 24 * 60 * 60 * 1000;
     return new Date(confirmedAt.getTime() + holdMs);
 }
 

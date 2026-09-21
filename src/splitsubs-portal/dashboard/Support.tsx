@@ -94,7 +94,7 @@ export function Support() {
     if (selected) return <TicketThread ticketId={selected} onBack={() => { setSelected(null); list.reload(); }} />;
 
     return (
-        <div className="max-w-3xl space-y-6">
+        <div className="max-w-5xl space-y-6">
             <SEO title="Support" description="Get help with a payment or access issue." path="/dashboard/support" noindex />
             <div className="flex items-center justify-between">
                 <div>

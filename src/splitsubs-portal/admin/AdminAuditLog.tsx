@@ -13,7 +13,7 @@ export function AdminAuditLog() {
     });
 
     return (
-        <div className="max-w-5xl space-y-6">
+        <div className="max-w-7xl space-y-6">
             <SEO title="Audit Log" description="Platform audit log." path="/admin/audit-log" noindex />
             <div>
                 <h1 className="text-2xl font-light tracking-tight mb-1">Audit Log</h1>

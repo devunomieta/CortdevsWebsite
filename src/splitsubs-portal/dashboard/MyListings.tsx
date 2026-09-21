@@ -111,7 +111,7 @@ export function MyListings() {
     };
 
     return (
-        <div className="max-w-4xl space-y-6">
+        <div className="max-w-6xl space-y-6">
             <SEO title="My Listings" description="Subscriptions you're hosting seats on." path="/dashboard/listings" noindex />
             <div className="flex items-center justify-between">
                 <div>

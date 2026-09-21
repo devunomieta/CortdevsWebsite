@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router";
-import { RefreshCw, ShieldCheck, Star, ArrowRight } from "lucide-react";
+import { RefreshCw, ShieldCheck, Star, ArrowRight, Wallet } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { ssPublicFetch, ssFetch } from "../lib/api";
 import { useToast } from "../../app/components/Toast";
@@ -19,11 +19,18 @@ export function ListingDetail() {
     const [isAuthed, setIsAuthed] = useState<boolean | null>(null);
     const [fields, setFields] = useState<Record<string, string>>({});
     const [isJoining, setIsJoining] = useState(false);
+    const [walletBalance, setWalletBalance] = useState<number | null>(null);
+    const [payWithWallet, setPayWithWallet] = useState(false);
 
     useEffect(() => {
         ssPublicFetch(`/api/splitsubs/listings?id=${id}`).then((d) => setListing(d.listing)).catch(() => setListing(null)).finally(() => setIsLoading(false));
-        supabase.auth.getSession().then(({ data: { session } }) => setIsAuthed(!!session));
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            setIsAuthed(!!session);
+            if (session) ssFetch("/api/splitsubs/prepaid-wallet").then((d) => setWalletBalance(d.balance)).catch(() => { });
+        });
     }, [id]);
+
+    const canPayWithWallet = walletBalance !== null && listing && walletBalance >= listing.pricing.totalPaid;
 
     const handleJoin = async () => {
         if (!isAuthed) {
@@ -39,10 +46,13 @@ export function ListingDetail() {
         try {
             const result = await ssFetch("/api/splitsubs/join", {
                 method: "POST",
-                body: JSON.stringify({ listingId: id, joinerFieldsData: fields, provider: "paystack" }),
+                body: JSON.stringify({ listingId: id, joinerFieldsData: fields, provider: payWithWallet && canPayWithWallet ? "wallet" : "paystack" }),
             });
             if (result.authorizationUrl) {
                 window.location.href = result.authorizationUrl;
+            } else if (result.success) {
+                showToast("Seat secured — paid from your wallet balance.", "success");
+                navigate("/dashboard/seats");
             }
         } catch (err: any) {
             showToast(err.message || "Could not start payment.", "error");
@@ -132,12 +142,20 @@ export function ListingDetail() {
                             </div>
                         )}
 
+                        {canPayWithWallet && (
+                            <label className="flex items-center gap-2 text-sm border border-border p-3 cursor-pointer hover:bg-secondary/50 transition-colors">
+                                <input type="checkbox" checked={payWithWallet} onChange={(e) => setPayWithWallet(e.target.checked)} className="accent-primary" />
+                                <Wallet size={14} className="text-primary" />
+                                <span>Pay from wallet balance ({money(walletBalance!)}) — instant, no checkout</span>
+                            </label>
+                        )}
+
                         <button
                             onClick={handleJoin}
                             disabled={isJoining || listing.openSeats < 1}
                             className="w-full py-4 bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-[0.2em] flex items-center justify-center gap-2 hover:opacity-90 transition-all disabled:opacity-50"
                         >
-                            {isJoining ? <RefreshCw className="w-4 h-4 animate-spin" /> : listing.openSeats < 1 ? "Fully Claimed — Check Back Soon" : <>Secure My Seat Now <ArrowRight className="w-4 h-4" /></>}
+                            {isJoining ? <RefreshCw className="w-4 h-4 animate-spin" /> : listing.openSeats < 1 ? "Fully Claimed — Check Back Soon" : payWithWallet && canPayWithWallet ? <>Pay & Secure Seat <ArrowRight className="w-4 h-4" /></> : <>Secure My Seat Now <ArrowRight className="w-4 h-4" /></>}
                         </button>
                         {!isAuthed && <p className="text-xs text-muted-foreground text-center">Quick sign-in first — takes less than a minute.</p>}
                         <p className="text-[10px] text-center text-muted-foreground">Backed by escrow. Your money moves only when your access works.</p>
