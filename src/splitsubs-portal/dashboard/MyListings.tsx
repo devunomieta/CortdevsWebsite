@@ -65,8 +65,15 @@ function CreateListingForm({ onCreated }: { onCreated: () => void }) {
     };
 
     if (step === "preview") {
-        const seatPrice = totalSeats ? Number(planCost) / Number(totalSeats) : 0;
-        const seatsAvailable = totalSeats ? Number(totalSeats) - 1 : 0;
+        // Mirrors api/_lib/splitsubsFees.ts computeSeatPricing exactly — hosts
+        // absorb none of the plan cost, only the (total seats - 1) seats
+        // available to joiners divide it, so a fully-booked listing recoups
+        // the host the ENTIRE plan cost, never a fraction of it.
+        const seatsAvailable = totalSeats ? Math.max(Number(totalSeats) - 1, 0) : 0;
+        const seatBase = seatsAvailable > 0 ? Number(planCost) / seatsAvailable : 0;
+        const chargeRate = service?.default_charge_rate ?? 0;
+        const serviceCharge = seatBase * chargeRate;
+        const joinerPays = seatBase + serviceCharge;
         return (
             <div className="border border-border p-6 bg-card space-y-5">
                 <div>
@@ -92,7 +99,7 @@ function CreateListingForm({ onCreated }: { onCreated: () => void }) {
                         </div>
                         <div>
                             <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Seats available</p>
-                            <p>{seatsAvailable} seats · {money(seatPrice)} / seat</p>
+                            <p>{seatsAvailable} seats · {money(joinerPays)} / seat</p>
                         </div>
                         <div>
                             <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Sub started</p>
@@ -104,6 +111,32 @@ function CreateListingForm({ onCreated }: { onCreated: () => void }) {
                         </div>
                     </div>
                 </div>
+
+                {seatsAvailable > 0 && (
+                    <div className="border border-border bg-secondary/20 p-4 space-y-2 text-sm">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Where each seat's money goes</p>
+                        <div className="flex items-center justify-between">
+                            <span className="text-muted-foreground">Each joiner pays</span>
+                            <span className="font-medium">{money(joinerPays)}</span>
+                        </div>
+                        <div className="flex items-center justify-between pl-3">
+                            <span className="text-muted-foreground">→ You (the host) get</span>
+                            <span>{money(seatBase)}</span>
+                        </div>
+                        <div className="flex items-center justify-between pl-3">
+                            <span className="text-muted-foreground">→ SplitSubs' fee</span>
+                            <span>{money(serviceCharge)}</span>
+                        </div>
+                        <div className="flex items-center justify-between border-t border-border pt-2 mt-1">
+                            <span className="text-muted-foreground">You pay toward the plan yourself</span>
+                            <span className="font-medium">₦0.00</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <span className="text-muted-foreground">If all {seatsAvailable} seat{seatsAvailable === 1 ? "" : "s"} fill, you receive</span>
+                            <span className="font-medium">{money(seatBase * seatsAvailable)} total</span>
+                        </div>
+                    </div>
+                )}
                 <div className="flex gap-3">
                     <button type="button" onClick={() => setStep("form")} className="px-6 py-3 border border-border text-[10px] font-bold uppercase tracking-widest">Back to edit</button>
                     <button type="button" onClick={handleConfirm} disabled={isSubmitting} className="px-6 py-3 bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 disabled:opacity-50">
