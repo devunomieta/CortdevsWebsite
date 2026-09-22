@@ -1,3 +1,5 @@
+import { getAppBaseUrl } from './appUrl.js';
+
 export interface EmailTemplate {
     id: string;
     name: string;
@@ -126,7 +128,7 @@ export const emailTemplates: Record<string, EmailTemplate> = {
                             <p>Your project <span class="highlight">${data.projectTitle}</span> has been officially approved with a final budget of <span class="highlight">${data.approvedBudget}</span>.</p>
                             <p>We are now ready to move into the active development phase. To satisfy the initial deposit and lock in your development window, please use the secure button below.</p>
                             <div style="text-align: center;">
-                                <a href="${process.env.VITE_APP_URL}/admin/invoices/generate?leadId=${data.leadId}&action=initial" class="button">GENERATE INITIAL INVOICE</a>
+                                <a href="${getAppBaseUrl('https://cortdevs.com')}/admin/invoices/generate?leadId=${data.leadId}&action=initial" class="button">GENERATE INITIAL INVOICE</a>
                             </div>
                         </div>
                         <div class="footer">
@@ -190,7 +192,7 @@ export const emailTemplates: Record<string, EmailTemplate> = {
                                 <div style="background: #fff4f4; border: 1px solid #fee2e2; padding: 20px; border-radius: 4px;">
                                     <p style="margin: 0; color: #b91c1c; font-weight: bold;">NOTICE: PENDING BALANCE</p>
                                     <p style="margin: 10px 0;">Our records indicate a final balance of <span class="highlight">${data.currencySymbol || '$'}${data.pendingBalance}</span> for this project.</p>
-                                    <a href="${process.env.VITE_APP_URL}/admin/invoices/generate?clientId=${data.clientId}&balance=${data.pendingBalance}" class="button" style="background-color: #b91c1c;">SEND BALANCE INVOICE</a>
+                                    <a href="${getAppBaseUrl('https://cortdevs.com')}/admin/invoices/generate?clientId=${data.clientId}&balance=${data.pendingBalance}" class="button" style="background-color: #b91c1c;">SEND BALANCE INVOICE</a>
                                 </div>
                             ` : `<p>Your project is fully paid and ready for immediate deployment.</p>`}
                         </div>
@@ -224,7 +226,7 @@ export const emailTemplates: Record<string, EmailTemplate> = {
                             <hr style="border: none; border-top: 1px dotted #ccc; margin: 30px 0;"/>
                             <p>We would value your feedback on our partnership. Sharing your experience helps us maintain our standards of excellence.</p>
                             <div style="text-align: center;">
-                                <a href="${process.env.VITE_APP_URL}/work?review=true" class="button">SUBMIT PROJECT REVIEW</a>
+                                <a href="${getAppBaseUrl('https://cortdevs.com')}/work?review=true" class="button">SUBMIT PROJECT REVIEW</a>
                             </div>
                         </div>
                         <div class="footer">
@@ -254,7 +256,7 @@ export const emailTemplates: Record<string, EmailTemplate> = {
                             <h3 style="font-style: italic;">"${data.insightTitle || 'The Future of AI-Driven Commerce'}"</h3>
                             <p>${data.insightText || 'As the digital landscape evolves, staying ahead of performance benchmarks is no longer optional—it is a requirement.'}</p>
                             <p>This month, we explored how ${data.topic || 'serverless architectures'} are redefining scalability for mid-sized enterprises.</p>
-                            <a href="${process.env.VITE_APP_URL}/services" class="button">EXPLORE SOLUTIONS</a>
+                            <a href="${getAppBaseUrl('https://cortdevs.com')}/services" class="button">EXPLORE SOLUTIONS</a>
                         </div>
                         <div class="footer">
                             <p>You received this as a subscriber of CortDevs Intel. <a href="#">Unsubscribe</a></p>

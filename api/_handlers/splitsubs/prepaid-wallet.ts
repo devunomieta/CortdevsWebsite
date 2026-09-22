@@ -4,6 +4,7 @@ import { supabase } from '../../_lib/supabase.js';
 import { verifyAuth } from '../../_lib/auth.js';
 import { getPrepaidBalance } from '../../_lib/splitsubsPrepaidWallet.js';
 import { initializeTransaction, verifyTransaction } from '../../_lib/paystack.js';
+import { getAppBaseUrl } from '../../_lib/appUrl.js';
 
 // GET ?verifyRef=   — verify-on-redirect fallback for a top-up (same reasoning
 //        as splitsubs/payments-verify.ts for seat payments — shows "funded"
@@ -71,7 +72,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 email: user.email!,
                 amountKobo: Math.round(requested * 100),
                 reference,
-                callbackUrl: `${process.env.VITE_APP_URL || 'https://splitsubs.cortdevs.com'}/dashboard/transactions?topup_ref=${reference}`,
+                callbackUrl: `${getAppBaseUrl('https://splitsubs.cortdevs.com')}/dashboard/transactions?topup_ref=${reference}`,
                 metadata: { userId: user.id, kind: 'prepaid_topup' },
             });
 
