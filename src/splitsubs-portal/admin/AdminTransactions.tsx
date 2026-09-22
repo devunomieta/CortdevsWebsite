@@ -79,15 +79,15 @@ export function AdminTransactions() {
                         const showSource = t.source && (t.kind === "seat_payment" || t.kind === "host_credit" || t.kind === "host_debit");
                         const shortRef = t.reference && t.reference.length > 24 ? `${t.reference.slice(0, 12)}…${t.reference.slice(-6)}` : t.reference;
                         return (
-                            <div key={t.id} className="flex items-center justify-between px-5 py-4 gap-4">
+                            <div key={t.id} className="flex flex-col sm:flex-row sm:items-center justify-between px-5 py-4 gap-2 sm:gap-4">
                                 <div className="min-w-0">
-                                    <p className="font-medium text-sm truncate">{t.user_email || "Unknown user"}</p>
-                                    <p className="text-xs text-muted-foreground truncate">
+                                    <p className="font-medium text-sm sm:truncate">{t.user_email || "Unknown user"}</p>
+                                    <p className="text-xs text-muted-foreground sm:truncate">
                                         {KIND_LABEL[t.kind] || t.kind}{t.listing_title ? ` · ${t.listing_title}` : ""}{t.service_name ? ` (${t.service_name})` : ""}{showSource ? ` · ${t.source}` : ""} · {new Date(t.created_at).toLocaleString()}
                                     </p>
-                                    {shortRef && <p className="text-[10px] text-muted-foreground font-mono truncate" title={t.reference}>{shortRef}</p>}
+                                    {shortRef && <p className="text-[10px] text-muted-foreground font-mono sm:truncate" title={t.reference}>{shortRef}</p>}
                                 </div>
-                                <div className="text-right shrink-0">
+                                <div className="text-left sm:text-right shrink-0">
                                     <p className="font-semibold">{isDebit ? "−" : ""}{money(t.amount)}</p>
                                     <p className={`text-[10px] font-bold uppercase tracking-widest ${STATUS_STYLE[t.status] || "text-muted-foreground"}`}>{t.status}</p>
                                 </div>

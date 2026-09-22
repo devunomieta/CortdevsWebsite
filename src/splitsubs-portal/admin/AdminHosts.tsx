@@ -102,8 +102,8 @@ export function AdminHosts() {
             ) : (
                 <div className="border border-border bg-card divide-y divide-border">
                     {list.items.map((h) => (
-                        <div key={h.id} className="flex items-center justify-between px-5 py-4 gap-4">
-                            <div>
+                        <div key={h.id} className="flex flex-col lg:flex-row lg:items-center justify-between px-5 py-4 gap-3 lg:gap-4">
+                            <div className="min-w-0">
                                 <p className="font-medium text-sm">{h.email || h.id}{h.legal_name ? ` — ${h.legal_name}` : ""}</p>
                                 <p className="text-xs text-muted-foreground">
                                     {h.completed_splits} splits · {h.rating_count > 0 ? (h.rating_sum / h.rating_count).toFixed(1) : "—"} rating · {h.strikes} strike(s)
@@ -111,7 +111,7 @@ export function AdminHosts() {
                                     {" · "}<span className={h.kyc_status === "approved" ? "text-primary" : h.kyc_status === "pending" ? "text-amber-600" : h.kyc_status === "rejected" ? "text-rose-500" : ""}>KYC {h.kyc_status}</span>
                                 </p>
                             </div>
-                            <div className="flex items-center gap-2 shrink-0">
+                            <div className="flex flex-wrap items-center gap-2 shrink-0">
                                 {h.kyc_status === "pending" && (
                                     <>
                                         <button onClick={() => viewId(h.id)} className="p-2 border border-border hover:bg-secondary" title="View submitted ID"><Eye size={14} /></button>

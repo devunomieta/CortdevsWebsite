@@ -119,7 +119,7 @@ export function ListingDetail() {
                 </div>
 
                 <div className="lg:col-span-2">
-                    <div className="border border-border p-6 bg-card sticky top-28 space-y-6">
+                    <div className="border border-border p-6 bg-card lg:sticky lg:top-28 space-y-6">
                         <div>
                             <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Per seat, every month</p>
                             <p className="text-4xl font-light">{money(listing.pricing.totalPaid)}</p>

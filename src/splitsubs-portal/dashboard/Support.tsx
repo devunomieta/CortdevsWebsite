@@ -50,7 +50,7 @@ function TicketThread({ ticketId, onBack }: { ticketId: string; onBack: () => vo
             </div>
             <div className="space-y-3">
                 {messages.map((m) => (
-                    <div key={m.id} className={`p-4 text-sm max-w-lg ${m.sender_type === "admin" ? "bg-secondary" : "bg-primary/10 ml-auto"}`}>
+                    <div key={m.id} className={`p-4 text-sm max-w-[85%] sm:max-w-lg ${m.sender_type === "admin" ? "bg-secondary" : "bg-primary/10 ml-auto"}`}>
                         <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">{m.sender_type === "admin" ? "SplitSubs Support" : "You"}</p>
                         {m.message}
                     </div>
@@ -96,12 +96,12 @@ export function Support() {
     return (
         <div className="max-w-5xl space-y-6">
             <SEO title="Support" description="Get help with a payment or access issue." path="/dashboard/support" noindex />
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-light tracking-tight mb-1">Support</h1>
                     <p className="text-sm text-muted-foreground">We got you — payment or access issues get priority routing, no long talk.</p>
                 </div>
-                <button onClick={() => setShowNew((v) => !v)} className="px-4 py-2.5 border border-border text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 hover:bg-secondary">
+                <button onClick={() => setShowNew((v) => !v)} className="shrink-0 px-4 py-2.5 border border-border text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 hover:bg-secondary">
                     <Plus size={14} /> New Ticket
                 </button>
             </div>
@@ -138,12 +138,12 @@ export function Support() {
             ) : (
                 <div className="space-y-3">
                     {list.items.map((t) => (
-                        <button key={t.id} onClick={() => setSelected(t.id)} className="w-full text-left border border-border p-4 bg-card hover:border-primary transition-colors flex items-center justify-between">
-                            <div>
+                        <button key={t.id} onClick={() => setSelected(t.id)} className="w-full text-left border border-border p-4 bg-card hover:border-primary transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div className="min-w-0">
                                 <p className="font-medium text-sm">{t.subject}</p>
                                 <p className="text-xs text-muted-foreground">{t.priority} · {t.category.replace(/_/g, " ")}</p>
                             </div>
-                            <span className="text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 bg-secondary">{t.status}</span>
+                            <span className="self-start sm:self-auto shrink-0 text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 bg-secondary">{t.status}</span>
                         </button>
                     ))}
                 </div>

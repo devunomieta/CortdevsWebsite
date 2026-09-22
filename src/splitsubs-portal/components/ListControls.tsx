@@ -27,7 +27,7 @@ export function Pagination({ page, totalPages, total, pageSize, onPage }: { page
     const from = (page - 1) * pageSize + 1;
     const to = Math.min(page * pageSize, total);
     return (
-        <div className="flex items-center justify-between pt-2">
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
             <p className="text-xs text-muted-foreground">{from}–{to} of {total}</p>
             <div className="flex items-center gap-2">
                 <button onClick={() => onPage(page - 1)} disabled={page <= 1} className="p-2 border border-border hover:bg-secondary disabled:opacity-40 disabled:hover:bg-transparent">

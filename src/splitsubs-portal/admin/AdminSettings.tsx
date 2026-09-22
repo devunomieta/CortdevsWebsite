@@ -192,7 +192,7 @@ export function AdminSettings() {
                     listing recoups the host the entire subscription. The only thing ever taken from a host is the
                     payout charge below, deducted when they actually withdraw.
                 </p>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Field label="Default service charge" help="The % added on top of every seat's base price and paid by joiners — this is the platform's revenue per seat. New catalog services default to this rate; each one can still be overridden individually. 0.15 = 15%.">
                         <input type="number" step="0.01" min={0} max={0.5} value={settings.default_service_charge_rate} onChange={(e) => setSettings({ ...settings, default_service_charge_rate: Number(e.target.value) })} className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm" />
                     </Field>
@@ -208,7 +208,7 @@ export function AdminSettings() {
                     Escrow release credits a host's wallet, not their bank account directly. These settings control
                     the second anti-scam gate: how much of a credit a host can actually withdraw, and when.
                 </p>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Field label="Payout charge" help="The only cost a host ever bears — a % deducted from a withdrawal, not from the plan cost. 0.01 = 1%. Covers Paystack transfer fees and platform overhead.">
                         <input type="number" step="0.001" min={0} max={0.2} value={settings.payout_charge_rate} onChange={(e) => setSettings({ ...settings, payout_charge_rate: Number(e.target.value) })} className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm" />
                     </Field>
@@ -230,7 +230,7 @@ export function AdminSettings() {
                     the host — if the joiner hasn't confirmed it works or opened a dispute by then. Set per catalog
                     risk tier: riskier services (more likely to have something go wrong) get a longer window.
                 </p>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     {(["low", "medium", "high"] as const).map((tier) => (
                         <div key={tier} className="space-y-1.5">
                             <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground capitalize">{tier} risk</label>

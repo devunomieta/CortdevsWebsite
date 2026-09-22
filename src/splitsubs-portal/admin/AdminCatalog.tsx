@@ -44,7 +44,7 @@ function ServiceForm({ onSaved }: { onSaved: () => void }) {
     return (
         <form onSubmit={handleSubmit} className="border border-border p-6 bg-card space-y-4">
             <h3 className="font-medium">Add a service</h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                     <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Name</label>
                     <input required value={name} onChange={(e) => setName(e.target.value)} className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm" />
@@ -54,7 +54,7 @@ function ServiceForm({ onSaved }: { onSaved: () => void }) {
                     <input required value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Streaming, Music, ..." className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm" />
                 </div>
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="space-y-1.5">
                     <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Max seats</label>
                     <input required type="number" min={2} max={20} value={maxSeats} onChange={(e) => setMaxSeats(e.target.value)} className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm" />
@@ -72,7 +72,7 @@ function ServiceForm({ onSaved }: { onSaved: () => void }) {
                     </select>
                 </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                     <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Billing cycle</label>
                     <div className="flex gap-2">
@@ -89,7 +89,7 @@ function ServiceForm({ onSaved }: { onSaved: () => void }) {
                     <p className="text-xs text-muted-foreground">How often this plan renews — drives the wallet withdrawal hold, not just display.</p>
                 </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                     <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Host fields (JSON)</label>
                     <textarea value={hostFields} onChange={(e) => setHostFields(e.target.value)} rows={4} className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-xs font-mono resize-none" />
@@ -136,12 +136,12 @@ export function AdminCatalog() {
     return (
         <div className="max-w-6xl space-y-6">
             <SEO title="Service Catalog" description="Manage the SplitSubs service catalog." path="/admin/catalog" noindex />
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-light tracking-tight mb-1">Service Catalog</h1>
                     <p className="text-sm text-muted-foreground">What hosts can list and joiners can join.</p>
                 </div>
-                <button onClick={() => setShowForm((v) => !v)} className="px-4 py-2.5 border border-border text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 hover:bg-secondary">
+                <button onClick={() => setShowForm((v) => !v)} className="shrink-0 px-4 py-2.5 border border-border text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 hover:bg-secondary">
                     <Plus size={14} /> {showForm ? "Cancel" : "Add Service"}
                 </button>
             </div>
@@ -162,12 +162,12 @@ export function AdminCatalog() {
             ) : (
                 <div className="border border-border bg-card divide-y divide-border">
                     {list.items.map((s) => (
-                        <div key={s.id} className="flex items-center justify-between px-5 py-4">
-                            <div>
+                        <div key={s.id} className="flex flex-col md:flex-row md:items-center justify-between px-5 py-4 gap-3 md:gap-4">
+                            <div className="min-w-0">
                                 <p className="font-medium text-sm">{s.name}</p>
                                 <p className="text-xs text-muted-foreground">{s.category} · up to {s.max_seats} seats · {(s.default_charge_rate * 100).toFixed(0)}% charge · {s.risk_tier} risk</p>
                             </div>
-                            <div className="flex items-center gap-3">
+                            <div className="flex flex-wrap items-center gap-3">
                                 <div className="flex gap-1">
                                     <input type="number" min={1} max={60} defaultValue={s.billing_cycle_count} onBlur={(e) => updateCycle(s.id, s.billing_cycle_unit, Number(e.target.value))} className="w-14 px-2 py-2 bg-background border border-border text-xs outline-none" />
                                     <select value={s.billing_cycle_unit} onChange={(e) => updateCycle(s.id, e.target.value, s.billing_cycle_count)} className="px-2 py-2 bg-background border border-border text-xs outline-none">

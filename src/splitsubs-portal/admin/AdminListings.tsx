@@ -56,12 +56,12 @@ export function AdminListings() {
             ) : (
                 <div className="border border-border bg-card divide-y divide-border">
                     {list.items.map((l) => (
-                        <div key={l.id} className="flex items-center justify-between px-5 py-4">
-                            <div>
+                        <div key={l.id} className="flex flex-col sm:flex-row sm:items-center justify-between px-5 py-4 gap-3 sm:gap-4">
+                            <div className="min-w-0">
                                 <p className="font-medium text-sm">{l.title}</p>
                                 <p className="text-xs text-muted-foreground">{l.ss_services?.name} · ₦{Number(l.plan_cost).toLocaleString()} / {l.total_seats} seats</p>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 shrink-0">
                                 {status === "pending_review" && (
                                     <>
                                         <button onClick={() => act(l.id, "approve")} className="p-2 border border-border hover:bg-secondary text-primary" title="Approve"><Check size={14} /></button>

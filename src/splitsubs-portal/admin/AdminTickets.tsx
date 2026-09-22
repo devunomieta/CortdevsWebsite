@@ -36,12 +36,12 @@ function TicketThread({ ticketId, onBack }: { ticketId: string; onBack: () => vo
     return (
         <div className="space-y-6">
             <button onClick={onBack} className="text-xs text-muted-foreground hover:text-foreground">← Back to tickets</button>
-            <div className="flex items-center justify-between">
-                <div>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="min-w-0">
                     <h2 className="text-xl font-light tracking-tight">{ticket.subject}</h2>
                     <p className="text-xs text-muted-foreground">{ticket.userEmail} · {ticket.priority} · {ticket.status}</p>
                 </div>
-                <select value={ticket.status} onChange={(e) => send(e.target.value)} className="px-3 py-2 bg-background border border-border text-xs outline-none">
+                <select value={ticket.status} onChange={(e) => send(e.target.value)} className="px-3 py-2 bg-background border border-border text-xs outline-none shrink-0">
                     <option value="open">Open</option>
                     <option value="pending">Pending</option>
                     <option value="resolved">Resolved</option>
@@ -50,7 +50,7 @@ function TicketThread({ ticketId, onBack }: { ticketId: string; onBack: () => vo
             </div>
             <div className="space-y-3">
                 {messages.map((m) => (
-                    <div key={m.id} className={`p-4 text-sm max-w-lg ${m.sender_type === "admin" ? "bg-primary/10 ml-auto" : "bg-secondary"}`}>
+                    <div key={m.id} className={`p-4 text-sm max-w-[85%] sm:max-w-lg ${m.sender_type === "admin" ? "bg-primary/10 ml-auto" : "bg-secondary"}`}>
                         <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">{m.sender_type === "admin" ? "Support" : "User"}</p>
                         {m.message}
                     </div>
@@ -103,12 +103,12 @@ export function AdminTickets() {
             ) : (
                 <div className="border border-border bg-card divide-y divide-border">
                     {list.items.map((t) => (
-                        <button key={t.id} onClick={() => setSelected(t.id)} className="w-full text-left px-5 py-4 hover:bg-secondary/50 transition-colors flex items-center justify-between">
-                            <div>
+                        <button key={t.id} onClick={() => setSelected(t.id)} className="w-full text-left px-5 py-4 hover:bg-secondary/50 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
+                            <div className="min-w-0">
                                 <p className="font-medium text-sm">{t.subject}</p>
                                 <p className="text-xs text-muted-foreground">{t.category.replace(/_/g, " ")}</p>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 shrink-0">
                                 <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-1 bg-secondary">{t.priority}</span>
                                 <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-1 bg-secondary">{t.status}</span>
                             </div>

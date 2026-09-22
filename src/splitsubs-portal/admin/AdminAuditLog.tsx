@@ -40,8 +40,8 @@ export function AdminAuditLog() {
             ) : (
                 <div className="border border-border bg-card divide-y divide-border">
                     {list.items.map((e) => (
-                        <div key={e.id} className="px-5 py-3 flex items-center justify-between gap-4">
-                            <div>
+                        <div key={e.id} className="px-5 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-4">
+                            <div className="min-w-0">
                                 <p className="text-sm">{e.action}</p>
                                 <p className="text-xs text-muted-foreground">{e.actor_label} · {e.actor_type}</p>
                             </div>

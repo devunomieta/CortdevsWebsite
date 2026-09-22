@@ -57,7 +57,7 @@ function CreateListingForm({ onCreated }: { onCreated: () => void }) {
                 <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Listing title</label>
                 <input required maxLength={200} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Netflix Premium — 3 seats open" className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm" />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                     <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Plan cost (₦, whole plan)</label>
                     <input required type="number" min={1} value={planCost} onChange={(e) => setPlanCost(e.target.value)} className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm" />
@@ -113,12 +113,12 @@ export function MyListings() {
     return (
         <div className="max-w-6xl space-y-6">
             <SEO title="My Listings" description="Subscriptions you're hosting seats on." path="/dashboard/listings" noindex />
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-light tracking-tight mb-1">My Listings</h1>
                     <p className="text-sm text-muted-foreground">Subscriptions you're hosting — and getting paid for.</p>
                 </div>
-                <button onClick={() => { setShowCreate((v) => !v); setSearchParams({}); }} className="px-4 py-2.5 border border-border text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 hover:bg-secondary">
+                <button onClick={() => { setShowCreate((v) => !v); setSearchParams({}); }} className="shrink-0 px-4 py-2.5 border border-border text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 hover:bg-secondary">
                     <Plus size={14} /> {showCreate ? "Cancel" : "List a Seat"}
                 </button>
             </div>

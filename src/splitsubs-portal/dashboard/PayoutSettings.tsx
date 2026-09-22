@@ -43,7 +43,7 @@ function WalletCard() {
 
     return (
         <div className="space-y-4">
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="border border-border p-4 bg-card">
                     <p className="text-2xl font-light">{money(wallet?.balance || 0)}</p>
                     <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mt-1">Earnings balance</p>

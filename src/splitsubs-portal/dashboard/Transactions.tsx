@@ -112,14 +112,14 @@ export function Transactions() {
                     {list.items.map((t) => {
                         const isDebit = t.kind === "wallet_spend" || t.kind === "host_debit";
                         return (
-                            <div key={t.id} className="flex items-center justify-between px-5 py-4 gap-4">
-                                <div>
+                            <div key={t.id} className="flex flex-col sm:flex-row sm:items-center justify-between px-5 py-4 gap-2 sm:gap-4">
+                                <div className="min-w-0">
                                     <p className="font-medium text-sm">{t.service_name || KIND_LABEL[t.kind] || t.kind}</p>
                                     <p className="text-xs text-muted-foreground">
                                         {t.listing_title ? `${t.listing_title} · ` : ""}{KIND_LABEL[t.kind] || t.kind}{t.source ? ` · ${t.source}` : ""} · {new Date(t.created_at).toLocaleString()}
                                     </p>
                                 </div>
-                                <div className="text-right shrink-0">
+                                <div className="text-left sm:text-right shrink-0">
                                     <p className="font-semibold">{isDebit ? "−" : ""}{money(t.amount)}</p>
                                     <p className={`text-[10px] font-bold uppercase tracking-widest ${STATUS_STYLE[t.status] || "text-muted-foreground"}`}>{t.status}</p>
                                 </div>
