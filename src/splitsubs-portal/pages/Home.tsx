@@ -173,6 +173,11 @@ export function SplitSubsHome() {
             await ssFetch("/api/splitsubs/wishlist", { method: isSaved ? "DELETE" : "POST", body: JSON.stringify({ listingId }) });
         } catch (err: any) {
             showToast(err.message || "Could not update your wishlist.", "error");
+            setWishlistIds((prev) => {
+                const next = new Set(prev);
+                if (isSaved) next.add(listingId); else next.delete(listingId);
+                return next;
+            });
         }
     };
 

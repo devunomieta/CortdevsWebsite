@@ -17,6 +17,12 @@ async function parseOrThrow(res: Response) {
 export async function ssPublicFetch(path: string, init: RequestInit = {}) {
     const res = await fetch(path, {
         ...init,
+        // Every list/detail refetch after a mutation re-issues the exact same
+        // GET URL — without this, the browser's HTTP cache can silently hand
+        // back the pre-mutation response instead of hitting the network,
+        // which looks identical to "the action didn't do anything" until a
+        // hard refresh bypasses the cache.
+        cache: "no-store",
         headers: { "Content-Type": "application/json", ...(init.headers || {}) },
     });
     return parseOrThrow(res);
@@ -29,6 +35,7 @@ export async function ssFetch(path: string, init: RequestInit = {}) {
     const { data: { session } } = await supabase.auth.getSession();
     const res = await fetch(path, {
         ...init,
+        cache: "no-store",
         headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${session?.access_token || ""}`,

@@ -30,6 +30,20 @@ export function AdminSeatChatViewer({ seatId }: { seatId: string }) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isExpanded]);
 
+    // Same reasoning as the joiner/host SeatChat: plain REST, so a message
+    // sent while an admin is already looking at this thread only shows up if
+    // something keeps polling.
+    useEffect(() => {
+        if (!isExpanded) return;
+        const interval = setInterval(() => {
+            ssFetch(`/api/admin/splitsubs/seat-messages?seatId=${seatId}`)
+                .then((d) => { setMessages(d.messages || []); setChatStatus(d.chatStatus || "open"); })
+                .catch(() => { });
+        }, 5000);
+        return () => clearInterval(interval);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isExpanded]);
+
     return (
         <div className="border border-border bg-background">
             <button onClick={() => setIsExpanded((v) => !v)} className="w-full flex items-center justify-between px-4 py-2.5 text-xs font-semibold hover:bg-secondary/50 transition-colors">

@@ -52,11 +52,14 @@ export function DashboardOverview() {
     const removeFromWishlist = async (e: React.MouseEvent, listingId: string) => {
         e.preventDefault();
         e.stopPropagation();
+        const removedIndex = wishlist.findIndex((item) => item.listing_id === listingId);
+        const removedItem = wishlist[removedIndex];
         setWishlist((prev) => prev.filter((item) => item.listing_id !== listingId));
         try {
             await ssFetch("/api/splitsubs/wishlist", { method: "DELETE", body: JSON.stringify({ listingId }) });
         } catch (err: any) {
             showToast(err.message || "Could not remove this listing.", "error");
+            if (removedItem) setWishlist((prev) => [...prev.slice(0, removedIndex), removedItem, ...prev.slice(removedIndex)]);
         }
     };
 

@@ -21,6 +21,15 @@ export function SeatChat({ seatId, viewerRole }: { seatId: string; viewerRole: "
     const [isReporting, setIsReporting] = useState(false);
     const bottomRef = useRef<HTMLDivElement>(null);
 
+    // Silent refresh (no spinner, no toast-on-failure) — used by polling so a
+    // flaky tick doesn't flash the panel or nag the user; the visible `load`
+    // below is only for the initial open.
+    const loadSilently = () => {
+        ssFetch(`/api/splitsubs/seat-messages?seatId=${seatId}`)
+            .then((d) => { setMessages(d.messages || []); setChatStatus(d.chatStatus || "open"); })
+            .catch(() => { });
+    };
+
     const load = () => {
         setIsLoading(true);
         ssFetch(`/api/splitsubs/seat-messages?seatId=${seatId}`)
@@ -31,6 +40,16 @@ export function SeatChat({ seatId, viewerRole }: { seatId: string; viewerRole: "
 
     useEffect(() => {
         if (isExpanded) load();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isExpanded]);
+
+    // Plain REST, no realtime plumbing here — polling while the panel is
+    // open is the simplest way for a message the other party sends mid-chat
+    // to actually show up without closing/reopening or a full page refresh.
+    useEffect(() => {
+        if (!isExpanded) return;
+        const interval = setInterval(loadSilently, 5000);
+        return () => clearInterval(interval);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isExpanded]);
 

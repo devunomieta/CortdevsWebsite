@@ -71,11 +71,13 @@ export function ListingDetail() {
             navigate(`/dashboard/login?redirect=${encodeURIComponent(`/listing/${id}`)}`);
             return;
         }
-        setIsWishlisted((v) => !v);
+        const wasWishlisted = isWishlisted;
+        setIsWishlisted(!wasWishlisted);
         try {
-            await ssFetch("/api/splitsubs/wishlist", { method: isWishlisted ? "DELETE" : "POST", body: JSON.stringify({ listingId: id }) });
+            await ssFetch("/api/splitsubs/wishlist", { method: wasWishlisted ? "DELETE" : "POST", body: JSON.stringify({ listingId: id }) });
         } catch (err: any) {
             showToast(err.message || "Could not update your wishlist.", "error");
+            setIsWishlisted(wasWishlisted);
         }
     };
 

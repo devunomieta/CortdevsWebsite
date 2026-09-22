@@ -20,17 +20,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const params = parseListParams(req, { allowedSorts: ['created_at', 'status'], defaultSort: 'created_at' });
         const { data: seats, error, count } = await supabase
             .from('ss_seats')
-            .select('*, ss_listings(id, title, renewal_day, next_renewal_date, ss_services(name, category, icon_url))', { count: 'exact' })
+            .select('*, ss_listings(id, short_id, title, short_description, plan_cost, total_seats, renewal_day, sub_start_date, next_renewal_date, ss_services(name, category, icon_url))', { count: 'exact' })
             .eq('joiner_id', joiner.id)
             .order(params.sort, { ascending: params.order === 'asc' })
             .range(params.from, params.to);
         if (error) throw error;
+
+        // The joiner's own rating on each seat, if any — so the dashboard can
+        // show it as already-given (filled stars) instead of a rateable
+        // control that just throws "already rated" every time it's clicked.
+        const seatIds = (seats || []).map((s) => s.id);
+        const { data: myRatings } = await supabase
+            .from('ss_ratings')
+            .select('seat_id, rating')
+            .eq('rater_id', joiner.id)
+            .in('seat_id', seatIds.length ? seatIds : ['00000000-0000-0000-0000-000000000000']);
+        const ratingBySeat = new Map<string, number>();
+        (myRatings || []).forEach((r) => ratingBySeat.set(r.seat_id, r.rating));
 
         // access_note only makes sense once access has actually been granted —
         // strip it for any earlier status so the API never leaks it prematurely.
         const sanitized = (seats || []).map((s) => ({
             ...s,
             access_note: ['access_pending', 'confirmed'].includes(s.status) ? s.access_note : null,
+            myRating: ratingBySeat.get(s.id) ?? null,
         }));
 
         return res.status(200).json({ seats: sanitized, total: count || 0, page: params.page, pageSize: params.pageSize });
