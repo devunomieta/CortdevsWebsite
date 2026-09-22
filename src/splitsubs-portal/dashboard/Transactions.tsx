@@ -11,8 +11,19 @@ const money = (n: number) => `₦${Number(n).toLocaleString("en-NG", { minimumFr
 
 const STATUS_STYLE: Record<string, string> = {
     success: "text-primary",
+    paid: "text-primary",
     pending: "text-amber-600",
+    processing: "text-amber-600",
     failed: "text-rose-500",
+};
+
+const KIND_LABEL: Record<string, string> = {
+    seat_payment: "Seat payment",
+    wallet_topup: "Wallet top-up",
+    wallet_spend: "Paid from wallet",
+    wallet_refund: "Wallet refund",
+    host_credit: "Earnings credit",
+    host_debit: "Withdrawal",
 };
 
 function PrepaidWalletCard() {
@@ -82,7 +93,7 @@ export function Transactions() {
             <div className="flex flex-wrap items-end justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-light tracking-tight mb-1">Transactions</h1>
-                    <p className="text-sm text-muted-foreground">Your wallet balance and every payment you've made joining a seat.</p>
+                    <p className="text-sm text-muted-foreground">Every seat payment, wallet top-up, and withdrawal on your account.</p>
                 </div>
                 <SortButton label="Newest" active={list.sort === "created_at"} order={list.order} onClick={() => { list.setSort("created_at"); list.setOrder(list.sort === "created_at" && list.order === "asc" ? "desc" : "asc"); }} />
             </div>
@@ -95,18 +106,23 @@ export function Transactions() {
                 <div className="text-center py-20 border border-dashed border-border"><p className="text-muted-foreground text-sm">No transactions yet.</p></div>
             ) : (
                 <div className="border border-border bg-card divide-y divide-border">
-                    {list.items.map((t) => (
-                        <div key={t.id} className="flex items-center justify-between px-5 py-4 gap-4">
-                            <div>
-                                <p className="font-medium text-sm">{t.ss_seats?.ss_listings?.ss_services?.name || "SplitSubs seat"}</p>
-                                <p className="text-xs text-muted-foreground">{t.ss_seats?.ss_listings?.title} · {t.provider} · {new Date(t.created_at).toLocaleString()}</p>
+                    {list.items.map((t) => {
+                        const isDebit = t.kind === "wallet_spend" || t.kind === "host_debit";
+                        return (
+                            <div key={t.id} className="flex items-center justify-between px-5 py-4 gap-4">
+                                <div>
+                                    <p className="font-medium text-sm">{t.service_name || KIND_LABEL[t.kind] || t.kind}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        {t.listing_title ? `${t.listing_title} · ` : ""}{KIND_LABEL[t.kind] || t.kind}{t.source ? ` · ${t.source}` : ""} · {new Date(t.created_at).toLocaleString()}
+                                    </p>
+                                </div>
+                                <div className="text-right shrink-0">
+                                    <p className="font-semibold">{isDebit ? "−" : ""}{money(t.amount)}</p>
+                                    <p className={`text-[10px] font-bold uppercase tracking-widest ${STATUS_STYLE[t.status] || "text-muted-foreground"}`}>{t.status}</p>
+                                </div>
                             </div>
-                            <div className="text-right shrink-0">
-                                <p className="font-semibold">{money(t.amount)}</p>
-                                <p className={`text-[10px] font-bold uppercase tracking-widest ${STATUS_STYLE[t.status] || "text-muted-foreground"}`}>{t.status}</p>
-                            </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             )}
             <Pagination page={list.page} totalPages={list.totalPages} total={list.total} pageSize={list.pageSize} onPage={list.setPage} />

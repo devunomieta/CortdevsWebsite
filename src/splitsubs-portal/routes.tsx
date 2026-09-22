@@ -23,6 +23,7 @@ import { AdminListings } from "./admin/AdminListings";
 import { AdminHosts } from "./admin/AdminHosts";
 import { AdminDisputes } from "./admin/AdminDisputes";
 import { AdminSettlements } from "./admin/AdminSettlements";
+import { AdminTransactions } from "./admin/AdminTransactions";
 import { AdminTickets } from "./admin/AdminTickets";
 import { AdminAuditLog } from "./admin/AdminAuditLog";
 import { AdminSettings } from "./admin/AdminSettings";
@@ -62,6 +63,7 @@ export const splitsubsRouter = createBrowserRouter([
             { path: "listings", element: <AdminListings /> },
             { path: "hosts", element: <AdminHosts /> },
             { path: "disputes", element: <AdminDisputes /> },
+            { path: "transactions", element: <AdminTransactions /> },
             { path: "settlements", element: <AdminSettlements /> },
             { path: "tickets", element: <AdminTickets /> },
             { path: "audit-log", element: <AdminAuditLog /> },

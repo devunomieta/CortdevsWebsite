@@ -67,6 +67,7 @@ import adminSplitsubsSettlementsHandler from './_handlers/admin/splitsubs/settle
 import adminSplitsubsTicketsHandler from './_handlers/admin/splitsubs/tickets.js';
 import adminSplitsubsAnalyticsHandler from './_handlers/admin/splitsubs/analytics.js';
 import adminSplitsubsAuditLogHandler from './_handlers/admin/splitsubs/audit-log.js';
+import adminSplitsubsTransactionsHandler from './_handlers/admin/splitsubs/transactions.js';
 
 // Vercel's default bodyParser is disabled below so the Paystack webhook can
 // verify its HMAC signature against the exact raw bytes received — a
@@ -137,6 +138,7 @@ const routes: Record<string, (req: VercelRequest, res: VercelResponse) => any> =
   'admin/splitsubs/tickets': adminSplitsubsTicketsHandler,
   'admin/splitsubs/analytics': adminSplitsubsAnalyticsHandler,
   'admin/splitsubs/audit-log': adminSplitsubsAuditLogHandler,
+  'admin/splitsubs/transactions': adminSplitsubsTransactionsHandler,
 };
 
 // Reads the raw request body (once) and, for JSON payloads, parses it onto
