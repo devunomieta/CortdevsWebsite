@@ -15,6 +15,7 @@ function ServiceForm({ onSaved }: { onSaved: () => void }) {
     const [maxSeats, setMaxSeats] = useState("4");
     const [defaultChargeRate, setDefaultChargeRate] = useState("0.15");
     const [riskTier, setRiskTier] = useState("medium");
+    const [accessType, setAccessType] = useState("shared_login");
     const [billingCycleUnit, setBillingCycleUnit] = useState("month");
     const [billingCycleCount, setBillingCycleCount] = useState("1");
     const [hostFields, setHostFields] = useState("[]");
@@ -30,7 +31,7 @@ function ServiceForm({ onSaved }: { onSaved: () => void }) {
             const joinerFieldsJson = JSON.parse(joinerFields || "[]");
             await ssFetch("/api/admin/splitsubs/services", {
                 method: "POST",
-                body: JSON.stringify({ name, category, maxSeats: Number(maxSeats), defaultChargeRate: Number(defaultChargeRate), riskTier, billingCycleUnit, billingCycleCount: Number(billingCycleCount), hostFields: hostFieldsJson, joinerFields: joinerFieldsJson, riskNote }),
+                body: JSON.stringify({ name, category, maxSeats: Number(maxSeats), defaultChargeRate: Number(defaultChargeRate), riskTier, accessType, billingCycleUnit, billingCycleCount: Number(billingCycleCount), hostFields: hostFieldsJson, joinerFields: joinerFieldsJson, riskNote }),
             });
             showToast("Service added to catalog.", "success");
             onSaved();
@@ -73,6 +74,14 @@ function ServiceForm({ onSaved }: { onSaved: () => void }) {
                 </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Access type</label>
+                    <select value={accessType} onChange={(e) => setAccessType(e.target.value)} className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm">
+                        <option value="shared_login">Shared login (credentials)</option>
+                        <option value="invite">Invite link (accept to join)</option>
+                    </select>
+                    <p className="text-xs text-muted-foreground">Shapes the wording of the access-granted email joiners receive.</p>
+                </div>
                 <div className="space-y-1.5">
                     <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Billing cycle</label>
                     <div className="flex gap-2">
@@ -133,6 +142,15 @@ export function AdminCatalog() {
         }
     };
 
+    const updateAccessType = async (id: string, accessType: string) => {
+        try {
+            await ssFetch("/api/admin/splitsubs/services", { method: "PATCH", body: JSON.stringify({ id, accessType }) });
+            list.reload();
+        } catch (err: any) {
+            showToast(err.message || "Could not update access type.", "error");
+        }
+    };
+
     return (
         <div className="max-w-6xl space-y-6">
             <SEO title="Service Catalog" description="Manage the SplitSubs service catalog." path="/admin/catalog" noindex />
@@ -168,6 +186,10 @@ export function AdminCatalog() {
                                 <p className="text-xs text-muted-foreground">{s.category} · up to {s.max_seats} seats · {(s.default_charge_rate * 100).toFixed(0)}% charge · {s.risk_tier} risk</p>
                             </div>
                             <div className="flex flex-wrap items-center gap-3">
+                                <select value={s.access_type || "shared_login"} onChange={(e) => updateAccessType(s.id, e.target.value)} className="px-2 py-2 bg-background border border-border text-xs outline-none">
+                                    <option value="shared_login">Shared login</option>
+                                    <option value="invite">Invite link</option>
+                                </select>
                                 <div className="flex gap-1">
                                     <input type="number" min={1} max={60} defaultValue={s.billing_cycle_count} onBlur={(e) => updateCycle(s.id, s.billing_cycle_unit, Number(e.target.value))} className="w-14 px-2 py-2 bg-background border border-border text-xs outline-none" />
                                     <select value={s.billing_cycle_unit} onChange={(e) => updateCycle(s.id, e.target.value, s.billing_cycle_count)} className="px-2 py-2 bg-background border border-border text-xs outline-none">

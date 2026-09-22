@@ -53,8 +53,10 @@ export function HowItWorks() {
                     <p className="text-muted-foreground leading-relaxed mb-6">
                         Every seat has a small, clear service charge — typically 15%, shown to you before
                         you ever pay a kobo. It's what keeps your money protected, funds our support team,
-                        and pays for sorting out disputes when they happen. Hosts don't lose anything to it:
-                        they get paid the full base price for every confirmed seat, nothing extra held back.
+                        and pays for sorting out disputes when they happen. Joiners split 100% of the plan
+                        cost between them — the host pays nothing towards it. Once every seat is filled, a
+                        host has their entire subscription cost back in their pocket, and every seat after
+                        that is pure profit.
                     </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="border border-border p-5 bg-card flex gap-3">

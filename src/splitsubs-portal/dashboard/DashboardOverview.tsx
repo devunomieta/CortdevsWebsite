@@ -1,17 +1,18 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
-import { RefreshCw, ArrowRight } from "lucide-react";
+import { RefreshCw, ArrowRight, Heart } from "lucide-react";
 import { ssFetch } from "../lib/api";
 import { SEO } from "../components/SEO";
 
 export function DashboardOverview() {
     const [seats, setSeats] = useState<any[]>([]);
     const [listings, setListings] = useState<any[]>([]);
+    const [wishlist, setWishlist] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        Promise.all([ssFetch("/api/splitsubs/my-seats"), ssFetch("/api/splitsubs/host-listings")])
-            .then(([s, l]) => { setSeats(s.seats || []); setListings(l.listings || []); })
+        Promise.all([ssFetch("/api/splitsubs/my-seats"), ssFetch("/api/splitsubs/host-listings"), ssFetch("/api/splitsubs/wishlist")])
+            .then(([s, l, w]) => { setSeats(s.seats || []); setListings(l.listings || []); setWishlist(w.items || []); })
             .catch(() => { })
             .finally(() => setIsLoading(false));
     }, []);
@@ -61,10 +62,30 @@ export function DashboardOverview() {
                 </div>
                 <div className="border border-border p-6 bg-card">
                     <h3 className="font-medium mb-2">Already paying for a premium plan?</h3>
-                    <p className="text-xs text-muted-foreground mb-4">You're leaving money on the table. List your extra seats and start earning back your subscription — escrow-protected from day one.</p>
+                    <p className="text-xs text-muted-foreground mb-4">Your joiners pay 100% of the cost between them — you pay nothing. Fill every seat and your full subscription cost comes back to you, escrow-protected from day one.</p>
                     <Link to="/dashboard/listings?create=1" className="text-xs font-bold text-primary flex items-center gap-1">List a seat, start earning <ArrowRight size={12} /></Link>
                 </div>
             </div>
+
+            {wishlist.length > 0 && (
+                <div>
+                    <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground mb-4 flex items-center gap-2"><Heart size={14} /> Your Wishlist</h2>
+                    <div className="border border-border bg-card divide-y divide-border">
+                        {wishlist.map((item) => (
+                            <Link key={item.listing_id} to={`/listing/${item.listing_id}`} className="flex items-center justify-between px-5 py-4 hover:bg-secondary/50 transition-colors">
+                                <div className="flex items-center gap-3 min-w-0">
+                                    {item.ss_listings?.ss_services?.icon_url && <img src={item.ss_listings.ss_services.icon_url} alt="" className="w-6 h-6 object-contain shrink-0" />}
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-medium truncate">{item.ss_listings?.ss_services?.name}</p>
+                                        <p className="text-xs text-muted-foreground truncate">{item.ss_listings?.title}</p>
+                                    </div>
+                                </div>
+                                <ArrowRight size={14} className="text-muted-foreground shrink-0" />
+                            </Link>
+                        ))}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

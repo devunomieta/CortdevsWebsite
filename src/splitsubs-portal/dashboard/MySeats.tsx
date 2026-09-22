@@ -4,6 +4,7 @@ import { ssFetch } from "../lib/api";
 import { useToast } from "../../app/components/Toast";
 import { usePaginatedList } from "../lib/usePaginatedList";
 import { SortButton, Pagination } from "../components/ListControls";
+import { SeatChat } from "../components/SeatChat";
 import { SEO } from "../components/SEO";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -115,6 +116,10 @@ export function MySeats() {
                                     </div>
                                 )}
                             </div>
+
+                            {["escrow_held", "access_pending", "confirmed", "disputed"].includes(seat.status) && (
+                                <div className="mt-4"><SeatChat seatId={seat.id} viewerRole="joiner" /></div>
+                            )}
                         </div>
                     ))}
                 </div>

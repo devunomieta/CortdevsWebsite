@@ -29,13 +29,20 @@ async function findAuthUserByEmail(email: string) {
     return null;
 }
 
-// POST { email, password }                    — sign up (or, transparently,
-//        retry a signup that was never confirmed — see below).
-// POST { action: 'resend', email, password }   — re-send from the "check your
-//        email" screen. Functionally identical to the above; `password` is
-//        carried in memory from the original signup form (never re-typed,
-//        never in a URL) because generateLink's 'signup' branch requires it
-//        when it does end up creating a user.
+// POST { email, password, whatsappNumber?, heardAboutUs?, consentAccepted } —
+//        sign up (or, transparently, retry a signup that was never confirmed
+//        — see below). consentAccepted must be true — Feature Audit doc,
+//        Phase 1: no signup without ToS/Privacy acknowledgment, since this
+//        platform handles payments, KYC documents, and bank details.
+//        whatsappNumber/heardAboutUs are optional and collected unverified
+//        (same doc: WhatsApp OTP is deliberately deferred, no free provider
+//        exists at real scale — collecting the number now costs nothing).
+// POST { action: 'resend', email, password } — re-send from the "check your
+//        email" screen. `password` is carried in memory from the original
+//        signup form (never re-typed, never in a URL) because generateLink's
+//        'signup' branch requires it when it does end up creating a user.
+//        consentAccepted isn't re-required here — it was already given on
+//        the original submission that created the (still unconfirmed) account.
 //
 // Bypasses supabase.auth.signUp() entirely — that's what was sending the
 // generic-sender, no-OTP, wrong-domain-link email — using the admin API to
@@ -51,9 +58,12 @@ async function findAuthUserByEmail(email: string) {
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-    const { email, password, action } = req.body || {};
+    const { email, password, action, whatsappNumber, heardAboutUs, consentAccepted } = req.body || {};
     if (!isValidEmail(email)) return res.status(400).json({ error: 'A valid email is required.' });
     if (!password || String(password).length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+    if (action !== 'resend' && consentAccepted !== true) {
+        return res.status(400).json({ error: 'Please accept the Terms and Privacy Policy to continue.' });
+    }
 
     try {
         const { data: profile } = await supabase
@@ -92,11 +102,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         await sendSignupConfirmation(email, { confirmUrl: data.properties.action_link, otp: data.properties.email_otp });
 
-        await supabase.from('ss_host_profiles').upsert([{
+        const profilePatch: Record<string, unknown> = {
             id: data.user.id,
             email,
             last_signup_email_sent_at: new Date().toISOString(),
-        }], { onConflict: 'id' });
+        };
+        if (action !== 'resend') {
+            profilePatch.consent_accepted_at = new Date().toISOString();
+            if (whatsappNumber) profilePatch.whatsapp_number = String(whatsappNumber).trim();
+            if (heardAboutUs) profilePatch.heard_about_us = String(heardAboutUs).trim();
+        }
+        await supabase.from('ss_host_profiles').upsert([profilePatch], { onConflict: 'id' });
 
         return res.status(200).json({ success: true });
     } catch (err: any) {

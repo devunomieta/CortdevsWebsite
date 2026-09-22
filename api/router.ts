@@ -58,6 +58,11 @@ import splitsubsPaymentsWebhookHandler from './_handlers/splitsubs/payments-webh
 import splitsubsPaymentsVerifyHandler from './_handlers/splitsubs/payments-verify.js';
 import splitsubsWalletHandler from './_handlers/splitsubs/wallet.js';
 import splitsubsPrepaidWalletHandler from './_handlers/splitsubs/prepaid-wallet.js';
+import splitsubsServiceRequestsHandler from './_handlers/splitsubs/service-requests.js';
+import splitsubsWishlistHandler from './_handlers/splitsubs/wishlist.js';
+import splitsubsNotifyMeHandler from './_handlers/splitsubs/notify-me.js';
+import splitsubsStatsHandler from './_handlers/splitsubs/stats.js';
+import splitsubsSeatMessagesHandler from './_handlers/splitsubs/seat-messages.js';
 
 import adminSplitsubsServicesHandler from './_handlers/admin/splitsubs/services.js';
 import adminSplitsubsListingsHandler from './_handlers/admin/splitsubs/listings.js';
@@ -69,6 +74,8 @@ import adminSplitsubsTicketsHandler from './_handlers/admin/splitsubs/tickets.js
 import adminSplitsubsAnalyticsHandler from './_handlers/admin/splitsubs/analytics.js';
 import adminSplitsubsAuditLogHandler from './_handlers/admin/splitsubs/audit-log.js';
 import adminSplitsubsTransactionsHandler from './_handlers/admin/splitsubs/transactions.js';
+import adminSplitsubsServiceRequestsHandler from './_handlers/admin/splitsubs/service-requests.js';
+import adminSplitsubsSeatMessagesHandler from './_handlers/admin/splitsubs/seat-messages.js';
 
 // Vercel's default bodyParser is disabled below so the Paystack webhook can
 // verify its HMAC signature against the exact raw bytes received — a
@@ -131,6 +138,11 @@ const routes: Record<string, (req: VercelRequest, res: VercelResponse) => any> =
   'splitsubs/payments-verify': splitsubsPaymentsVerifyHandler,
   'splitsubs/wallet': splitsubsWalletHandler,
   'splitsubs/prepaid-wallet': splitsubsPrepaidWalletHandler,
+  'splitsubs/service-requests': splitsubsServiceRequestsHandler,
+  'splitsubs/wishlist': splitsubsWishlistHandler,
+  'splitsubs/notify-me': splitsubsNotifyMeHandler,
+  'splitsubs/stats': splitsubsStatsHandler,
+  'splitsubs/seat-messages': splitsubsSeatMessagesHandler,
   'admin/splitsubs/services': adminSplitsubsServicesHandler,
   'admin/splitsubs/listings': adminSplitsubsListingsHandler,
   'admin/splitsubs/settings': adminSplitsubsSettingsHandler,
@@ -141,6 +153,8 @@ const routes: Record<string, (req: VercelRequest, res: VercelResponse) => any> =
   'admin/splitsubs/analytics': adminSplitsubsAnalyticsHandler,
   'admin/splitsubs/audit-log': adminSplitsubsAuditLogHandler,
   'admin/splitsubs/transactions': adminSplitsubsTransactionsHandler,
+  'admin/splitsubs/service-requests': adminSplitsubsServiceRequestsHandler,
+  'admin/splitsubs/seat-messages': adminSplitsubsSeatMessagesHandler,
 };
 
 // Reads the raw request body (once) and, for JSON payloads, parses it onto

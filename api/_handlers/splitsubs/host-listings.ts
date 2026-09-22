@@ -4,6 +4,7 @@ import { verifyAuth } from '../../_lib/auth.js';
 import { computeSeatPricing } from '../../_lib/splitsubsFees.js';
 import { logSplitsubsActivity } from '../../_lib/splitsubsAuditLog.js';
 import { parseListParams, likeTerm } from '../../_lib/splitsubsListQuery.js';
+import { isNonEmpty } from '../../_lib/validation.js';
 
 // GET ?page=&pageSize=&search=&sort=&order= — the signed-in user's own
 // listings, each with its seats and pricing (Host dashboard: "Manage active
@@ -54,17 +55,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === 'PATCH') {
-        const { id, status, renewalDay } = req.body || {};
+        const { id, status, renewalDay, nextRenewalDate } = req.body || {};
         if (!id) return res.status(400).json({ error: 'id is required.' });
 
         try {
-            const { data: listing } = await supabase.from('ss_listings').select('id, host_id, status, title').eq('id', id).maybeSingle();
+            const { data: listing } = await supabase.from('ss_listings').select('id, host_id, status, title, next_renewal_date').eq('id', id).maybeSingle();
             if (!listing || listing.host_id !== host.id) return res.status(404).json({ error: 'Listing not found.' });
 
             const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
             if (status) {
                 if (!['paused', 'active'].includes(status)) return res.status(400).json({ error: 'Hosts can only pause or resume a listing.' });
-                if (status === 'active' && listing.status !== 'paused') return res.status(400).json({ error: 'Only a paused listing can be resumed here.' });
+                if (status === 'active' && !['paused', 'expired'].includes(listing.status)) {
+                    return res.status(400).json({ error: 'Only a paused or expired listing can be resumed here.' });
+                }
+                // Reactivating an expired listing needs a fresh renewal date —
+                // the old one is why it expired, so resuming without one
+                // would just have it expire again on tomorrow's cron sweep.
+                if (status === 'active' && listing.status === 'expired') {
+                    if (!isNonEmpty(nextRenewalDate)) return res.status(400).json({ error: 'Confirm your new renewal date to reactivate this listing.' });
+                    const renewalDate = new Date(nextRenewalDate);
+                    if (Number.isNaN(renewalDate.getTime()) || renewalDate <= new Date()) {
+                        return res.status(400).json({ error: 'nextRenewalDate must be a valid date in the future.' });
+                    }
+                    patch.next_renewal_date = nextRenewalDate;
+                }
                 patch.status = status;
             }
             if (renewalDay !== undefined) {

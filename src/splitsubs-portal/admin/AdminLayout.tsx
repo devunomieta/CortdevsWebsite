@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Outlet, Link, useNavigate, useLocation } from "react-router";
 import { Helmet } from "react-helmet-async";
-import { LayoutDashboard, Layers, ClipboardList, Users, Scale, Wallet, Receipt, LifeBuoy, ScrollText, Settings, LogOut, ExternalLink, RefreshCw, Menu, X } from "lucide-react";
+import { LayoutDashboard, Layers, ClipboardList, Users, Scale, Wallet, Receipt, LifeBuoy, ScrollText, Settings, LogOut, ExternalLink, RefreshCw, Menu, X, MessageSquarePlus } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { SplitSubsMark } from "../components/SplitSubsLogo";
 
@@ -52,6 +52,7 @@ export function SplitSubsAdminLayout() {
         { label: "Transactions", path: "/admin/transactions", icon: Receipt },
         { label: "Payouts", path: "/admin/settlements", icon: Wallet },
         { label: "Tickets", path: "/admin/tickets", icon: LifeBuoy },
+        { label: "Service Requests", path: "/admin/service-requests", icon: MessageSquarePlus },
         { label: "Audit Log", path: "/admin/audit-log", icon: ScrollText },
         { label: "Settings", path: "/admin/settings", icon: Settings },
     ];

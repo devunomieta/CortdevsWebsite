@@ -20,8 +20,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const joiner = await verifyAuth(req, res);
     if (!joiner) return;
 
-    const { listingId, joinerFieldsData, provider } = req.body || {};
+    const { listingId, joinerFieldsData, provider, consentAccepted } = req.body || {};
     if (!isNonEmpty(listingId)) return res.status(400).json({ error: 'listingId is required.' });
+    if (consentAccepted !== true) return res.status(400).json({ error: 'Please confirm you understand how escrow works before joining.' });
 
     try {
         const { data: listing, error: listingError } = await supabase

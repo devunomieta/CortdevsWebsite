@@ -5,6 +5,7 @@ import { ssFetch } from "../lib/api";
 import { useToast } from "../../app/components/Toast";
 import { usePaginatedList } from "../lib/usePaginatedList";
 import { SearchBar, SortButton, Pagination } from "../components/ListControls";
+import { SeatChat } from "../components/SeatChat";
 import { SEO } from "../components/SEO";
 
 const money = (n: number) => `₦${Number(n).toLocaleString("en-NG", { minimumFractionDigits: 2 })}`;
@@ -14,24 +15,37 @@ function CreateListingForm({ onCreated }: { onCreated: () => void }) {
     const [services, setServices] = useState<any[]>([]);
     const [serviceId, setServiceId] = useState("");
     const [title, setTitle] = useState("");
+    const [shortDescription, setShortDescription] = useState("");
     const [planCost, setPlanCost] = useState("");
     const [totalSeats, setTotalSeats] = useState("");
     const [proofUrl, setProofUrl] = useState("");
+    const [subStartDate, setSubStartDate] = useState("");
+    const [nextRenewalDate, setNextRenewalDate] = useState("");
     const [hostFieldsData, setHostFieldsData] = useState<Record<string, string>>({});
+    const [consentAccepted, setConsentAccepted] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [step, setStep] = useState<"form" | "preview">("form");
 
     useEffect(() => { ssFetch("/api/splitsubs/services").then((d) => setServices(d.services || [])).catch(() => { }); }, []);
     const service = services.find((s) => s.id === serviceId);
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleReview = (e: React.FormEvent) => {
         e.preventDefault();
+        if (!consentAccepted) {
+            showToast("Please confirm you understand the hosting terms before listing.", "error");
+            return;
+        }
+        setStep("preview");
+    };
+
+    const handleConfirm = async () => {
         setIsSubmitting(true);
         try {
-            await ssFetch("/api/splitsubs/listings", {
+            const result = await ssFetch("/api/splitsubs/listings", {
                 method: "POST",
-                body: JSON.stringify({ serviceId, title, planCost: Number(planCost), totalSeats: Number(totalSeats), proofUrl, hostFieldsData }),
+                body: JSON.stringify({ serviceId, title, shortDescription, planCost: Number(planCost), totalSeats: Number(totalSeats), proofUrl, hostFieldsData, subStartDate, nextRenewalDate, consentAccepted }),
             });
-            showToast("Listing submitted for review.", "success");
+            showToast(`Listing ${result.shortId} submitted for review.`, "success");
             onCreated();
         } catch (err: any) {
             showToast(err.message || "Could not create listing.", "error");
@@ -40,11 +54,58 @@ function CreateListingForm({ onCreated }: { onCreated: () => void }) {
         }
     };
 
+    if (step === "preview") {
+        const seatPrice = totalSeats ? Number(planCost) / Number(totalSeats) : 0;
+        const seatsAvailable = totalSeats ? Number(totalSeats) - 1 : 0;
+        return (
+            <div className="border border-border p-6 bg-card space-y-5">
+                <div>
+                    <h3 className="font-medium">Preview your listing</h3>
+                    <p className="text-xs text-muted-foreground mt-1">This is how it'll look before it goes to review. Double-check the details.</p>
+                </div>
+                <div className="border border-border bg-background p-5 space-y-4">
+                    <div className="flex items-center gap-3">
+                        {service?.icon_url && <img src={service.icon_url} alt="" className="w-10 h-10 object-contain shrink-0" />}
+                        <div className="min-w-0">
+                            <p className="font-medium truncate">{title || "Untitled listing"}</p>
+                            <p className="text-xs text-muted-foreground truncate">{service?.name} {service?.category && `· ${service.category}`}</p>
+                        </div>
+                    </div>
+                    {shortDescription && <p className="text-sm text-muted-foreground">{shortDescription}</p>}
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Total seats</p>
+                            <p>{totalSeats || "—"} seats · {money(Number(planCost) || 0)} plan</p>
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Seats available</p>
+                            <p>{seatsAvailable} seats · {money(seatPrice)} / seat</p>
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Sub started</p>
+                            <p>{subStartDate || "—"}</p>
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Next renewal</p>
+                            <p>{nextRenewalDate || "—"}</p>
+                        </div>
+                    </div>
+                </div>
+                <div className="flex gap-3">
+                    <button type="button" onClick={() => setStep("form")} className="px-6 py-3 border border-border text-[10px] font-bold uppercase tracking-widest">Back to edit</button>
+                    <button type="button" onClick={handleConfirm} disabled={isSubmitting} className="px-6 py-3 bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 disabled:opacity-50">
+                        {isSubmitting ? <RefreshCw size={14} className="animate-spin" /> : <Send size={14} />} Confirm & Submit
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
     return (
-        <form onSubmit={handleSubmit} className="border border-border p-6 bg-card space-y-5">
+        <form onSubmit={handleReview} className="border border-border p-6 bg-card space-y-5">
             <div>
                 <h3 className="font-medium">List your extra seats</h3>
-                <p className="text-xs text-muted-foreground mt-1">Two minutes to fill, and you could be earning back your subscription this week.</p>
+                <p className="text-xs text-muted-foreground mt-1">Your joiners pay 100% of the plan cost between them — you pay nothing towards it. Fill every seat and you get your full subscription cost back.</p>
             </div>
             <div className="space-y-1.5">
                 <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Service</label>
@@ -57,6 +118,10 @@ function CreateListingForm({ onCreated }: { onCreated: () => void }) {
                 <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Listing title</label>
                 <input required maxLength={200} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Netflix Premium — 3 seats open" className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm" />
             </div>
+            <div className="space-y-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Short description (optional)</label>
+                <textarea maxLength={280} rows={2} value={shortDescription} onChange={(e) => setShortDescription(e.target.value)} placeholder="A quick line joiners see on the listing — e.g. plan tier, region, what's included." className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm resize-none" />
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                     <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Plan cost (₦, whole plan)</label>
@@ -67,6 +132,17 @@ function CreateListingForm({ onCreated }: { onCreated: () => void }) {
                     <input required type="number" min={2} max={service?.max_seats || 20} value={totalSeats} onChange={(e) => setTotalSeats(e.target.value)} className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm" />
                 </div>
             </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Your sub started on</label>
+                    <input required type="date" value={subStartDate} onChange={(e) => setSubStartDate(e.target.value)} className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm" />
+                </div>
+                <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Next renewal date</label>
+                    <input required type="date" value={nextRenewalDate} onChange={(e) => setNextRenewalDate(e.target.value)} className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm" />
+                </div>
+            </div>
+            <p className="text-xs text-muted-foreground -mt-3">Joiners see these dates so they know how fresh the plan is. If your renewal date passes without you confirming you've renewed, the listing auto-pauses.</p>
             <div className="space-y-1.5">
                 <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Proof of subscription (link to screenshot/receipt)</label>
                 <input value={proofUrl} onChange={(e) => setProofUrl(e.target.value)} placeholder="https://..." className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm" />
@@ -77,8 +153,12 @@ function CreateListingForm({ onCreated }: { onCreated: () => void }) {
                     <input required={f.required} value={hostFieldsData[f.key] || ""} onChange={(e) => setHostFieldsData((prev) => ({ ...prev, [f.key]: e.target.value }))} className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm" />
                 </div>
             ))}
-            <button type="submit" disabled={isSubmitting} className="px-6 py-3 bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 disabled:opacity-50">
-                {isSubmitting ? <RefreshCw size={14} className="animate-spin" /> : <Send size={14} />} Submit & Start Earning
+            <label className="flex items-start gap-2 text-xs text-muted-foreground cursor-pointer">
+                <input type="checkbox" checked={consentAccepted} onChange={(e) => setConsentAccepted(e.target.checked)} className="mt-0.5 accent-primary" />
+                <span>I confirm this subscription is real and active, and I agree to SplitSubs' hosting terms — including escrow and payout timing.</span>
+            </label>
+            <button type="submit" disabled={!consentAccepted} className="px-6 py-3 bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 disabled:opacity-50">
+                <Send size={14} /> Review Listing
             </button>
         </form>
     );
@@ -107,6 +187,18 @@ export function MyListings() {
             list.reload();
         } catch (err: any) {
             showToast(err.message || "Could not update listing.", "error");
+        }
+    };
+
+    const reactivateExpired = async (id: string) => {
+        const nextRenewalDate = window.prompt("This listing expired — confirm you've renewed and enter the new renewal date (YYYY-MM-DD):");
+        if (!nextRenewalDate) return;
+        try {
+            await ssFetch("/api/splitsubs/host-listings", { method: "PATCH", body: JSON.stringify({ id, status: "active", nextRenewalDate }) });
+            showToast("Listing reactivated.", "success");
+            list.reload();
+        } catch (err: any) {
+            showToast(err.message || "Could not reactivate listing.", "error");
         }
     };
 
@@ -156,6 +248,9 @@ export function MyListings() {
                                     {listing.status === "paused" && (
                                         <button onClick={() => toggleStatus(listing.id, "active")} className="p-2 border border-border hover:bg-secondary" title="Resume"><Play size={14} /></button>
                                     )}
+                                    {listing.status === "expired" && (
+                                        <button onClick={() => reactivateExpired(listing.id)} className="px-3 py-2 border border-border hover:bg-secondary text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5"><Play size={14} /> Renewed? Reactivate</button>
+                                    )}
                                 </div>
                             </div>
 
@@ -183,6 +278,9 @@ export function MyListings() {
                                                     />
                                                     <button onClick={() => grantAccess(seat.id)} className="px-4 py-2 bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-widest">Grant Access Now</button>
                                                 </div>
+                                            )}
+                                            {["escrow_held", "access_pending", "confirmed", "disputed"].includes(seat.status) && (
+                                                <div className="mt-3"><SeatChat seatId={seat.id} viewerRole="host" /></div>
                                             )}
                                         </div>
                                     ))}

@@ -6,7 +6,7 @@ import { usePaginatedList } from "../lib/usePaginatedList";
 import { SearchBar, SortButton, Pagination } from "../components/ListControls";
 import { SEO } from "../components/SEO";
 
-const TABS = ["pending_review", "active", "paused", "suspended", "rejected"];
+const TABS = ["pending_review", "active", "paused", "expired", "suspended", "rejected"];
 
 export function AdminListings() {
     const { showToast } = useToast();

@@ -21,7 +21,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
         const { data: seat, error } = await supabase
             .from('ss_seats')
-            .select('*, ss_listings(id, host_id, title)')
+            .select('*, ss_listings(id, host_id, title, ss_services(access_type))')
             .eq('id', seatId)
             .maybeSingle();
         if (error || !seat) return res.status(404).json({ error: 'Seat not found.' });
@@ -46,6 +46,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     serviceName: seat.ss_listings.title,
                     accessInfoHtml: accessNote ? accessNote.replace(/\n/g, '<br/>') : 'Check your SplitSubs dashboard for details.',
                     confirmUrl: `${getSplitsubsAppUrl()}/dashboard`,
+                    accessType: seat.ss_listings.ss_services?.access_type,
                 }).catch((e) => console.error('sendAccessGrantedToJoiner failed:', e));
             }
 

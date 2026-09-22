@@ -4,6 +4,7 @@ import { ssFetch } from "../lib/api";
 import { useToast } from "../../app/components/Toast";
 import { usePaginatedList } from "../lib/usePaginatedList";
 import { SearchBar, Pagination } from "../components/ListControls";
+import { AdminSeatChatViewer } from "./AdminSeatChatViewer";
 import { SEO } from "../components/SEO";
 
 const TABS = ["open", "resolved", "all"];
@@ -62,6 +63,7 @@ export function AdminDisputes() {
                                 </div>
                                 <p className="text-xs text-muted-foreground mb-1">Seat total: ₦{Number(d.ss_seats?.total_paid || 0).toLocaleString()}</p>
                                 <p className="text-sm mb-4">"{d.reason}"{d.details ? ` — ${d.details}` : ""}</p>
+                                {d.seat_id && <div className="mb-4"><AdminSeatChatViewer seatId={d.seat_id} /></div>}
                                 {isOpen && (
                                     <div className="flex flex-wrap gap-2">
                                         <button disabled={busyId === d.id} onClick={() => resolve(d.id, "resolved_refund")} className="px-4 py-2 bg-rose-500 text-white text-[10px] font-bold uppercase tracking-widest disabled:opacity-50">Refund joiner</button>

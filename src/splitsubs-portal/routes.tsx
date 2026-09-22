@@ -28,6 +28,7 @@ import { AdminTransactions } from "./admin/AdminTransactions";
 import { AdminTickets } from "./admin/AdminTickets";
 import { AdminAuditLog } from "./admin/AdminAuditLog";
 import { AdminSettings } from "./admin/AdminSettings";
+import { AdminServiceRequests } from "./admin/AdminServiceRequests";
 
 export const splitsubsRouter = createBrowserRouter([
     {
@@ -70,6 +71,7 @@ export const splitsubsRouter = createBrowserRouter([
             { path: "tickets", element: <AdminTickets /> },
             { path: "audit-log", element: <AdminAuditLog /> },
             { path: "settings", element: <AdminSettings /> },
+            { path: "service-requests", element: <AdminServiceRequests /> },
         ],
     },
     { path: "*", element: <Navigate to="/" replace /> },

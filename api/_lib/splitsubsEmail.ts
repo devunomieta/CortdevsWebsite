@@ -28,6 +28,17 @@ async function sendSplitsubsEmail(to: string, subject: string, bodyHtml: string)
 
 const money = (n: number) => `₦${n.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+// Sent by the daily renewal-reminder cron to everyone who asked to be
+// notified when a sold-out listing has a seat open up (Feature Audit doc,
+// Phase 3).
+export async function sendSeatAvailableAgain(to: string, params: { serviceName: string; listingUrl: string }) {
+    await sendSplitsubsEmail(to, `A seat just opened up on ${params.serviceName}`, `
+    <h2 style="font-weight: 600;">Good news — a seat is open</h2>
+    <p>You asked to be notified when a seat opened up on <strong>${params.serviceName}</strong>. One just did — seats go fast, so don't sleep on it.</p>
+    <p><a href="${params.listingUrl}" style="display:inline-block;padding:10px 20px;background:#000;color:#fff;text-decoration:none;border-radius:4px;">Grab the Seat</a></p>
+  `);
+}
+
 // Sent by splitsubs/signup.ts in place of Supabase's own hosted confirmation
 // email — same branded shell as every other SplitSubs email, and carries
 // BOTH a clickable confirmation link (for anyone who just wants to tap it)
@@ -63,12 +74,17 @@ export async function sendNewJoinerToHost(to: string, params: { serviceName: str
   `);
 }
 
-export async function sendAccessGrantedToJoiner(to: string, params: { serviceName: string; accessInfoHtml: string; confirmUrl: string }) {
-    await sendSplitsubsEmail(to, `Your ${params.serviceName} access is ready — confirm now`, `
+export async function sendAccessGrantedToJoiner(to: string, params: { serviceName: string; accessInfoHtml: string; confirmUrl: string; accessType?: 'invite' | 'shared_login' }) {
+    const isInvite = params.accessType === 'invite';
+    await sendSplitsubsEmail(to, `Your ${params.serviceName} ${isInvite ? 'invite is ready' : 'access is ready'} — confirm now`, `
     <h2 style="font-weight: 600;">You're good to go</h2>
-    <p>The host has granted your access to ${params.serviceName}:</p>
+    <p>${isInvite
+            ? `The host has sent an invite for ${params.serviceName} — accept it using the details below:`
+            : `The host has granted your access to ${params.serviceName}:`}</p>
     <div style="background:#f9f9f9;padding:16px;border-left:3px solid #000;margin:16px 0;">${params.accessInfoHtml}</div>
-    <p>Please confirm it's working now — don't leave it hanging. This is what releases the host's payout, and it locks in your seat for good.</p>
+    <p>${isInvite
+            ? `Once you've accepted the invite, confirm it below — don't leave it hanging. This is what releases the host's payout, and it locks in your seat for good.`
+            : `Please confirm it's working now — don't leave it hanging. This is what releases the host's payout, and it locks in your seat for good.`}</p>
     <p><a href="${params.confirmUrl}" style="display:inline-block;padding:10px 20px;background:#000;color:#fff;text-decoration:none;border-radius:4px;">Confirm It's Working</a></p>
   `);
 }

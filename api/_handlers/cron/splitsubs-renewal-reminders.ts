@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabase } from '../../_lib/supabase.js';
-import { sendRenewalReminder } from '../../_lib/splitsubsEmail.js';
+import { sendRenewalReminder, sendSeatAvailableAgain } from '../../_lib/splitsubsEmail.js';
 import { getSplitsubsAppUrl } from '../../_lib/appUrl.js';
 
 // Runs daily (see vercel.json). Reminds hosts and confirmed joiners at T-5
@@ -51,7 +51,62 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
         }
 
-        return res.status(200).json({ success: true, listingsChecked: (listings || []).length, remindersSent: sent });
+        // Auto-expiry (Feature Audit doc, Phase 2) — a listing whose
+        // next_renewal_date has passed with no confirmation the host
+        // actually renewed stops being joinable. This runs in the same
+        // daily job as the reminders above on purpose: it already scans by
+        // next_renewal_date every day, so there's no separate schedule to
+        // keep in sync. Only 'active' listings are touched — one that's
+        // already paused/suspended/expired shouldn't be relabeled by a cron
+        // sweep that isn't the reason it's in that state.
+        const today = new Date().toISOString().slice(0, 10);
+        const { data: expired, error: expireError } = await supabase
+            .from('ss_listings')
+            .update({ status: 'expired' })
+            .eq('status', 'active')
+            .lt('next_renewal_date', today)
+            .select('id');
+        if (expireError) throw expireError;
+
+        // "Notify me" (Feature Audit doc, Phase 3) — checked once a day here
+        // rather than on every seat-freeing event (cancellation, refund,
+        // churn, expiry) individually; those are scattered across several
+        // code paths (disputes, cron expiry above, joiner cancellations),
+        // and a shared daily sweep is simpler and more reliable than hooking
+        // every one of them. Up to ~24h delay before someone hears a seat
+        // freed up — acceptable for a first version.
+        let notified = 0;
+        const { data: pendingRequests } = await supabase
+            .from('ss_notify_requests')
+            .select('id, email, listing_id, ss_listings(status, title, ss_services(name))');
+        const requestsByListing = new Map<string, typeof pendingRequests>();
+        for (const r of pendingRequests || []) {
+            if (!requestsByListing.has(r.listing_id)) requestsByListing.set(r.listing_id, []);
+            requestsByListing.get(r.listing_id)!.push(r);
+        }
+        for (const [listingId, requests] of requestsByListing) {
+            const first = requests![0] as any;
+            if (first.ss_listings?.status !== 'active') continue;
+
+            const { count: takenCount } = await supabase
+                .from('ss_seats')
+                .select('id', { count: 'exact', head: true })
+                .eq('listing_id', listingId)
+                .not('status', 'in', '(cancelled,refunded,churned)');
+            const { data: listingSeats } = await supabase.from('ss_listings').select('total_seats').eq('id', listingId).maybeSingle();
+            const openSeats = (listingSeats?.total_seats || 0) - 1 - (takenCount || 0);
+            if (openSeats <= 0) continue;
+
+            const serviceName = first.ss_listings?.ss_services?.name || first.ss_listings?.title;
+            const listingUrl = `${getSplitsubsAppUrl()}/listing/${listingId}`;
+            for (const r of requests || []) {
+                await sendSeatAvailableAgain((r as any).email, { serviceName, listingUrl }).catch((e) => console.error(e));
+                notified += 1;
+            }
+            await supabase.from('ss_notify_requests').delete().eq('listing_id', listingId);
+        }
+
+        return res.status(200).json({ success: true, listingsChecked: (listings || []).length, remindersSent: sent, listingsExpired: (expired || []).length, notifyRequestsSent: notified });
     } catch (err: any) {
         console.error('cron/splitsubs-renewal-reminders error:', err);
         return res.status(500).json({ error: err.message || 'Renewal reminder job failed.' });

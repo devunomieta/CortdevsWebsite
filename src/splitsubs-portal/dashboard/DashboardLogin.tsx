@@ -1,11 +1,21 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router";
-import { Mail, Lock, ArrowRight, RefreshCw, Eye, EyeOff } from "lucide-react";
+import { Mail, Lock, Phone, ArrowRight, RefreshCw, Eye, EyeOff } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { ssPublicFetch } from "../lib/api";
 import { useToast } from "../../app/components/Toast";
 import { SEO } from "../components/SEO";
 import { SplitSubsMark } from "../components/SplitSubsLogo";
+
+const HEARD_ABOUT_OPTIONS = [
+    { value: "", label: "How did you hear about us? (optional)" },
+    { value: "friend_family", label: "Friend or family" },
+    { value: "social_media", label: "Social media" },
+    { value: "search_engine", label: "Search engine" },
+    { value: "whatsapp_group", label: "A WhatsApp group" },
+    { value: "influencer", label: "Influencer / blog" },
+    { value: "other", label: "Other" },
+];
 
 // Hosts and joiners are real Supabase Auth users (unlike the Events portal's
 // per-credential token scheme) — anyone can self-register to either join a
@@ -15,6 +25,9 @@ export function DashboardLogin() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
+    const [whatsappNumber, setWhatsappNumber] = useState("");
+    const [heardAboutUs, setHeardAboutUs] = useState("");
+    const [consentAccepted, setConsentAccepted] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const { showToast } = useToast();
     const navigate = useNavigate();
@@ -23,10 +36,17 @@ export function DashboardLogin() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (mode === "signup" && !consentAccepted) {
+            showToast("Please accept the Terms and Privacy Policy to continue.", "error");
+            return;
+        }
         setIsLoading(true);
         try {
             if (mode === "signup") {
-                await ssPublicFetch("/api/splitsubs/signup", { method: "POST", body: JSON.stringify({ email, password }) });
+                await ssPublicFetch("/api/splitsubs/signup", {
+                    method: "POST",
+                    body: JSON.stringify({ email, password, whatsappNumber: whatsappNumber.trim() || undefined, heardAboutUs: heardAboutUs || undefined, consentAccepted }),
+                });
                 // Password travels in router state, not the URL — verify page
                 // needs it only to resend the code, and only for this session.
                 navigate(`/dashboard/verify?email=${encodeURIComponent(email)}&redirect=${encodeURIComponent(redirect)}`, { state: { password } });
@@ -72,6 +92,29 @@ export function DashboardLogin() {
                             </button>
                         </div>
                     </div>
+
+                    {mode === "signup" && (
+                        <>
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">WhatsApp number (optional)</label>
+                                <div className="relative">
+                                    <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+                                    <input type="tel" placeholder="080..." value={whatsappNumber} onChange={(e) => setWhatsappNumber(e.target.value)} className="w-full pl-10 pr-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm" />
+                                </div>
+                                <p className="text-xs text-muted-foreground">So we can reach you faster about access, payouts, or disputes.</p>
+                            </div>
+                            <div className="space-y-1.5">
+                                <select value={heardAboutUs} onChange={(e) => setHeardAboutUs(e.target.value)} className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm text-muted-foreground">
+                                    {HEARD_ABOUT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                </select>
+                            </div>
+                            <label className="flex items-start gap-2.5 text-xs text-muted-foreground cursor-pointer">
+                                <input type="checkbox" required checked={consentAccepted} onChange={(e) => setConsentAccepted(e.target.checked)} className="mt-0.5 accent-primary" />
+                                <span>I agree to SplitSubs' <Link to="/how-it-works" className="text-foreground underline">Terms</Link> and Privacy Policy, including how escrow and payouts work.</span>
+                            </label>
+                        </>
+                    )}
+
                     <button type="submit" disabled={isLoading} className="w-full py-4 bg-primary text-primary-foreground text-xs font-bold uppercase tracking-widest hover:opacity-90 transition-all flex items-center justify-center gap-2 disabled:opacity-50">
                         {isLoading ? <RefreshCw size={16} className="animate-spin" /> : <>{mode === "signin" ? "Sign In" : "Create Free Account"} <ArrowRight size={14} /></>}
                     </button>
