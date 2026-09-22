@@ -26,6 +26,8 @@ export function SplitSubsFooter() {
                             <li><Link to="/" className="hover:text-white transition-colors">Browse Seats</Link></li>
                             <li><Link to="/how-it-works" className="hover:text-white transition-colors">How it Works</Link></li>
                             <li><Link to="/contact" className="hover:text-white transition-colors">Contact</Link></li>
+                            <li><Link to="/terms" className="hover:text-white transition-colors">Terms of Service</Link></li>
+                            <li><Link to="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link></li>
                         </ul>
                     </div>
 

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { MessageCircle, Send, RefreshCw, Lock, Unlock, ChevronDown, ChevronUp } from "lucide-react";
+import { MessageCircle, Send, RefreshCw, Lock, Unlock, ChevronDown, ChevronUp, Flag, ShieldAlert } from "lucide-react";
 import { ssFetch } from "../lib/api";
 import { useToast } from "../../app/components/Toast";
 
@@ -18,6 +18,7 @@ export function SeatChat({ seatId, viewerRole }: { seatId: string; viewerRole: "
     const [chatStatus, setChatStatus] = useState<"open" | "closed">("open");
     const [draft, setDraft] = useState("");
     const [isSending, setIsSending] = useState(false);
+    const [isReporting, setIsReporting] = useState(false);
     const bottomRef = useRef<HTMLDivElement>(null);
 
     const load = () => {
@@ -43,10 +44,28 @@ export function SeatChat({ seatId, viewerRole }: { seatId: string; viewerRole: "
             const result = await ssFetch("/api/splitsubs/seat-messages", { method: "POST", body: JSON.stringify({ seatId, message: draft }) });
             setMessages((prev) => [...prev, result.message]);
             setDraft("");
+            if (result.warning) showToast(result.warning, "error");
         } catch (err: any) {
             showToast(err.message || "Could not send message.", "error");
         } finally {
             setIsSending(false);
+        }
+    };
+
+    const report = async () => {
+        const reason = window.prompt("What's wrong with this conversation? (sent to SplitSubs support)");
+        if (!reason) return;
+        setIsReporting(true);
+        try {
+            await ssFetch("/api/splitsubs/tickets", {
+                method: "POST",
+                body: JSON.stringify({ category: "other", subject: "Reported a seat conversation", message: reason, seatId }),
+            });
+            showToast("Reported — support will review this conversation.", "success");
+        } catch (err: any) {
+            showToast(err.message || "Could not report this conversation.", "error");
+        } finally {
+            setIsReporting(false);
         }
     };
 
@@ -72,6 +91,7 @@ export function SeatChat({ seatId, viewerRole }: { seatId: string; viewerRole: "
                         <div className="flex justify-center py-6"><RefreshCw className="animate-spin text-muted-foreground" size={16} /></div>
                     ) : (
                         <>
+                            <p className="text-[10px] text-muted-foreground flex items-start gap-1.5"><ShieldAlert size={12} className="shrink-0 mt-0.5" /> SplitSubs staff can view this conversation if a dispute is opened.</p>
                             <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
                                 {messages.length === 0 && <p className="text-xs text-muted-foreground text-center py-4">No messages yet — say hello.</p>}
                                 {messages.map((m) => (
@@ -92,9 +112,17 @@ export function SeatChat({ seatId, viewerRole }: { seatId: string; viewerRole: "
                                     </button>
                                 </form>
                             )}
-                            <button onClick={toggleChat} className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground flex items-center gap-1.5">
-                                {chatStatus === "open" ? <><Lock size={12} /> Close conversation</> : <><Unlock size={12} /> Reopen conversation</>}
-                            </button>
+                            {viewerRole === "joiner" && chatStatus === "open" && (
+                                <p className="text-[10px] text-muted-foreground">Closing this doesn't confirm access — use "Confirm It's Working" above to release the host's payout.</p>
+                            )}
+                            <div className="flex items-center justify-between">
+                                <button onClick={toggleChat} className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground flex items-center gap-1.5">
+                                    {chatStatus === "open" ? <><Lock size={12} /> Close conversation</> : <><Unlock size={12} /> Reopen conversation</>}
+                                </button>
+                                <button onClick={report} disabled={isReporting} className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-rose-500 flex items-center gap-1.5 disabled:opacity-50">
+                                    <Flag size={12} /> Report
+                                </button>
+                            </div>
                         </>
                     )}
                 </div>

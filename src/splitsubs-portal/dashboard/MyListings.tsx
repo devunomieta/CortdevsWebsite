@@ -14,7 +14,6 @@ function CreateListingForm({ onCreated }: { onCreated: () => void }) {
     const { showToast } = useToast();
     const [services, setServices] = useState<any[]>([]);
     const [serviceId, setServiceId] = useState("");
-    const [title, setTitle] = useState("");
     const [shortDescription, setShortDescription] = useState("");
     const [planCost, setPlanCost] = useState("");
     const [totalSeats, setTotalSeats] = useState("");
@@ -28,11 +27,22 @@ function CreateListingForm({ onCreated }: { onCreated: () => void }) {
 
     useEffect(() => { ssFetch("/api/splitsubs/services").then((d) => setServices(d.services || [])).catch(() => { }); }, []);
     const service = services.find((s) => s.id === serviceId);
+    const proofRequired = service && ["medium", "high"].includes(service.risk_tier);
+
+    const handleServiceChange = (id: string) => {
+        setServiceId(id);
+        const selected = services.find((s) => s.id === id);
+        if (selected?.default_plan_cost) setPlanCost(String(selected.default_plan_cost));
+    };
 
     const handleReview = (e: React.FormEvent) => {
         e.preventDefault();
         if (!consentAccepted) {
             showToast("Please confirm you understand the hosting terms before listing.", "error");
+            return;
+        }
+        if (proofRequired && !proofUrl.trim()) {
+            showToast("Proof of subscription is required for this service.", "error");
             return;
         }
         setStep("preview");
@@ -43,7 +53,7 @@ function CreateListingForm({ onCreated }: { onCreated: () => void }) {
         try {
             const result = await ssFetch("/api/splitsubs/listings", {
                 method: "POST",
-                body: JSON.stringify({ serviceId, title, shortDescription, planCost: Number(planCost), totalSeats: Number(totalSeats), proofUrl, hostFieldsData, subStartDate, nextRenewalDate, consentAccepted }),
+                body: JSON.stringify({ serviceId, shortDescription, planCost: Number(planCost), totalSeats: Number(totalSeats), proofUrl, hostFieldsData, subStartDate, nextRenewalDate, consentAccepted }),
             });
             showToast(`Listing ${result.shortId} submitted for review.`, "success");
             onCreated();
@@ -64,12 +74,15 @@ function CreateListingForm({ onCreated }: { onCreated: () => void }) {
                     <p className="text-xs text-muted-foreground mt-1">This is how it'll look before it goes to review. Double-check the details.</p>
                 </div>
                 <div className="border border-border bg-background p-5 space-y-4">
-                    <div className="flex items-center gap-3">
-                        {service?.icon_url && <img src={service.icon_url} alt="" className="w-10 h-10 object-contain shrink-0" />}
-                        <div className="min-w-0">
-                            <p className="font-medium truncate">{title || "Untitled listing"}</p>
-                            <p className="text-xs text-muted-foreground truncate">{service?.name} {service?.category && `· ${service.category}`}</p>
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                            {service?.icon_url && <img src={service.icon_url} alt="" className="w-10 h-10 object-contain shrink-0" />}
+                            <div className="min-w-0">
+                                <p className="font-medium truncate">{service?.name || "Untitled listing"}</p>
+                                <p className="text-xs text-muted-foreground truncate">{service?.category}</p>
+                            </div>
                         </div>
+                        <span className="text-[10px] text-muted-foreground font-mono shrink-0">SS-#### (assigned on submit)</span>
                     </div>
                     {shortDescription && <p className="text-sm text-muted-foreground">{shortDescription}</p>}
                     <div className="grid grid-cols-2 gap-4 text-sm">
@@ -109,14 +122,11 @@ function CreateListingForm({ onCreated }: { onCreated: () => void }) {
             </div>
             <div className="space-y-1.5">
                 <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Service</label>
-                <select required value={serviceId} onChange={(e) => setServiceId(e.target.value)} className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm">
+                <select required value={serviceId} onChange={(e) => handleServiceChange(e.target.value)} className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm">
                     <option value="">Choose a service</option>
                     {services.map((s) => <option key={s.id} value={s.id}>{s.name} (up to {s.max_seats} seats)</option>)}
                 </select>
-            </div>
-            <div className="space-y-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Listing title</label>
-                <input required maxLength={200} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Netflix Premium — 3 seats open" className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm" />
+                <p className="text-xs text-muted-foreground">Your listing's name, logo, and category come from the catalog — pick the plan you actually have.</p>
             </div>
             <div className="space-y-1.5">
                 <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Short description (optional)</label>
@@ -126,6 +136,7 @@ function CreateListingForm({ onCreated }: { onCreated: () => void }) {
                 <div className="space-y-1.5">
                     <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Plan cost (₦, whole plan)</label>
                     <input required type="number" min={1} value={planCost} onChange={(e) => setPlanCost(e.target.value)} className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm" />
+                    {service?.default_plan_cost && <p className="text-xs text-muted-foreground">Pre-filled from the catalog — confirm it's right, or correct it if your actual price differs.</p>}
                 </div>
                 <div className="space-y-1.5">
                     <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Total seats (incl. you)</label>
@@ -144,8 +155,9 @@ function CreateListingForm({ onCreated }: { onCreated: () => void }) {
             </div>
             <p className="text-xs text-muted-foreground -mt-3">Joiners see these dates so they know how fresh the plan is. If your renewal date passes without you confirming you've renewed, the listing auto-pauses.</p>
             <div className="space-y-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Proof of subscription (link to screenshot/receipt)</label>
-                <input value={proofUrl} onChange={(e) => setProofUrl(e.target.value)} placeholder="https://..." className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm" />
+                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Proof of subscription (link to screenshot/receipt){proofRequired && " *"}</label>
+                <input required={proofRequired} value={proofUrl} onChange={(e) => setProofUrl(e.target.value)} placeholder="https://..." className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm" />
+                {proofRequired && <p className="text-xs text-muted-foreground">Required for this service — it's what review actually checks now that the plan details themselves are fixed.</p>}
             </div>
             {service && (service.host_fields || []).map((f: any) => (
                 <div key={f.key} className="space-y-1.5">

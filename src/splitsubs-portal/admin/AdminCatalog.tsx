@@ -16,6 +16,8 @@ function ServiceForm({ onSaved }: { onSaved: () => void }) {
     const [defaultChargeRate, setDefaultChargeRate] = useState("0.15");
     const [riskTier, setRiskTier] = useState("medium");
     const [accessType, setAccessType] = useState("shared_login");
+    const [iconUrl, setIconUrl] = useState("");
+    const [defaultPlanCost, setDefaultPlanCost] = useState("");
     const [billingCycleUnit, setBillingCycleUnit] = useState("month");
     const [billingCycleCount, setBillingCycleCount] = useState("1");
     const [hostFields, setHostFields] = useState("[]");
@@ -31,7 +33,7 @@ function ServiceForm({ onSaved }: { onSaved: () => void }) {
             const joinerFieldsJson = JSON.parse(joinerFields || "[]");
             await ssFetch("/api/admin/splitsubs/services", {
                 method: "POST",
-                body: JSON.stringify({ name, category, maxSeats: Number(maxSeats), defaultChargeRate: Number(defaultChargeRate), riskTier, accessType, billingCycleUnit, billingCycleCount: Number(billingCycleCount), hostFields: hostFieldsJson, joinerFields: joinerFieldsJson, riskNote }),
+                body: JSON.stringify({ name, category, maxSeats: Number(maxSeats), defaultChargeRate: Number(defaultChargeRate), riskTier, accessType, iconUrl: iconUrl || undefined, defaultPlanCost: defaultPlanCost ? Number(defaultPlanCost) : undefined, billingCycleUnit, billingCycleCount: Number(billingCycleCount), hostFields: hostFieldsJson, joinerFields: joinerFieldsJson, riskNote }),
             });
             showToast("Service added to catalog.", "success");
             onSaved();
@@ -71,6 +73,17 @@ function ServiceForm({ onSaved }: { onSaved: () => void }) {
                         <option value="medium">Medium</option>
                         <option value="high">High</option>
                     </select>
+                </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Logo URL</label>
+                    <input value={iconUrl} onChange={(e) => setIconUrl(e.target.value)} placeholder="https://..." className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm" />
+                </div>
+                <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Default plan cost (₦, optional)</label>
+                    <input type="number" min={0} value={defaultPlanCost} onChange={(e) => setDefaultPlanCost(e.target.value)} placeholder="e.g. 7000" className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm" />
+                    <p className="text-xs text-muted-foreground">Pre-fills a host's plan cost field — they can still override it.</p>
                 </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -151,6 +164,24 @@ export function AdminCatalog() {
         }
     };
 
+    const updateIconUrl = async (id: string, iconUrl: string) => {
+        try {
+            await ssFetch("/api/admin/splitsubs/services", { method: "PATCH", body: JSON.stringify({ id, iconUrl: iconUrl || null }) });
+            list.reload();
+        } catch (err: any) {
+            showToast(err.message || "Could not update logo.", "error");
+        }
+    };
+
+    const updateDefaultPlanCost = async (id: string, defaultPlanCost: string) => {
+        try {
+            await ssFetch("/api/admin/splitsubs/services", { method: "PATCH", body: JSON.stringify({ id, defaultPlanCost: defaultPlanCost ? Number(defaultPlanCost) : null }) });
+            list.reload();
+        } catch (err: any) {
+            showToast(err.message || "Could not update default plan cost.", "error");
+        }
+    };
+
     return (
         <div className="max-w-6xl space-y-6">
             <SEO title="Service Catalog" description="Manage the SplitSubs service catalog." path="/admin/catalog" noindex />
@@ -181,11 +212,19 @@ export function AdminCatalog() {
                 <div className="border border-border bg-card divide-y divide-border">
                     {list.items.map((s) => (
                         <div key={s.id} className="flex flex-col md:flex-row md:items-center justify-between px-5 py-4 gap-3 md:gap-4">
-                            <div className="min-w-0">
-                                <p className="font-medium text-sm">{s.name}</p>
-                                <p className="text-xs text-muted-foreground">{s.category} · up to {s.max_seats} seats · {(s.default_charge_rate * 100).toFixed(0)}% charge · {s.risk_tier} risk</p>
+                            <div className="flex items-center gap-3 min-w-0">
+                                {s.icon_url && <img src={s.icon_url} alt="" className="w-8 h-8 object-contain shrink-0" />}
+                                <div className="min-w-0">
+                                    <p className="font-medium text-sm">{s.name}</p>
+                                    <p className="text-xs text-muted-foreground">{s.category} · up to {s.max_seats} seats · {(s.default_charge_rate * 100).toFixed(0)}% charge · {s.risk_tier} risk</p>
+                                </div>
                             </div>
                             <div className="flex flex-wrap items-center gap-3">
+                                <input defaultValue={s.icon_url || ""} onBlur={(e) => e.target.value !== (s.icon_url || "") && updateIconUrl(s.id, e.target.value)} placeholder="Logo URL" className="w-28 px-2 py-2 bg-background border border-border text-xs outline-none" />
+                                <div className="flex items-center gap-1">
+                                    <span className="text-xs text-muted-foreground">₦</span>
+                                    <input type="number" min={0} defaultValue={s.default_plan_cost ?? ""} onBlur={(e) => e.target.value !== String(s.default_plan_cost ?? "") && updateDefaultPlanCost(s.id, e.target.value)} placeholder="Default price" className="w-24 px-2 py-2 bg-background border border-border text-xs outline-none" />
+                                </div>
                                 <select value={s.access_type || "shared_login"} onChange={(e) => updateAccessType(s.id, e.target.value)} className="px-2 py-2 bg-background border border-border text-xs outline-none">
                                     <option value="shared_login">Shared login</option>
                                     <option value="invite">Invite link</option>

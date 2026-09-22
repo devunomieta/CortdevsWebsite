@@ -58,7 +58,7 @@ async function findAuthUserByEmail(email: string) {
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-    const { email, password, action, whatsappNumber, heardAboutUs, consentAccepted } = req.body || {};
+    const { email, password, action, whatsappNumber, heardAboutUs, consentAccepted, consentVersion } = req.body || {};
     if (!isValidEmail(email)) return res.status(400).json({ error: 'A valid email is required.' });
     if (!password || String(password).length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
     if (action !== 'resend' && consentAccepted !== true) {
@@ -109,6 +109,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         };
         if (action !== 'resend') {
             profilePatch.consent_accepted_at = new Date().toISOString();
+            if (consentVersion) profilePatch.consent_version = String(consentVersion);
             if (whatsappNumber) profilePatch.whatsapp_number = String(whatsappNumber).trim();
             if (heardAboutUs) profilePatch.heard_about_us = String(heardAboutUs).trim();
         }

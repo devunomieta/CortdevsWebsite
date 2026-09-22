@@ -7,6 +7,8 @@ import { useToast } from "../../app/components/Toast";
 import { SEO } from "../components/SEO";
 import { SplitSubsMark } from "../components/SplitSubsLogo";
 
+const CONSENT_VERSION = "v1-2026-09-22";
+
 const HEARD_ABOUT_OPTIONS = [
     { value: "", label: "How did you hear about us? (optional)" },
     { value: "friend_family", label: "Friend or family" },
@@ -45,7 +47,7 @@ export function DashboardLogin() {
             if (mode === "signup") {
                 await ssPublicFetch("/api/splitsubs/signup", {
                     method: "POST",
-                    body: JSON.stringify({ email, password, whatsappNumber: whatsappNumber.trim() || undefined, heardAboutUs: heardAboutUs || undefined, consentAccepted }),
+                    body: JSON.stringify({ email, password, whatsappNumber: whatsappNumber.trim() || undefined, heardAboutUs: heardAboutUs || undefined, consentAccepted, consentVersion: CONSENT_VERSION }),
                 });
                 // Password travels in router state, not the URL — verify page
                 // needs it only to resend the code, and only for this session.
@@ -110,7 +112,7 @@ export function DashboardLogin() {
                             </div>
                             <label className="flex items-start gap-2.5 text-xs text-muted-foreground cursor-pointer">
                                 <input type="checkbox" required checked={consentAccepted} onChange={(e) => setConsentAccepted(e.target.checked)} className="mt-0.5 accent-primary" />
-                                <span>I agree to SplitSubs' <Link to="/how-it-works" className="text-foreground underline">Terms</Link> and Privacy Policy, including how escrow and payouts work.</span>
+                                <span>I agree to SplitSubs' <Link to="/terms" target="_blank" className="text-foreground underline">Terms</Link> and <Link to="/privacy" target="_blank" className="text-foreground underline">Privacy Policy</Link>, including how escrow and payouts work.</span>
                             </label>
                         </>
                     )}

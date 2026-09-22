@@ -33,7 +33,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === 'POST') {
-        const { name, category, maxSeats, defaultChargeRate, riskTier, hostFields, joinerFields, riskNote, iconUrl, billingCycleUnit, billingCycleCount, accessType } = req.body || {};
+        const { name, category, maxSeats, defaultChargeRate, riskTier, hostFields, joinerFields, riskNote, iconUrl, billingCycleUnit, billingCycleCount, accessType, defaultPlanCost } = req.body || {};
         if (!isNonEmpty(name) || !isNonEmpty(category) || !maxSeats) {
             return res.status(400).json({ error: 'name, category, and maxSeats are required.' });
         }
@@ -46,6 +46,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(400).json({ error: 'billingCycleUnit must be day, week, month, quarter, biannual, or year.' });
         }
         if (accessType && !['invite', 'shared_login'].includes(accessType)) return res.status(400).json({ error: 'accessType must be invite or shared_login.' });
+        if (defaultPlanCost !== undefined && defaultPlanCost !== null && Number(defaultPlanCost) < 0) return res.status(400).json({ error: 'defaultPlanCost cannot be negative.' });
 
         try {
             const { data, error } = await supabase
@@ -55,6 +56,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     default_charge_rate: rate, risk_tier: riskTier || 'medium', access_type: accessType || 'shared_login',
                     billing_cycle_unit: billingCycleUnit || 'month', billing_cycle_count: billingCycleCount ? Number(billingCycleCount) : 1,
                     host_fields: hostFields || [], joiner_fields: joinerFields || [], risk_note: riskNote || null, icon_url: iconUrl || null,
+                    default_plan_cost: defaultPlanCost ? Number(defaultPlanCost) : null,
                 }])
                 .select('id')
                 .single();
@@ -69,9 +71,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === 'PATCH') {
-        const { id, name, category, maxSeats, defaultChargeRate, riskTier, hostFields, joinerFields, riskNote, iconUrl, status, billingCycleUnit, billingCycleCount, accessType } = req.body || {};
+        const { id, name, category, maxSeats, defaultChargeRate, riskTier, hostFields, joinerFields, riskNote, iconUrl, status, billingCycleUnit, billingCycleCount, accessType, defaultPlanCost } = req.body || {};
         if (!id) return res.status(400).json({ error: 'id is required.' });
         if (accessType !== undefined && !['invite', 'shared_login'].includes(accessType)) return res.status(400).json({ error: 'accessType must be invite or shared_login.' });
+        if (defaultPlanCost !== undefined && defaultPlanCost !== null && Number(defaultPlanCost) < 0) return res.status(400).json({ error: 'defaultPlanCost cannot be negative.' });
 
         try {
             const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
@@ -85,6 +88,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             if (riskNote !== undefined) patch.risk_note = riskNote;
             if (iconUrl !== undefined) patch.icon_url = iconUrl;
             if (accessType !== undefined) patch.access_type = accessType;
+            if (defaultPlanCost !== undefined) patch.default_plan_cost = defaultPlanCost === null ? null : Number(defaultPlanCost);
             if (billingCycleUnit !== undefined) {
                 if (!['day', 'week', 'month', 'quarter', 'biannual', 'year'].includes(billingCycleUnit)) return res.status(400).json({ error: 'Invalid billingCycleUnit.' });
                 patch.billing_cycle_unit = billingCycleUnit;

@@ -10,7 +10,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
         const { data, error } = await supabase
             .from('ss_services')
-            .select('id, name, slug, category, icon_url, max_seats, default_charge_rate, risk_tier, host_fields, joiner_fields, risk_note')
+            .select('id, name, slug, category, icon_url, max_seats, default_charge_rate, risk_tier, host_fields, joiner_fields, risk_note, access_type, default_plan_cost')
             .eq('status', 'active')
             .order('name', { ascending: true });
         if (error) throw error;

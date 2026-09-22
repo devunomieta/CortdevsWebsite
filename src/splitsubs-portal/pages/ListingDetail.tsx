@@ -221,7 +221,12 @@ export function ListingDetail() {
                         </div>
 
                         <div className="flex items-center justify-between text-sm border-t border-border pt-4">
-                            <span className="text-muted-foreground">Seats open</span>
+                            <span className="text-muted-foreground">Total seats allowed</span>
+                            <span className="font-semibold">{listing.total_seats} seats · {money(listing.plan_cost)} full plan</span>
+                        </div>
+
+                        <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">Seats available</span>
                             <span className={`font-semibold ${listing.openSeats <= 2 ? "text-rose-500" : ""}`}>
                                 {listing.openSeats} of {listing.total_seats - 1}{listing.openSeats <= 2 && listing.openSeats > 0 ? " — almost gone!" : ""}
                             </span>

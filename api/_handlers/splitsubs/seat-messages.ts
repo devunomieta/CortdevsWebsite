@@ -3,6 +3,7 @@ import { supabase } from '../../_lib/supabase.js';
 import { verifyAuth } from '../../_lib/auth.js';
 import { isNonEmpty, withinLength, LIMITS } from '../../_lib/validation.js';
 import { logSplitsubsActivity } from '../../_lib/splitsubsAuditLog.js';
+import { looksLikePaymentRedirect, PAYMENT_REDIRECT_WARNING, CHAT_RATE_LIMIT } from '../../_lib/splitsubsChatSafety.js';
 
 // GET ?seatId=                       — a seat's chat thread (joiner or host only).
 // POST { seatId, message }            — send a message; blocked once closed.
@@ -54,6 +55,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (seat.chat_status === 'closed') return res.status(400).json({ error: 'This conversation is closed — reopen it to send a message.' });
 
         try {
+            const windowStart = new Date(Date.now() - CHAT_RATE_LIMIT.windowMinutes * 60 * 1000).toISOString();
+            const { count: recentCount } = await supabase
+                .from('ss_seat_messages')
+                .select('id', { count: 'exact', head: true })
+                .eq('seat_id', seatId)
+                .eq('sender_id', user.id)
+                .gte('created_at', windowStart);
+            if ((recentCount || 0) >= CHAT_RATE_LIMIT.maxMessages) {
+                return res.status(429).json({ error: `Too many messages — wait a bit before sending more (max ${CHAT_RATE_LIMIT.maxMessages} per ${CHAT_RATE_LIMIT.windowMinutes} minutes).` });
+            }
+
             const { data: sent, error } = await supabase
                 .from('ss_seat_messages')
                 .insert([{ seat_id: seatId, sender_id: user.id, sender_type: senderType, message: message.trim() }])
@@ -70,7 +82,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 targetId: seatId,
             });
 
-            return res.status(200).json({ message: sent });
+            return res.status(200).json({ message: sent, warning: looksLikePaymentRedirect(message) ? PAYMENT_REDIRECT_WARNING : undefined });
         } catch (err: any) {
             console.error('splitsubs/seat-messages post error:', err);
             return res.status(500).json({ error: err.message || 'Could not send message.' });

@@ -4,6 +4,8 @@ import { SplitSubsHome } from "./pages/Home";
 import { ListingDetail } from "./pages/ListingDetail";
 import { HowItWorks } from "./pages/HowItWorks";
 import { SplitSubsContact } from "./pages/Contact";
+import { Terms } from "./pages/Terms";
+import { Privacy } from "./pages/Privacy";
 
 import { DashboardLogin } from "./dashboard/DashboardLogin";
 import { VerifyOtp } from "./dashboard/VerifyOtp";
@@ -39,6 +41,8 @@ export const splitsubsRouter = createBrowserRouter([
             { path: "listing/:id", element: <ListingDetail /> },
             { path: "how-it-works", element: <HowItWorks /> },
             { path: "contact", element: <SplitSubsContact /> },
+            { path: "terms", element: <Terms /> },
+            { path: "privacy", element: <Privacy /> },
         ],
     },
     { path: "/dashboard/login", element: <DashboardLogin /> },

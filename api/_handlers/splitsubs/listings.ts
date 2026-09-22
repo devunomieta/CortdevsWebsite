@@ -131,12 +131,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const host = await verifyAuth(req, res);
         if (!host) return;
 
-        const { serviceId, title, shortDescription, planCost, totalSeats, proofUrl, hostFieldsData, renewalDay, subStartDate, nextRenewalDate, consentAccepted } = req.body || {};
-        if (!isNonEmpty(serviceId) || !isNonEmpty(title) || !planCost || !totalSeats) {
-            return res.status(400).json({ error: 'serviceId, title, planCost, and totalSeats are required.' });
+        const { serviceId, shortDescription, planCost, totalSeats, proofUrl, hostFieldsData, renewalDay, subStartDate, nextRenewalDate, consentAccepted } = req.body || {};
+        if (!isNonEmpty(serviceId) || !planCost || !totalSeats) {
+            return res.status(400).json({ error: 'serviceId, planCost, and totalSeats are required.' });
         }
         if (consentAccepted !== true) return res.status(400).json({ error: 'Please confirm you understand the hosting terms before listing.' });
-        if (!withinLength(title, LIMITS.title)) return res.status(400).json({ error: `Title must be ${LIMITS.title} characters or fewer.` });
         if (shortDescription && !withinLength(shortDescription, LIMITS.description)) {
             return res.status(400).json({ error: `Short description must be ${LIMITS.description} characters or fewer.` });
         }
@@ -162,7 +161,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         try {
             const { data: service, error: serviceError } = await supabase
                 .from('ss_services')
-                .select('id, max_seats, default_charge_rate, status, host_fields')
+                .select('id, name, max_seats, default_charge_rate, risk_tier, status, host_fields')
                 .eq('id', serviceId)
                 .maybeSingle();
             if (serviceError || !service || service.status !== 'active') {
@@ -170,6 +169,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
             if (Number(totalSeats) < 2 || Number(totalSeats) > service.max_seats) {
                 return res.status(400).json({ error: `totalSeats must be between 2 and ${service.max_seats} for this service.` });
+            }
+            // Catalog model (Feature Audit doc, Phase 6): proof of subscription
+            // is the main thing review leans on once name/logo/seat-cap/pricing
+            // are all admin-fixed catalog facts, not host-typed claims — so it's
+            // required for the risk tiers where a false claim actually matters.
+            if (['medium', 'high'].includes(service.risk_tier) && !isNonEmpty(proofUrl)) {
+                return res.status(400).json({ error: 'Proof of subscription is required for this service.' });
             }
 
             const requiredKeys = (service.host_fields || []).filter((f: any) => f.required).map((f: any) => f.key);
@@ -181,7 +187,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 .insert([{
                     host_id: host.id,
                     service_id: serviceId,
-                    title: title.trim(),
+                    title: service.name,
                     short_description: shortDescription ? shortDescription.trim() : null,
                     plan_cost: Number(planCost),
                     total_seats: Number(totalSeats),
@@ -205,7 +211,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 actorType: 'host',
                 actorId: host.id,
                 actorLabel: `Host — ${host.email}`,
-                action: `Created listing "${title}" (${listing.short_id}, pending review)`,
+                action: `Created listing "${service.name}" (${listing.short_id}, pending review)`,
                 targetType: 'listing',
                 targetId: listing.id,
             });

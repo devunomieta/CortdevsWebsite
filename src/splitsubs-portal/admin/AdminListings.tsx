@@ -1,16 +1,46 @@
-import { useState } from "react";
-import { RefreshCw, Check, X, Pause } from "lucide-react";
+import { useEffect, useState } from "react";
+import { RefreshCw, Check, X, Pause, ChevronDown, ChevronUp } from "lucide-react";
 import { ssFetch } from "../lib/api";
 import { useToast } from "../../app/components/Toast";
 import { usePaginatedList } from "../lib/usePaginatedList";
 import { SearchBar, SortButton, Pagination } from "../components/ListControls";
+import { AdminSeatChatViewer } from "./AdminSeatChatViewer";
 import { SEO } from "../components/SEO";
 
 const TABS = ["pending_review", "active", "paused", "expired", "suspended", "rejected"];
 
+function ListingSeats({ listingId }: { listingId: string }) {
+    const { showToast } = useToast();
+    const [isLoading, setIsLoading] = useState(true);
+    const [seats, setSeats] = useState<any[]>([]);
+
+    useEffect(() => {
+        ssFetch(`/api/admin/splitsubs/listings?id=${listingId}`)
+            .then((d) => setSeats(d.seats || []))
+            .catch((err) => showToast(err.message || "Could not load seats.", "error"))
+            .finally(() => setIsLoading(false));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [listingId]);
+
+    if (isLoading) return <div className="flex justify-center py-6"><RefreshCw className="animate-spin text-muted-foreground" size={16} /></div>;
+    if (seats.length === 0) return <p className="text-xs text-muted-foreground py-3">No seats on this listing yet.</p>;
+
+    return (
+        <div className="space-y-2 py-3">
+            {seats.map((s) => (
+                <div key={s.id} className="border border-border p-3">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">{s.status.replace(/_/g, " ")}</p>
+                    <AdminSeatChatViewer seatId={s.id} />
+                </div>
+            ))}
+        </div>
+    );
+}
+
 export function AdminListings() {
     const { showToast } = useToast();
     const [status, setStatus] = useState("pending_review");
+    const [expandedId, setExpandedId] = useState<string | null>(null);
     const list = usePaginatedList<any>("/api/admin/splitsubs/listings", "listings", { extraParams: { status } });
 
     const act = async (id: string, action: "approve" | "reject" | "suspend") => {
@@ -56,22 +86,28 @@ export function AdminListings() {
             ) : (
                 <div className="border border-border bg-card divide-y divide-border">
                     {list.items.map((l) => (
-                        <div key={l.id} className="flex flex-col sm:flex-row sm:items-center justify-between px-5 py-4 gap-3 sm:gap-4">
-                            <div className="min-w-0">
-                                <p className="font-medium text-sm">{l.title}</p>
-                                <p className="text-xs text-muted-foreground">{l.ss_services?.name} · ₦{Number(l.plan_cost).toLocaleString()} / {l.total_seats} seats</p>
+                        <div key={l.id} className="px-5 py-4">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+                                <div className="min-w-0">
+                                    <p className="font-medium text-sm">{l.title}</p>
+                                    <p className="text-xs text-muted-foreground">{l.ss_services?.name} · ₦{Number(l.plan_cost).toLocaleString()} / {l.total_seats} seats</p>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                    {status === "pending_review" && (
+                                        <>
+                                            <button onClick={() => act(l.id, "approve")} className="p-2 border border-border hover:bg-secondary text-primary" title="Approve"><Check size={14} /></button>
+                                            <button onClick={() => act(l.id, "reject")} className="p-2 border border-border hover:bg-secondary text-rose-500" title="Reject"><X size={14} /></button>
+                                        </>
+                                    )}
+                                    {status === "active" && (
+                                        <button onClick={() => act(l.id, "suspend")} className="p-2 border border-border hover:bg-secondary text-amber-500" title="Suspend"><Pause size={14} /></button>
+                                    )}
+                                    <button onClick={() => setExpandedId(expandedId === l.id ? null : l.id)} className="p-2 border border-border hover:bg-secondary text-muted-foreground" title="View seats & conversations">
+                                        {expandedId === l.id ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                                    </button>
+                                </div>
                             </div>
-                            <div className="flex items-center gap-2 shrink-0">
-                                {status === "pending_review" && (
-                                    <>
-                                        <button onClick={() => act(l.id, "approve")} className="p-2 border border-border hover:bg-secondary text-primary" title="Approve"><Check size={14} /></button>
-                                        <button onClick={() => act(l.id, "reject")} className="p-2 border border-border hover:bg-secondary text-rose-500" title="Reject"><X size={14} /></button>
-                                    </>
-                                )}
-                                {status === "active" && (
-                                    <button onClick={() => act(l.id, "suspend")} className="p-2 border border-border hover:bg-secondary text-amber-500" title="Suspend"><Pause size={14} /></button>
-                                )}
-                            </div>
+                            {expandedId === l.id && <ListingSeats listingId={l.id} />}
                         </div>
                     ))}
                 </div>
