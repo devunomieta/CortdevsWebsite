@@ -1,23 +1,53 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabase } from '../../_lib/supabase.js';
-import { getAppBaseUrl } from '../../_lib/appUrl.js';
+import { getSplitsubsAppUrl } from '../../_lib/appUrl.js';
 import { sendSignupConfirmation } from '../../_lib/splitsubsEmail.js';
 import { isValidEmail } from '../../_lib/validation.js';
 
 const RESEND_COOLDOWN_MS = 45 * 1000;
 
-// POST { email, password }                — new account: creates the user
-//        (unconfirmed) and sends our own branded confirmation email via
-//        Resend, in place of Supabase's default one. Bypasses
-//        supabase.auth.signUp() entirely — that's what was sending the
-//        generic-sender, no-OTP, wrong-domain-link email — using the admin
-//        API to both create the user and generate the link/OTP in one call.
-// POST { action: 'resend', email, password } — re-sends the same email for an
-//        already-created-but-unconfirmed account. `password` is required by
-//        Supabase's generateLink API for type 'signup' regardless of whether
-//        the user already exists (it's the same call either way), so the
-//        frontend carries it in memory from the original signup form —
-//        never re-typed, never put in a URL.
+// admin.listUsers has no email filter in the SDK, so this pages through
+// looking for a match. Fine at this platform's current scale (a handful of
+// users); if that ever changes, swap for a direct query once there's a
+// reliable way to read auth.users (or track confirmation state ourselves).
+// This is deliberately NOT ss_host_profiles — that table is only populated
+// by this endpoint's own success path, so it can't see accounts created
+// before this flow existed (or by any other path), which is exactly the bug
+// this replaces: a real Supabase auth user existed with no matching
+// ss_host_profiles row, so the old check found "nothing" and treated a
+// legitimate unconfirmed retry as a brand-new signup — which Supabase then
+// rejected as a duplicate.
+async function findAuthUserByEmail(email: string) {
+    const normalized = email.toLowerCase();
+    for (let page = 1; page <= 5; page++) {
+        const { data, error } = await supabase.auth.admin.listUsers({ page, perPage: 1000 });
+        if (error) throw error;
+        const match = data.users.find((u) => u.email?.toLowerCase() === normalized);
+        if (match) return match;
+        if (data.users.length < 1000) return null;
+    }
+    return null;
+}
+
+// POST { email, password }                    — sign up (or, transparently,
+//        retry a signup that was never confirmed — see below).
+// POST { action: 'resend', email, password }   — re-send from the "check your
+//        email" screen. Functionally identical to the above; `password` is
+//        carried in memory from the original signup form (never re-typed,
+//        never in a URL) because generateLink's 'signup' branch requires it
+//        when it does end up creating a user.
+//
+// Bypasses supabase.auth.signUp() entirely — that's what was sending the
+// generic-sender, no-OTP, wrong-domain-link email — using the admin API to
+// generate the link/OTP and sending our own branded email via Resend instead.
+//
+// A second signup attempt for an email that already has an unconfirmed
+// account (someone who closed the tab, or is now clicking "resend") is NOT
+// an error — generateLink's 'signup' type only works for genuinely new
+// users, so that case is routed through 'magiclink' instead, which works for
+// any existing user and, like the original signup token, confirms the email
+// as a side effect of being verified. The frontend never needs to know which
+// type was actually used — see VerifyOtp.tsx, which just tries both.
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
@@ -28,7 +58,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
         const { data: profile } = await supabase
             .from('ss_host_profiles')
-            .select('id, last_signup_email_sent_at')
+            .select('last_signup_email_sent_at')
             .eq('email', email)
             .maybeSingle();
 
@@ -39,17 +69,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
         }
 
-        const { data, error } = await supabase.auth.admin.generateLink({
-            type: 'signup',
-            email,
-            password,
-            options: { redirectTo: `${getAppBaseUrl('https://splitsubs.cortdevs.com')}/dashboard` },
-        });
+        const existingUser = await findAuthUserByEmail(email);
+        if (existingUser?.email_confirmed_at) {
+            return res.status(409).json({ error: action === 'resend' ? 'This account is already confirmed — sign in instead.' : 'An account with this email already exists — sign in instead.' });
+        }
+
+        const redirectTo = `${getSplitsubsAppUrl()}/dashboard`;
+        const { data, error } = existingUser
+            ? await supabase.auth.admin.generateLink({ type: 'magiclink', email, options: { redirectTo } })
+            : await supabase.auth.admin.generateLink({ type: 'signup', email, password, options: { redirectTo } });
 
         if (error) {
             const alreadyRegistered = /already registered|already exists|already been registered/i.test(error.message || '');
             if (alreadyRegistered) {
-                return res.status(409).json({ error: action === 'resend' ? 'This account is already confirmed — sign in instead.' : 'An account with this email already exists — sign in instead.' });
+                return res.status(409).json({ error: 'An account with this email already exists — sign in instead.' });
             }
             throw error;
         }

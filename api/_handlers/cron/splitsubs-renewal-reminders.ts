@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabase } from '../../_lib/supabase.js';
 import { sendRenewalReminder } from '../../_lib/splitsubsEmail.js';
-import { getAppBaseUrl } from '../../_lib/appUrl.js';
+import { getSplitsubsAppUrl } from '../../_lib/appUrl.js';
 
 // Runs daily (see vercel.json). Reminds hosts and confirmed joiners at T-5
 // and T-1 days before a listing's next_renewal_date (PRD "Renewal reminder
@@ -30,7 +30,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (error) throw error;
 
         let sent = 0;
-        const dashboardUrl = `${getAppBaseUrl('https://splitsubs.cortdevs.com')}/dashboard`;
+        const dashboardUrl = `${getSplitsubsAppUrl()}/dashboard`;
 
         for (const listing of listings || []) {
             const serviceName = (listing as any).ss_services?.name || listing.title;

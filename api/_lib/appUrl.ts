@@ -18,3 +18,23 @@ export function getAppBaseUrl(fallback: string): string {
     if (!configured || LOCAL_URL_RE.test(configured)) return fallback;
     return configured;
 }
+
+const SPLITSUBS_URL = 'https://splitsubs.cortdevs.com';
+
+// SplitSubs-specific redirect/link builders (signup confirmation, Paystack
+// callbacks, renewal reminders, access-confirm emails) should call THIS, not
+// getAppBaseUrl — VITE_APP_URL is shared with the main cortdevs.com site,
+// and a localhost check alone doesn't catch it being validly set to that
+// OTHER real domain, which is exactly what happened: a Supabase signup
+// confirmation link came back with redirect_to=https://cortdevs.com (no
+// subdomain) because VITE_APP_URL was a legitimate, correctly-configured
+// URL — just for the wrong product. SplitSubs never has a reason to resolve
+// anywhere but its own subdomain, so this doesn't read that shared variable
+// at all; SPLITSUBS_APP_URL is a deliberately separate override for anyone
+// who needs one (e.g. a staging subdomain), so the two products can never
+// collide on the same variable again.
+export function getSplitsubsAppUrl(): string {
+    const configured = process.env.SPLITSUBS_APP_URL;
+    if (!configured || LOCAL_URL_RE.test(configured)) return SPLITSUBS_URL;
+    return configured;
+}

@@ -7,7 +7,7 @@ import { isNonEmpty } from '../../_lib/validation.js';
 import { initializeTransaction } from '../../_lib/paystack.js';
 import { getPrepaidBalance } from '../../_lib/splitsubsPrepaidWallet.js';
 import { finalizeSuccessfulPayment } from '../../_lib/splitsubsPayments.js';
-import { getAppBaseUrl } from '../../_lib/appUrl.js';
+import { getSplitsubsAppUrl } from '../../_lib/appUrl.js';
 
 // POST — a joiner claims a seat on a listing and starts payment. Seat claim
 // itself is atomic (ss_claim_seat, row-locked against overselling). Three
@@ -128,7 +128,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             email: joiner.email!,
             amountKobo: Math.round(pricing.totalPaid * 100),
             reference,
-            callbackUrl: `${getAppBaseUrl('https://splitsubs.cortdevs.com')}/dashboard?paystack_ref=${reference}`,
+            callbackUrl: `${getSplitsubsAppUrl()}/dashboard?paystack_ref=${reference}`,
             metadata: { seatId, listingId: listing.id },
         });
 

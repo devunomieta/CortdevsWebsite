@@ -5,7 +5,7 @@ import { releaseEscrowForSeat } from '../../_lib/splitsubsPayments.js';
 import { logSplitsubsActivity } from '../../_lib/splitsubsAuditLog.js';
 import { sendAccessGrantedToJoiner } from '../../_lib/splitsubsEmail.js';
 import { isNonEmpty, withinLength, LIMITS } from '../../_lib/validation.js';
-import { getAppBaseUrl } from '../../_lib/appUrl.js';
+import { getSplitsubsAppUrl } from '../../_lib/appUrl.js';
 
 // POST { action: 'grant', seatId, accessNote } — host delivers access.
 // POST { action: 'confirm', seatId } — joiner confirms it works; releases escrow.
@@ -45,7 +45,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 await sendAccessGrantedToJoiner(joinerUser.user.email, {
                     serviceName: seat.ss_listings.title,
                     accessInfoHtml: accessNote ? accessNote.replace(/\n/g, '<br/>') : 'Check your SplitSubs dashboard for details.',
-                    confirmUrl: `${getAppBaseUrl('https://splitsubs.cortdevs.com')}/dashboard`,
+                    confirmUrl: `${getSplitsubsAppUrl()}/dashboard`,
                 }).catch((e) => console.error('sendAccessGrantedToJoiner failed:', e));
             }
 
