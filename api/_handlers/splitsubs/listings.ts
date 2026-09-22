@@ -5,6 +5,9 @@ import { computeSeatPricing } from '../../_lib/splitsubsFees.js';
 import { isNonEmpty, withinLength, LIMITS } from '../../_lib/validation.js';
 import { logSplitsubsActivity } from '../../_lib/splitsubsAuditLog.js';
 import { parseListParams } from '../../_lib/splitsubsListQuery.js';
+import { getAdminEmails } from '../../_lib/splitsubsAdminNotify.js';
+import { sendListingPendingReviewToAdmins } from '../../_lib/splitsubsEmail.js';
+import { getSplitsubsAppUrl } from '../../_lib/appUrl.js';
 
 // GET ?id=          — one listing's public detail (service + open-seat count).
 // GET (no id)        — public browse: ?service=&maxPrice=&page=&pageSize=&search=&sort=&order=.
@@ -230,6 +233,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 targetType: 'listing',
                 targetId: listing.id,
             });
+
+            getAdminEmails()
+                .then((admins) => sendListingPendingReviewToAdmins(admins, {
+                    listingTitle: service.name,
+                    serviceName: service.name,
+                    hostEmail: host.email || 'unknown host',
+                    shortId: listing.short_id,
+                    adminUrl: `${getSplitsubsAppUrl()}/admin/listings`,
+                }))
+                .catch((e) => console.error('sendListingPendingReviewToAdmins failed:', e));
 
             return res.status(200).json({ id: listing.id, shortId: listing.short_id });
         } catch (err: any) {

@@ -297,6 +297,7 @@ export function SplitSubsHome() {
                             {list.items.map((listing) => {
                                 const soldOut = listing.openSeats <= 0;
                                 const renewsIn = listing.next_renewal_date ? daysUntil(listing.next_renewal_date) : null;
+                                const expiresOn = listing.next_renewal_date ? new Date(listing.next_renewal_date).toLocaleDateString("en-NG", { month: "short", day: "numeric" }) : null;
                                 return (
                                     <Link
                                         key={listing.id}
@@ -306,8 +307,7 @@ export function SplitSubsHome() {
                                         <button onClick={(e) => toggleWishlist(e, listing.id)} className="absolute top-4 right-4 text-muted-foreground hover:text-rose-500 transition-colors z-10" title="Save to wishlist">
                                             <Heart size={16} className={wishlistIds.has(listing.id) ? "fill-rose-500 text-rose-500" : ""} />
                                         </button>
-                                        <div className="flex items-center justify-between mb-4 pr-6">
-                                            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{listing.ss_services.category}</span>
+                                        <div className="flex items-center justify-end mb-4 pr-6">
                                             {soldOut ? (
                                                 <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground bg-secondary px-2 py-0.5">Sold Out</span>
                                             ) : (
@@ -321,9 +321,6 @@ export function SplitSubsHome() {
                                                 <img src={listing.ss_services.icon_url} alt="" className="w-8 h-8 object-contain shrink-0" />
                                             )}
                                             <h3 className="font-medium text-lg group-hover:text-primary transition-colors">{listing.ss_services.name}</h3>
-                                        </div>
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <p className="text-xs text-muted-foreground truncate">{listing.title}</p>
                                             <span className="text-[10px] text-muted-foreground font-mono shrink-0">{listing.short_id}</span>
                                         </div>
                                         {listing.short_description && <p className="text-xs text-muted-foreground truncate mb-2">{listing.short_description}</p>}
@@ -333,9 +330,9 @@ export function SplitSubsHome() {
                                                     Save {listing.pctSaved}%
                                                 </span>
                                             )}
-                                            {renewsIn !== null && renewsIn > 0 && (
+                                            {expiresOn && renewsIn !== null && renewsIn > 0 && (
                                                 <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-secondary text-muted-foreground text-[10px] font-bold uppercase tracking-widest">
-                                                    <Clock size={10} /> Renews in {renewsIn}d
+                                                    <Clock size={10} /> Sub expires {expiresOn}
                                                 </span>
                                             )}
                                         </div>
@@ -344,7 +341,7 @@ export function SplitSubsHome() {
                                         ) : (
                                             <div className="flex items-end justify-between">
                                                 <div>
-                                                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Per seat, every month</p>
+                                                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground">You pay, every month</p>
                                                     <p className="text-2xl font-light">{money(listing.pricing.totalPaid)}</p>
                                                 </div>
                                                 <div className="text-right">

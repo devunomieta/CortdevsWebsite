@@ -114,27 +114,30 @@ function CreateListingForm({ onCreated }: { onCreated: () => void }) {
 
                 {seatsAvailable > 0 && (
                     <div className="border border-border bg-secondary/20 p-4 space-y-2 text-sm">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Where each seat's money goes</p>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Your 100% payback</p>
                         <div className="flex items-center justify-between">
                             <span className="text-muted-foreground">Each joiner pays</span>
                             <span className="font-medium">{money(joinerPays)}</span>
                         </div>
-                        <div className="flex items-center justify-between pl-3">
+                        {/* Per-seat host/SplitSubs split — hidden per host-facing request, kept
+                            here (not deleted) in case a future "view breakdown" toggle wants it. */}
+                        {/* <div className="flex items-center justify-between pl-3">
                             <span className="text-muted-foreground">→ You (the host) get</span>
                             <span>{money(seatBase)}</span>
                         </div>
                         <div className="flex items-center justify-between pl-3">
                             <span className="text-muted-foreground">→ SplitSubs' fee</span>
                             <span>{money(serviceCharge)}</span>
-                        </div>
+                        </div> */}
                         <div className="flex items-center justify-between border-t border-border pt-2 mt-1">
                             <span className="text-muted-foreground">You pay toward the plan yourself</span>
-                            <span className="font-medium">₦0.00</span>
+                            <span className="font-medium">₦0.00 — always</span>
                         </div>
                         <div className="flex items-center justify-between">
-                            <span className="text-muted-foreground">If all {seatsAvailable} seat{seatsAvailable === 1 ? "" : "s"} fill, you receive</span>
-                            <span className="font-medium">{money(seatBase * seatsAvailable)} total</span>
+                            <span className="text-muted-foreground">Fill all {seatsAvailable} seat{seatsAvailable === 1 ? "" : "s"} and you get back</span>
+                            <span className="font-medium">{money(seatBase * seatsAvailable)} — 100% of your plan cost</span>
                         </div>
+                        <p className="text-xs text-muted-foreground pt-1">That's the whole point: your joiners cover the entire subscription between them. List more seats you're not using and keep more of what you already pay for.</p>
                     </div>
                 )}
                 <div className="flex gap-3">

@@ -20,6 +20,7 @@ export function usePaginatedList<T>(endpoint: string, itemsKey: string, opts: { 
     const [sort, setSort] = useState(opts.defaultSort || "created_at");
     const [order, setOrder] = useState<"asc" | "desc">(opts.defaultOrder || "desc");
     const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     const extraKey = JSON.stringify(opts.extraParams || {});
 
@@ -36,8 +37,13 @@ export function usePaginatedList<T>(endpoint: string, itemsKey: string, opts: { 
         setIsLoading(true);
         const params = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE), sort, order, ...(search ? { search } : {}), ...(opts.extraParams || {}) });
         ssFetch(`${endpoint}?${params.toString()}`)
-            .then((d) => { setItems(d[itemsKey] || []); setTotal(d.total ?? (d[itemsKey] || []).length); setRaw(d); })
-            .catch(() => { setItems([]); setTotal(0); })
+            .then((d) => { setItems(d[itemsKey] || []); setTotal(d.total ?? (d[itemsKey] || []).length); setRaw(d); setError(null); })
+            .catch((err: any) => {
+                console.error(`usePaginatedList(${endpoint}) failed:`, err);
+                setItems([]);
+                setTotal(0);
+                setError(err?.message || "Could not load this list.");
+            })
             .finally(() => setIsLoading(false));
     };
 
@@ -45,5 +51,5 @@ export function usePaginatedList<T>(endpoint: string, itemsKey: string, opts: { 
 
     const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-    return { items, total, raw, page, setPage, totalPages, pageSize: PAGE_SIZE, searchInput, setSearchInput, sort, setSort, order, setOrder, isLoading, reload: load };
+    return { items, total, raw, error, page, setPage, totalPages, pageSize: PAGE_SIZE, searchInput, setSearchInput, sort, setSort, order, setOrder, isLoading, reload: load };
 }

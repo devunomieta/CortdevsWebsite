@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { RefreshCw, Check, X, Pause, ChevronDown, ChevronUp } from "lucide-react";
+import { RefreshCw, Check, X, Pause, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import { ssFetch } from "../lib/api";
 import { useToast } from "../../app/components/Toast";
 import { usePaginatedList } from "../lib/usePaginatedList";
@@ -8,6 +8,59 @@ import { AdminSeatChatViewer } from "./AdminSeatChatViewer";
 import { SEO } from "../components/SEO";
 
 const TABS = ["pending_review", "active", "paused", "expired", "suspended", "rejected"];
+const money = (n: number) => `₦${Number(n).toLocaleString("en-NG")}`;
+const fmtDate = (d: string | null) => d ? new Date(d).toLocaleDateString("en-NG", { year: "numeric", month: "short", day: "numeric" }) : "—";
+
+// The plan summary a reviewer actually needs before deciding: what the host
+// says they're subscribed to, since when, what they attached as proof, and
+// whatever extra info the service's own host_fields schema asked for.
+function ListingSummary({ l }: { l: any }) {
+    const hostFieldSchema: any[] = l.ss_services?.host_fields || [];
+    const hostFieldEntries = Object.entries(l.host_fields_data || {});
+
+    return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3 pt-3 border-t border-border text-xs">
+            <div className="space-y-2">
+                {l.short_description && <p className="text-muted-foreground">{l.short_description}</p>}
+                <div className="flex items-center justify-between"><span className="text-muted-foreground">Host</span><span>{l.hostEmail || "unknown"}</span></div>
+                <div className="flex items-center justify-between"><span className="text-muted-foreground">Sub started</span><span>{fmtDate(l.sub_start_date)}</span></div>
+                <div className="flex items-center justify-between"><span className="text-muted-foreground">Next renewal</span><span>{fmtDate(l.next_renewal_date)}</span></div>
+                <div className="flex items-center justify-between"><span className="text-muted-foreground">Risk tier</span><span className="capitalize">{l.ss_services?.risk_tier || "—"}</span></div>
+                <div className="flex items-center justify-between"><span className="text-muted-foreground">Access type</span><span>{l.ss_services?.access_type === "invite" ? "Invite link" : "Shared login"}</span></div>
+                <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Proof of subscription</span>
+                    {l.proof_url ? (
+                        <a href={l.proof_url} target="_blank" rel="noreferrer" className="text-primary hover:underline flex items-center gap-1">View <ExternalLink size={10} /></a>
+                    ) : (
+                        <span className="text-rose-500">Not provided</span>
+                    )}
+                </div>
+                {l.rejection_reason && (
+                    <div className="pt-1">
+                        <span className="text-muted-foreground">Last reason on file:</span>
+                        <p className="mt-0.5">{l.rejection_reason}</p>
+                    </div>
+                )}
+            </div>
+            <div className="space-y-2">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Host-submitted details</p>
+                {hostFieldEntries.length === 0 ? (
+                    <p className="text-muted-foreground">Nothing else was required for this service.</p>
+                ) : (
+                    hostFieldEntries.map(([key, value]) => {
+                        const schemaField = hostFieldSchema.find((f) => f.key === key);
+                        return (
+                            <div key={key} className="flex items-center justify-between gap-3">
+                                <span className="text-muted-foreground shrink-0">{schemaField?.label || key}</span>
+                                <span className="text-right break-all">{String(value)}</span>
+                            </div>
+                        );
+                    })
+                )}
+            </div>
+        </div>
+    );
+}
 
 function ListingSeats({ listingId }: { listingId: string }) {
     const { showToast } = useToast();
@@ -82,15 +135,24 @@ export function AdminListings() {
             {list.isLoading ? (
                 <div className="flex justify-center py-20"><RefreshCw className="animate-spin text-muted-foreground" size={24} /></div>
             ) : list.items.length === 0 ? (
-                <div className="text-center py-20 border border-dashed border-border"><p className="text-muted-foreground text-sm">Nothing here.</p></div>
+                <div className="text-center py-20 border border-dashed border-border">
+                    <p className="text-muted-foreground text-sm">{list.error ? `Could not load listings — ${list.error}` : "Nothing here."}</p>
+                    {list.error && <button onClick={list.reload} className="mt-3 text-xs font-bold uppercase tracking-widest text-primary hover:underline">Retry</button>}
+                </div>
             ) : (
                 <div className="border border-border bg-card divide-y divide-border">
                     {list.items.map((l) => (
                         <div key={l.id} className="px-5 py-4">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
-                                <div className="min-w-0">
-                                    <p className="font-medium text-sm">{l.title}</p>
-                                    <p className="text-xs text-muted-foreground">{l.ss_services?.name} · ₦{Number(l.plan_cost).toLocaleString()} / {l.total_seats} seats</p>
+                                <div className="flex items-center gap-3 min-w-0">
+                                    {l.ss_services?.icon_url && <img src={l.ss_services.icon_url} alt="" className="w-8 h-8 object-contain shrink-0" />}
+                                    <div className="min-w-0">
+                                        <div className="flex items-center gap-2">
+                                            <p className="font-medium text-sm truncate">{l.title}</p>
+                                            <span className="text-[10px] text-muted-foreground font-mono shrink-0">{l.short_id}</span>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground">{money(l.plan_cost)} plan · {l.total_seats} seats total</p>
+                                    </div>
                                 </div>
                                 <div className="flex items-center gap-2 shrink-0">
                                     {status === "pending_review" && (
@@ -107,6 +169,7 @@ export function AdminListings() {
                                     </button>
                                 </div>
                             </div>
+                            <ListingSummary l={l} />
                             {expandedId === l.id && <ListingSeats listingId={l.id} />}
                         </div>
                     ))}

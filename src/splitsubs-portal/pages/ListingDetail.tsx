@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router";
-import { RefreshCw, ShieldCheck, Star, ArrowRight, Wallet, Heart, Share2, Bell, CheckCircle2 } from "lucide-react";
+import { RefreshCw, ShieldCheck, Star, ArrowRight, Wallet, Heart, Share2, Bell, CheckCircle2, CreditCard } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { ssPublicFetch, ssFetch } from "../lib/api";
 import { useToast } from "../../app/components/Toast";
@@ -150,15 +150,13 @@ export function ListingDetail() {
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-12">
                 <div className="lg:col-span-3 space-y-8">
                     <div>
-                        <div className="flex items-center justify-between mb-3">
-                            <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-muted-foreground">{listing.ss_services.category}</p>
+                        <div className="flex items-center justify-end mb-3">
                             <p className="text-[10px] text-muted-foreground font-mono">{listing.short_id}</p>
                         </div>
                         <div className="flex items-center gap-3 mb-2">
                             {listing.ss_services.icon_url && <img src={listing.ss_services.icon_url} alt="" className="w-10 h-10 object-contain shrink-0" />}
                             <h1 className="text-3xl lg:text-4xl font-light tracking-tight">{listing.ss_services.name}</h1>
                         </div>
-                        <p className="text-muted-foreground">{listing.title}</p>
                         {listing.short_description && <p className="text-sm text-muted-foreground mt-2">{listing.short_description}</p>}
                         {(listing.sub_start_date || listing.next_renewal_date) && (
                             <p className="text-xs text-muted-foreground mt-2">
@@ -208,10 +206,10 @@ export function ListingDetail() {
                 <div className="lg:col-span-2">
                     <div className="border border-border p-6 bg-card lg:sticky lg:top-28 space-y-6">
                         <div>
-                            <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Per seat, every month</p>
+                            <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">You pay, every month</p>
                             <p className="text-4xl font-light">{money(listing.pricing.totalPaid)}</p>
                             <p className="text-xs text-muted-foreground mt-2">
-                                {money(listing.pricing.seatBase)} base + {money(listing.pricing.serviceCharge)} service charge — no other charges, we promise
+                                You pay {money(listing.pricing.totalPaid)} + your bank's own transaction charge — no hidden fees from us, as promised.
                             </p>
                             {listing.pctSaved > 0 && (
                                 <span className="inline-block mt-3 px-2.5 py-1 bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-widest">
@@ -220,12 +218,15 @@ export function ListingDetail() {
                             )}
                         </div>
 
-                        <div className="flex items-center justify-between text-sm border-t border-border pt-4">
+                        {/* Total-seats breakdown — hidden per host/joiner-facing simplicity
+                            request, kept here (not deleted) in case a future "listing
+                            details" expander wants it back. */}
+                        {/* <div className="flex items-center justify-between text-sm border-t border-border pt-4">
                             <span className="text-muted-foreground">Total seats allowed</span>
                             <span className="font-semibold">{listing.total_seats} seats · {money(listing.plan_cost)} full plan</span>
-                        </div>
+                        </div> */}
 
-                        <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center justify-between text-sm border-t border-border pt-4">
                             <span className="text-muted-foreground">Seats available</span>
                             <span className={`font-semibold ${listing.openSeats <= 2 ? "text-rose-500" : ""}`}>
                                 {listing.openSeats} of {listing.total_seats - 1}{listing.openSeats <= 2 && listing.openSeats > 0 ? " — almost gone!" : ""}
@@ -243,13 +244,21 @@ export function ListingDetail() {
                             <NotifyMeForm listingId={id!} />
                         ) : (
                             <>
-                                {canPayWithWallet && (
-                                    <label className="flex items-center gap-2 text-sm border border-border p-3 cursor-pointer hover:bg-secondary/50 transition-colors">
-                                        <input type="checkbox" checked={payWithWallet} onChange={(e) => setPayWithWallet(e.target.checked)} className="accent-primary" />
-                                        <Wallet size={14} className="text-primary" />
-                                        <span>Pay from wallet balance ({money(walletBalance!)}) — instant, no checkout</span>
+                                <div className="space-y-2">
+                                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Pay with</p>
+                                    <label className="flex items-center gap-2 text-sm border border-border p-3 cursor-pointer hover:bg-secondary/50 transition-colors has-[:checked]:border-primary">
+                                        <input type="radio" name="paymentMethod" checked={!payWithWallet} onChange={() => setPayWithWallet(false)} className="accent-primary" />
+                                        <CreditCard size={14} className="text-primary" />
+                                        <span>Card / Bank Transfer via Paystack — secure checkout</span>
                                     </label>
-                                )}
+                                    {canPayWithWallet && (
+                                        <label className="flex items-center gap-2 text-sm border border-border p-3 cursor-pointer hover:bg-secondary/50 transition-colors has-[:checked]:border-primary">
+                                            <input type="radio" name="paymentMethod" checked={payWithWallet} onChange={() => setPayWithWallet(true)} className="accent-primary" />
+                                            <Wallet size={14} className="text-primary" />
+                                            <span>Wallet balance ({money(walletBalance!)}) — instant, no checkout</span>
+                                        </label>
+                                    )}
+                                </div>
 
                                 <label className="flex items-start gap-2 text-xs text-muted-foreground cursor-pointer">
                                     <input type="checkbox" checked={consentAccepted} onChange={(e) => setConsentAccepted(e.target.checked)} className="mt-0.5 accent-primary" />

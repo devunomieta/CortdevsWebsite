@@ -60,6 +60,21 @@ export function MySeats() {
         }
     };
 
+    const checkPayment = async (seatId: string) => {
+        setBusyId(seatId);
+        try {
+            const result = await ssFetch(`/api/splitsubs/payments-verify?seatId=${seatId}`);
+            if (result.status === "success") showToast("Payment confirmed — your seat is now secured.", "success");
+            else if (result.status === "failed" || result.status === "abandoned") showToast("That payment didn't go through. Open the listing again to retry.", "error");
+            else showToast("Paystack hasn't confirmed this one yet — try again shortly.", "error");
+            list.reload();
+        } catch (err: any) {
+            showToast(err.message || "Could not check payment status.", "error");
+        } finally {
+            setBusyId(null);
+        }
+    };
+
     return (
         <div className="max-w-6xl space-y-6">
             <SEO title="My Seats" description="Every subscription seat you've joined." path="/dashboard/seats" noindex />
@@ -95,6 +110,11 @@ export function MySeats() {
                             )}
 
                             <div className="flex flex-wrap gap-3 items-center">
+                                {seat.status === "pending_payment" && (
+                                    <button onClick={() => checkPayment(seat.id)} disabled={busyId === seat.id} className="px-4 py-2.5 border border-border text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 hover:bg-secondary disabled:opacity-50">
+                                        {busyId === seat.id ? <RefreshCw size={14} className="animate-spin" /> : <RefreshCw size={14} />} Check Payment Status
+                                    </button>
+                                )}
                                 {seat.status === "access_pending" && (
                                     <button onClick={() => confirmAccess(seat.id)} disabled={busyId === seat.id} className="px-4 py-2.5 bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 disabled:opacity-50">
                                         <ShieldCheck size={14} /> Confirm It's Working

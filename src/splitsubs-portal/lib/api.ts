@@ -4,7 +4,12 @@ export class ApiError extends Error { }
 
 async function parseOrThrow(res: Response) {
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new ApiError(data.error || `Request failed (${res.status})`);
+    // The local dev API shim (scripts/api-server.ts) wraps any uncaught
+    // handler error in a generic { error: 'Intelligence Link Failure',
+    // message: String(error) } — `message` carries the actual cause and only
+    // ever appears from that shim, never from a real Vercel deployment, so
+    // preferring it here can't hide a real production error string.
+    if (!res.ok) throw new ApiError(data.message || data.error || `Request failed (${res.status})`);
     return data;
 }
 

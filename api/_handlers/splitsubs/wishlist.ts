@@ -15,7 +15,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         try {
             const { data } = await supabase
                 .from('ss_wishlist_items')
-                .select('listing_id, created_at, ss_listings(id, short_id, title, status, plan_cost, total_seats, charge_rate, ss_services(name, category, icon_url))')
+                .select('listing_id, created_at, ss_listings(id, short_id, title, short_description, status, plan_cost, total_seats, charge_rate, ss_services(name, category, icon_url))')
                 .eq('user_id', user.id)
                 .order('created_at', { ascending: false });
             return res.status(200).json({ items: data || [] });
