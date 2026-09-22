@@ -73,6 +73,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method === 'PATCH') {
         const { id, name, category, maxSeats, defaultChargeRate, riskTier, hostFields, joinerFields, riskNote, iconUrl, status, billingCycleUnit, billingCycleCount, accessType, defaultPlanCost } = req.body || {};
         if (!id) return res.status(400).json({ error: 'id is required.' });
+        if (name !== undefined && (!isNonEmpty(name) || !withinLength(name, LIMITS.name))) return res.status(400).json({ error: `Name is required and must be ${LIMITS.name} characters or fewer.` });
+        if (category !== undefined && !isNonEmpty(category)) return res.status(400).json({ error: 'Category is required.' });
+        if (maxSeats !== undefined && (Number(maxSeats) < 2 || Number(maxSeats) > 20)) return res.status(400).json({ error: 'maxSeats must be between 2 and 20.' });
+        if (defaultChargeRate !== undefined && (Number(defaultChargeRate) < 0 || Number(defaultChargeRate) > 0.5)) return res.status(400).json({ error: 'defaultChargeRate must be between 0 and 0.5.' });
+        if (riskTier !== undefined && !['low', 'medium', 'high'].includes(riskTier)) return res.status(400).json({ error: 'riskTier must be low, medium, or high.' });
         if (accessType !== undefined && !['invite', 'shared_login'].includes(accessType)) return res.status(400).json({ error: 'accessType must be invite or shared_login.' });
         if (defaultPlanCost !== undefined && defaultPlanCost !== null && Number(defaultPlanCost) < 0) return res.status(400).json({ error: 'defaultPlanCost cannot be negative.' });
 

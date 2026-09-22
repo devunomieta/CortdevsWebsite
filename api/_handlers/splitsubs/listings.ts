@@ -84,6 +84,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 ? (listingsRaw || []).filter((l: any) => l.ss_services?.category === String(req.query.category))
                 : listingsRaw;
 
+            // Categories AND services with at least one active listing right
+            // now — not everything the catalog knows about. A dedicated,
+            // always-unfiltered query (not listingsRaw, which the service_id
+            // filter above already narrows) so picking one filter doesn't
+            // collapse the other's chip list down to just the selection.
+            const { data: facetRows } = await supabase
+                .from('ss_listings')
+                .select('ss_services(id, name, category, icon_url)')
+                .eq('status', 'active')
+                .limit(500);
+            const availableCategories = Array.from(new Set((facetRows || []).map((l: any) => l.ss_services?.category).filter(Boolean))).sort();
+            const servicesById = new Map<string, { id: string; name: string; category: string; icon_url: string | null }>();
+            (facetRows || []).forEach((l: any) => { if (l.ss_services && !servicesById.has(l.ss_services.id)) servicesById.set(l.ss_services.id, l.ss_services); });
+            const availableServices = Array.from(servicesById.values()).sort((a, b) => a.name.localeCompare(b.name));
+
             const ids = (listings || []).map((l) => l.id);
             const hostIds = Array.from(new Set((listings || []).map((l) => l.host_id)));
             const [{ data: seatRows }, { data: hostProfiles }] = await Promise.all([
@@ -120,7 +135,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const total = enriched.length;
             const pageItems = enriched.slice(params.from, params.to + 1);
 
-            return res.status(200).json({ listings: pageItems, total, page: params.page, pageSize: params.pageSize });
+            return res.status(200).json({ listings: pageItems, total, page: params.page, pageSize: params.pageSize, categories: availableCategories, services: availableServices });
         } catch (err: any) {
             console.error('splitsubs/listings browse error:', err);
             return res.status(500).json({ error: 'Could not load listings.' });

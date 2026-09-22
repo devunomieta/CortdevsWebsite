@@ -24,12 +24,6 @@ interface Listing {
     ss_services: { id: string; name: string; category: string; icon_url: string | null };
 }
 
-interface Service {
-    id: string;
-    name: string;
-    category: string;
-}
-
 const money = (n: number) => `₦${n.toLocaleString("en-NG", { minimumFractionDigits: 0 })}`;
 
 function daysUntil(dateStr: string): number {
@@ -133,7 +127,6 @@ function NotifyMeInline({ listingId }: { listingId: string }) {
 export function SplitSubsHome() {
     const navigate = useNavigate();
     const { showToast } = useToast();
-    const [services, setServices] = useState<Service[]>([]);
     const [serviceFilter, setServiceFilter] = useState<string>("");
     const [categoryFilter, setCategoryFilter] = useState<string>("");
     const [isAuthed, setIsAuthed] = useState(false);
@@ -145,7 +138,6 @@ export function SplitSubsHome() {
     });
 
     useEffect(() => {
-        ssPublicFetch("/api/splitsubs/services").then((d) => setServices(d.services || [])).catch(() => { });
         ssPublicFetch("/api/splitsubs/stats").then(setStats).catch(() => { });
         supabase.auth.getSession().then(({ data: { session } }) => {
             setIsAuthed(!!session);
@@ -158,7 +150,11 @@ export function SplitSubsHome() {
         });
     }, []);
 
-    const categories = Array.from(new Set(services.map((s) => s.category))).sort();
+    // Both derived from the browse endpoint's own facet data — categories
+    // and services that actually have an active listing right now, not the
+    // full catalog (which includes services no one's currently hosting).
+    const categories: string[] = list.raw?.categories || [];
+    const availableServices: { id: string; name: string; category: string }[] = list.raw?.services || [];
 
     const toggleWishlist = async (e: React.MouseEvent, listingId: string) => {
         e.preventDefault();
@@ -270,7 +266,7 @@ export function SplitSubsHome() {
                         >
                             All
                         </button>
-                        {services.filter((s) => !categoryFilter || s.category === categoryFilter).map((s) => (
+                        {availableServices.filter((s) => !categoryFilter || s.category === categoryFilter).map((s) => (
                             <button
                                 key={s.id}
                                 onClick={() => { setServiceFilter(s.id); list.setPage(1); }}

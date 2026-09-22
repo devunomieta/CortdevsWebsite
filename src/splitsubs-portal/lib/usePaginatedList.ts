@@ -13,6 +13,7 @@ const PAGE_SIZE = 20;
 export function usePaginatedList<T>(endpoint: string, itemsKey: string, opts: { defaultSort?: string; defaultOrder?: "asc" | "desc"; extraParams?: Record<string, string> } = {}) {
     const [items, setItems] = useState<T[]>([]);
     const [total, setTotal] = useState(0);
+    const [raw, setRaw] = useState<any>(null); // the full last response, for callers that need a field beyond items/total (e.g. facet counts)
     const [page, setPage] = useState(1);
     const [searchInput, setSearchInput] = useState(""); // bound to the text field, updates every keystroke
     const [search, setSearch] = useState(""); // debounced value that actually drives the fetch
@@ -35,7 +36,7 @@ export function usePaginatedList<T>(endpoint: string, itemsKey: string, opts: { 
         setIsLoading(true);
         const params = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE), sort, order, ...(search ? { search } : {}), ...(opts.extraParams || {}) });
         ssFetch(`${endpoint}?${params.toString()}`)
-            .then((d) => { setItems(d[itemsKey] || []); setTotal(d.total ?? (d[itemsKey] || []).length); })
+            .then((d) => { setItems(d[itemsKey] || []); setTotal(d.total ?? (d[itemsKey] || []).length); setRaw(d); })
             .catch(() => { setItems([]); setTotal(0); })
             .finally(() => setIsLoading(false));
     };
@@ -44,5 +45,5 @@ export function usePaginatedList<T>(endpoint: string, itemsKey: string, opts: { 
 
     const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-    return { items, total, page, setPage, totalPages, pageSize: PAGE_SIZE, searchInput, setSearchInput, sort, setSort, order, setOrder, isLoading, reload: load };
+    return { items, total, raw, page, setPage, totalPages, pageSize: PAGE_SIZE, searchInput, setSearchInput, sort, setSort, order, setOrder, isLoading, reload: load };
 }

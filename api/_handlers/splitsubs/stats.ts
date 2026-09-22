@@ -14,10 +14,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             supabase.from('ss_services').select('name, category, icon_url').eq('status', 'active').order('name'),
         ]);
 
+        // The catalog is plan-level (Netflix Premium and Netflix Standard are
+        // separate rows), which is right for listing creation but shows as an
+        // obvious-looking duplicate in a "brands we support" trust strip — so
+        // this dedupes by logo (same icon_url = same brand) before returning,
+        // keeping the first (alphabetically, since the query is name-ordered).
+        const seen = new Set<string>();
+        const uniqueServices = (services || []).filter((s) => {
+            const key = s.icon_url || `name:${s.name}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
+
         return res.status(200).json({
             completedSplits: completedSplits || 0,
             activeListings: activeListings || 0,
-            services: services || [],
+            services: uniqueServices,
         });
     } catch (err: any) {
         console.error('splitsubs/stats error:', err);
