@@ -167,3 +167,4 @@ check-prod-errors.ts
 
 # Documentation
 /docs
+_tmp_check_column.mjs

@@ -82,8 +82,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         try {
-            const { error } = await supabase.from('ss_platform_settings').update(patch).eq('id', 1);
+            // .select().maybeSingle() instead of a bare .update() — a plain
+            // update() only tells you the request didn't error, not that a row
+            // was actually written. If SUPABASE_SERVICE_ROLE_KEY isn't set on
+            // this deployment (falls back to the anon key — see _lib/supabase.ts)
+            // this table's row-level security (enabled, no policies) silently
+            // matches zero rows instead of failing, and the UI would report
+            // "Settings saved" on every save while nothing ever persisted.
+            const { data: updated, error } = await supabase.from('ss_platform_settings').update(patch).eq('id', 1).select('id').maybeSingle();
             if (error) throw error;
+            if (!updated) {
+                return res.status(500).json({ error: 'Settings were not saved — the write affected no rows. This usually means SUPABASE_SERVICE_ROLE_KEY is missing on the server; contact an engineer.' });
+            }
 
             await logSplitsubsActivity({
                 actorType: 'admin', actorId: admin.id, actorLabel: `Admin — ${admin.email}`,

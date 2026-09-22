@@ -21,8 +21,8 @@ process.on('unhandledRejection', (reason, promise) => {
 const server = http.createServer(async (req, res) => {
     // Basic CORS
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     if (req.method === 'OPTIONS') {
         res.writeHead(204);
@@ -64,8 +64,15 @@ const server = http.createServer(async (req, res) => {
                 // the same code works fine once deployed.
                 vercelReq.query = Object.fromEntries(url.searchParams.entries());
 
-                // Simple JSON body parser for POST
-                if (req.method === 'POST') {
+                // Simple JSON body parser — every method that can carry a body,
+                // not just POST. This silently missed PATCH for a long time:
+                // req.body stayed undefined, so every handler's `req.body || {}`
+                // fallback quietly turned into an empty object and no field ever
+                // reached the database locally, even though the response still
+                // reported success (whatever the handler did with an empty body
+                // still "succeeded" — e.g. an UPDATE that only touched
+                // unconditional updated_at/updated_by columns).
+                if (req.method === 'POST' || req.method === 'PATCH' || req.method === 'PUT' || req.method === 'DELETE') {
                     const buffers: Buffer[] = [];
                     for await (const chunk of req) {
                         buffers.push(chunk);

@@ -114,7 +114,7 @@ export function AdminSettings() {
                         <KeyStatus configured={settings.paystack_live_key_configured} source={settings.paystack_live_key_source} />
                     </div>
                     <div className="flex gap-2">
-                        <input type="password" value={liveKeyInput} onChange={(e) => setLiveKeyInput(e.target.value)} placeholder="sk_live_..." autoComplete="off" className="flex-1 px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm font-mono" />
+                        <input type="text" spellCheck={false} value={liveKeyInput} onChange={(e) => setLiveKeyInput(e.target.value)} placeholder="sk_live_..." autoComplete="off" data-1p-ignore data-lpignore="true" data-form-type="other" name="ss-paystack-live-key-not-a-password" className="flex-1 px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm font-mono" />
                         {settings.paystack_live_key_source === "admin" && (
                             <button onClick={() => clearKey("live")} className="px-3 text-xs text-rose-500 border border-border hover:bg-secondary">Clear</button>
                         )}
@@ -126,7 +126,7 @@ export function AdminSettings() {
                         <KeyStatus configured={settings.paystack_test_key_configured} source={settings.paystack_test_key_source} />
                     </div>
                     <div className="flex gap-2">
-                        <input type="password" value={testKeyInput} onChange={(e) => setTestKeyInput(e.target.value)} placeholder="sk_test_..." autoComplete="off" className="flex-1 px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm font-mono" />
+                        <input type="text" spellCheck={false} value={testKeyInput} onChange={(e) => setTestKeyInput(e.target.value)} placeholder="sk_test_..." autoComplete="off" data-1p-ignore data-lpignore="true" data-form-type="other" name="ss-paystack-test-key-not-a-password" className="flex-1 px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm font-mono" />
                         {settings.paystack_test_key_source === "admin" && (
                             <button onClick={() => clearKey("test")} className="px-3 text-xs text-rose-500 border border-border hover:bg-secondary">Clear</button>
                         )}
