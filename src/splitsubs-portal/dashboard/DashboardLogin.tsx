@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router";
 import { Mail, Lock, ArrowRight, RefreshCw, Eye, EyeOff } from "lucide-react";
 import { supabase } from "../../lib/supabase";
+import { ssPublicFetch } from "../lib/api";
 import { useToast } from "../../app/components/Toast";
 import { SEO } from "../components/SEO";
 import { SplitSubsMark } from "../components/SplitSubsLogo";
@@ -25,14 +26,10 @@ export function DashboardLogin() {
         setIsLoading(true);
         try {
             if (mode === "signup") {
-                const { data, error } = await supabase.auth.signUp({ email, password });
-                if (error) throw error;
-                if (data.session) {
-                    navigate(redirect);
-                } else {
-                    showToast("Check your email to confirm your account, then sign in.", "success");
-                    setMode("signin");
-                }
+                await ssPublicFetch("/api/splitsubs/signup", { method: "POST", body: JSON.stringify({ email, password }) });
+                // Password travels in router state, not the URL — verify page
+                // needs it only to resend the code, and only for this session.
+                navigate(`/dashboard/verify?email=${encodeURIComponent(email)}&redirect=${encodeURIComponent(redirect)}`, { state: { password } });
             } else {
                 const { data, error } = await supabase.auth.signInWithPassword({ email, password });
                 if (error) throw error;

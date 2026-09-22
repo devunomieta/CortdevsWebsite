@@ -46,6 +46,7 @@ import splitsubsListingsHandler from './_handlers/splitsubs/listings.js';
 import splitsubsHostListingsHandler from './_handlers/splitsubs/host-listings.js';
 import splitsubsHostProfileHandler from './_handlers/splitsubs/host-profile.js';
 import splitsubsProfileHandler from './_handlers/splitsubs/profile.js';
+import splitsubsSignupHandler from './_handlers/splitsubs/signup.js';
 import splitsubsTransactionsHandler from './_handlers/splitsubs/transactions.js';
 import splitsubsMySeatsHandler from './_handlers/splitsubs/my-seats.js';
 import splitsubsJoinHandler from './_handlers/splitsubs/join.js';
@@ -118,6 +119,7 @@ const routes: Record<string, (req: VercelRequest, res: VercelResponse) => any> =
   'splitsubs/host-listings': splitsubsHostListingsHandler,
   'splitsubs/host-profile': splitsubsHostProfileHandler,
   'splitsubs/profile': splitsubsProfileHandler,
+  'splitsubs/signup': splitsubsSignupHandler,
   'splitsubs/transactions': splitsubsTransactionsHandler,
   'splitsubs/my-seats': splitsubsMySeatsHandler,
   'splitsubs/join': splitsubsJoinHandler,

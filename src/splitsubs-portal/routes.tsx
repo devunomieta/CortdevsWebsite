@@ -6,6 +6,7 @@ import { HowItWorks } from "./pages/HowItWorks";
 import { SplitSubsContact } from "./pages/Contact";
 
 import { DashboardLogin } from "./dashboard/DashboardLogin";
+import { VerifyOtp } from "./dashboard/VerifyOtp";
 import { DashboardLayout } from "./dashboard/DashboardLayout";
 import { DashboardOverview } from "./dashboard/DashboardOverview";
 import { MySeats } from "./dashboard/MySeats";
@@ -40,6 +41,7 @@ export const splitsubsRouter = createBrowserRouter([
         ],
     },
     { path: "/dashboard/login", element: <DashboardLogin /> },
+    { path: "/dashboard/verify", element: <VerifyOtp /> },
     {
         path: "/dashboard",
         element: <DashboardLayout />,

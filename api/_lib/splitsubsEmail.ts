@@ -28,6 +28,24 @@ async function sendSplitsubsEmail(to: string, subject: string, bodyHtml: string)
 
 const money = (n: number) => `₦${n.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+// Sent by splitsubs/signup.ts in place of Supabase's own hosted confirmation
+// email — same branded shell as every other SplitSubs email, and carries
+// BOTH a clickable confirmation link (for anyone who just wants to tap it)
+// and the 6-digit OTP behind it (for /dashboard/verify, or anyone who
+// distrusts email links and would rather type a code).
+export async function sendSignupConfirmation(to: string, params: { confirmUrl: string; otp: string }) {
+    await sendSplitsubsEmail(to, `Confirm your SplitSubs account — ${params.otp}`, `
+    <h2 style="font-weight: 600;">One step from saving on your subscriptions</h2>
+    <p>Confirm your email to activate your SplitSubs account — tap the button below, or enter this code if you're asked for one:</p>
+    <div style="text-align:center; margin: 28px 0; padding: 20px; background:#f9f9f9;">
+      <p style="font-size: 32px; font-weight: 700; letter-spacing: 8px; margin: 0 0 6px; font-family: monospace;">${params.otp}</p>
+      <p style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.15em; color: #999; margin:0;">Your confirmation code</p>
+    </div>
+    <p style="text-align:center;"><a href="${params.confirmUrl}" style="display:inline-block;padding:12px 24px;background:#000;color:#fff;text-decoration:none;border-radius:4px;">Confirm My Account</a></p>
+    <p style="color:#999; font-size:12px; margin-top:24px;">This code and link expire in an hour. Didn't try to sign up? You can safely ignore this email.</p>
+  `);
+}
+
 export async function sendSeatPaidToJoiner(to: string, params: { serviceName: string; totalPaid: number; confirmByHours: number }) {
     await sendSplitsubsEmail(to, `You're in! ${params.serviceName} seat secured 🎉`, `
     <h2 style="font-weight: 600;">Nice one — you just saved yourself real money</h2>
