@@ -97,8 +97,8 @@ export function DashboardOverview() {
                 </div>
             )}
             {paymentBanner === "failed" && (
-                <div className="border border-rose-500/30 bg-rose-500/5 p-4 flex items-center gap-3">
-                    <AlertTriangle size={16} className="text-rose-500 shrink-0" />
+                <div className="border border-destructive/30 bg-destructive/5 p-4 flex items-center gap-3">
+                    <AlertTriangle size={16} className="text-destructive shrink-0" />
                     <p className="text-sm">That payment didn't go through. No charge should have been made — open the listing again to retry.</p>
                 </div>
             )}
@@ -152,7 +152,7 @@ export function DashboardOverview() {
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-1 shrink-0">
-                                    <button onClick={(e) => removeFromWishlist(e, item.listing_id)} className="p-1.5 text-muted-foreground hover:text-rose-500" title="Remove from wishlist"><X size={14} /></button>
+                                    <button onClick={(e) => removeFromWishlist(e, item.listing_id)} className="p-1.5 text-muted-foreground hover:text-destructive" title="Remove from wishlist"><X size={14} /></button>
                                     <ArrowRight size={14} className="text-muted-foreground" />
                                 </div>
                             </Link>

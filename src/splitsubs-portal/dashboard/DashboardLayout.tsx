@@ -102,7 +102,7 @@ export function DashboardLayout() {
                     <span>Browse Seats</span>
                     <ExternalLink size={12} />
                 </a>
-                <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-2.5 text-xs text-rose-500 hover:bg-rose-500/10 transition-colors font-semibold">
+                <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-2.5 text-xs text-destructive hover:bg-destructive/10 transition-colors font-semibold">
                     <LogOut size={16} />
                     <span>Sign Out</span>
                 </button>

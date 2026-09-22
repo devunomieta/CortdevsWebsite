@@ -33,7 +33,7 @@ export function AdminSettlements() {
                         <div key={h.hostId} className="border border-border p-5 bg-card flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                             <div className="min-w-0">
                                 <p className="font-medium text-sm">{h.hostEmail || h.hostId}</p>
-                                {!h.payoutReady && <p className="text-xs text-rose-500 mt-1">No verified payout account yet — can't withdraw even once eligible</p>}
+                                {!h.payoutReady && <p className="text-xs text-destructive mt-1">No verified payout account yet — can't withdraw even once eligible</p>}
                             </div>
                             <div className="flex flex-wrap items-center gap-5 shrink-0 text-left sm:text-right">
                                 <div>

@@ -32,7 +32,7 @@ function ListingSummary({ l }: { l: any }) {
                     {l.proof_url ? (
                         <a href={l.proof_url} target="_blank" rel="noreferrer" className="text-primary hover:underline flex items-center gap-1">View <ExternalLink size={10} /></a>
                     ) : (
-                        <span className="text-rose-500">Not provided</span>
+                        <span className="text-destructive">Not provided</span>
                     )}
                 </div>
                 {l.rejection_reason && (
@@ -158,7 +158,7 @@ export function AdminListings() {
                                     {status === "pending_review" && (
                                         <>
                                             <button onClick={() => act(l.id, "approve")} className="p-2 border border-border hover:bg-secondary text-primary" title="Approve"><Check size={14} /></button>
-                                            <button onClick={() => act(l.id, "reject")} className="p-2 border border-border hover:bg-secondary text-rose-500" title="Reject"><X size={14} /></button>
+                                            <button onClick={() => act(l.id, "reject")} className="p-2 border border-border hover:bg-secondary text-destructive" title="Reject"><X size={14} /></button>
                                         </>
                                     )}
                                     {status === "active" && (

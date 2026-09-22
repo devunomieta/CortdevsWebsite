@@ -138,7 +138,7 @@ export function SeatChat({ seatId, viewerRole }: { seatId: string; viewerRole: "
                                 <button onClick={toggleChat} className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground flex items-center gap-1.5">
                                     {chatStatus === "open" ? <><Lock size={12} /> Close conversation</> : <><Unlock size={12} /> Reopen conversation</>}
                                 </button>
-                                <button onClick={report} disabled={isReporting} className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-rose-500 flex items-center gap-1.5 disabled:opacity-50">
+                                <button onClick={report} disabled={isReporting} className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-destructive flex items-center gap-1.5 disabled:opacity-50">
                                     <Flag size={12} /> Report
                                 </button>
                             </div>

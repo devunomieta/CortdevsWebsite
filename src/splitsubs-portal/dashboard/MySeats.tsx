@@ -152,7 +152,7 @@ export function MySeats() {
                                     {expiry && (
                                         <div>
                                             <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Countdown</p>
-                                            <p className={`font-medium flex items-center gap-1 ${isExpired ? "text-rose-500" : ""}`}><Clock size={11} /> {expiry}</p>
+                                            <p className={`font-medium flex items-center gap-1 ${isExpired ? "text-destructive" : ""}`}><Clock size={11} /> {expiry}</p>
                                         </div>
                                     )}
                                 </div>

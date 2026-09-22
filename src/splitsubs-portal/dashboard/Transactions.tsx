@@ -14,7 +14,7 @@ const STATUS_STYLE: Record<string, string> = {
     paid: "text-primary",
     pending: "text-amber-600",
     processing: "text-amber-600",
-    failed: "text-rose-500",
+    failed: "text-destructive",
 };
 
 const KIND_LABEL: Record<string, string> = {

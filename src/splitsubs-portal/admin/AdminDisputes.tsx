@@ -66,7 +66,7 @@ export function AdminDisputes() {
                                 {d.seat_id && <div className="mb-4"><AdminSeatChatViewer seatId={d.seat_id} /></div>}
                                 {isOpen && (
                                     <div className="flex flex-wrap gap-2">
-                                        <button disabled={busyId === d.id} onClick={() => resolve(d.id, "resolved_refund")} className="px-4 py-2 bg-rose-500 text-white text-[10px] font-bold uppercase tracking-widest disabled:opacity-50">Refund joiner</button>
+                                        <button disabled={busyId === d.id} onClick={() => resolve(d.id, "resolved_refund")} className="px-4 py-2 bg-destructive text-white text-[10px] font-bold uppercase tracking-widest disabled:opacity-50">Refund joiner</button>
                                         <button disabled={busyId === d.id} onClick={() => resolve(d.id, "resolved_release")} className="px-4 py-2 bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-widest disabled:opacity-50">Release to host</button>
                                         <button disabled={busyId === d.id} onClick={() => resolve(d.id, "dismissed")} className="px-4 py-2 border border-border text-[10px] font-bold uppercase tracking-widest disabled:opacity-50">Dismiss</button>
                                     </div>

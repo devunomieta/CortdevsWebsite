@@ -309,14 +309,14 @@ export function SplitSubsHome() {
                                         to={`/listing/${listing.id}`}
                                         className={`relative block border border-border p-6 transition-colors bg-card group ${soldOut ? "opacity-70" : "hover:border-primary"}`}
                                     >
-                                        <button onClick={(e) => toggleWishlist(e, listing.id)} className="absolute top-4 right-4 text-muted-foreground hover:text-rose-500 transition-colors z-10" title="Save to wishlist">
-                                            <Heart size={16} className={wishlistIds.has(listing.id) ? "fill-rose-500 text-rose-500" : ""} />
+                                        <button onClick={(e) => toggleWishlist(e, listing.id)} className="absolute top-4 right-4 text-muted-foreground hover:text-destructive transition-colors z-10" title="Save to wishlist">
+                                            <Heart size={16} className={wishlistIds.has(listing.id) ? "fill-destructive text-destructive" : ""} />
                                         </button>
                                         <div className="flex items-center justify-end mb-4 pr-6">
                                             {soldOut ? (
                                                 <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground bg-secondary px-2 py-0.5">Sold Out</span>
                                             ) : (
-                                                <span className={`text-[10px] font-bold uppercase tracking-widest ${listing.openSeats <= 2 ? "text-rose-500" : "text-primary"}`}>
+                                                <span className={`text-[10px] font-bold uppercase tracking-widest ${listing.openSeats <= 2 ? "text-destructive" : "text-primary"}`}>
                                                     {listing.openSeats <= 2 ? `Only ${listing.openSeats} left!` : `${listing.openSeats} seats open`}
                                                 </span>
                                             )}
@@ -331,7 +331,7 @@ export function SplitSubsHome() {
                                         {listing.short_description && <p className="text-xs text-muted-foreground truncate mb-2">{listing.short_description}</p>}
                                         <div className="flex flex-wrap gap-2 mb-4">
                                             {listing.pctSaved > 0 && (
-                                                <span className="inline-block px-2.5 py-1 bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-widest">
+                                                <span className="inline-block px-2.5 py-1 bg-accent/10 text-accent text-[10px] font-bold uppercase tracking-widest">
                                                     Save {listing.pctSaved}%
                                                 </span>
                                             )}

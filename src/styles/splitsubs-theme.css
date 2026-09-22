@@ -1,0 +1,39 @@
+/* SplitSubs-only token overrides — scoped to `.splitsubs-app` (wrapped around
+   the entire splitsubsRouter tree in src/splitsubs-portal/routes.tsx) so
+   these never leak into the main CortDevs site, Events portal, or Jobs
+   portal, which share theme.css's :root/.dark tokens with SplitSubs by
+   default. Values chosen and verified against WCAG 2.1 contrast (see
+   comments) rather than picked by eye.
+
+   What changed from the shared defaults, and why:
+   - --muted-foreground darkened (zinc-500 → zinc-600): the shared value
+     passed AA (4.83:1) but with almost no margin, and SplitSubs leans on
+     this token for a lot of genuinely small text (10-12px labels). 7.73:1
+     gives real headroom instead of sitting on the line.
+   - --accent redefined from a near-invisible gray tint into an actual soft
+     indigo brand accent — the shared default was functionally identical to
+     --muted, so "accent" meant nothing visually before this.
+   - --destructive darkened (red-500 → red-600): the shared red-500 value
+     measures 3.76:1 on white, which fails WCAG AA (4.5:1) for normal text —
+     a real accessibility bug, not just a style preference. red-600 passes
+     at 4.83:1 while staying recognizably the same hue. */
+
+.splitsubs-app {
+  --muted-foreground: #52525b; /* zinc-600, 7.73:1 on white (was #71717a / 4.83:1) */
+
+  --accent: #4f46e5; /* indigo-600, 6.29:1 on white */
+  --accent-foreground: #ffffff;
+
+  --destructive: #dc2626; /* red-600, 4.83:1 on white (was #ef4444 / 3.76:1 — failed AA) */
+  --destructive-foreground: #ffffff;
+}
+
+.splitsubs-app.dark {
+  --muted-foreground: oklch(0.708 0 0); /* shared dark value already tests well; unchanged */
+
+  --accent: #818cf8; /* indigo-400, ~5.7:1 on the dark card surface */
+  --accent-foreground: oklch(0.141 0.005 285.823);
+
+  --destructive: #f87171; /* red-400, ~6.15:1 on the dark card surface */
+  --destructive-foreground: oklch(0.141 0.005 285.823);
+}

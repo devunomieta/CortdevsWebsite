@@ -9,7 +9,7 @@ const STATUS_META: Record<string, { label: string; icon: any; className: string 
     unsubmitted: { label: "Not submitted", icon: ShieldAlert, className: "text-muted-foreground" },
     pending: { label: "Under review", icon: Clock, className: "text-amber-600" },
     approved: { label: "Verified", icon: ShieldCheck, className: "text-primary" },
-    rejected: { label: "Rejected — resubmit below", icon: ShieldAlert, className: "text-rose-500" },
+    rejected: { label: "Rejected — resubmit below", icon: ShieldAlert, className: "text-destructive" },
 };
 
 const MAX_DOCUMENT_BYTES = 3 * 1024 * 1024;

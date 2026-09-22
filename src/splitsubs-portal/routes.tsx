@@ -1,5 +1,6 @@
 import { createBrowserRouter, Navigate } from "react-router";
 import { PortalLayout } from "./components/PortalLayout";
+import { SplitsubsThemeRoot } from "./components/SplitsubsThemeRoot";
 import { SplitSubsHome } from "./pages/Home";
 import { ListingDetail } from "./pages/ListingDetail";
 import { HowItWorks } from "./pages/HowItWorks";
@@ -34,49 +35,54 @@ import { AdminServiceRequests } from "./admin/AdminServiceRequests";
 
 export const splitsubsRouter = createBrowserRouter([
     {
-        path: "/",
-        element: <PortalLayout />,
+        element: <SplitsubsThemeRoot />,
         children: [
-            { index: true, element: <SplitSubsHome /> },
-            { path: "listing/:id", element: <ListingDetail /> },
-            { path: "how-it-works", element: <HowItWorks /> },
-            { path: "contact", element: <SplitSubsContact /> },
-            { path: "terms", element: <Terms /> },
-            { path: "privacy", element: <Privacy /> },
+            {
+                path: "/",
+                element: <PortalLayout />,
+                children: [
+                    { index: true, element: <SplitSubsHome /> },
+                    { path: "listing/:id", element: <ListingDetail /> },
+                    { path: "how-it-works", element: <HowItWorks /> },
+                    { path: "contact", element: <SplitSubsContact /> },
+                    { path: "terms", element: <Terms /> },
+                    { path: "privacy", element: <Privacy /> },
+                ],
+            },
+            { path: "/dashboard/login", element: <DashboardLogin /> },
+            { path: "/dashboard/verify", element: <VerifyOtp /> },
+            {
+                path: "/dashboard",
+                element: <DashboardLayout />,
+                children: [
+                    { index: true, element: <DashboardOverview /> },
+                    { path: "seats", element: <MySeats /> },
+                    { path: "listings", element: <MyListings /> },
+                    { path: "transactions", element: <Transactions /> },
+                    { path: "payout", element: <PayoutSettings /> },
+                    { path: "profile", element: <Profile /> },
+                    { path: "support", element: <Support /> },
+                ],
+            },
+            { path: "/admin/login", element: <SplitSubsAdminLogin /> },
+            {
+                path: "/admin",
+                element: <SplitSubsAdminLayout />,
+                children: [
+                    { index: true, element: <AdminOverview /> },
+                    { path: "catalog", element: <AdminCatalog /> },
+                    { path: "listings", element: <AdminListings /> },
+                    { path: "hosts", element: <AdminHosts /> },
+                    { path: "disputes", element: <AdminDisputes /> },
+                    { path: "transactions", element: <AdminTransactions /> },
+                    { path: "settlements", element: <AdminSettlements /> },
+                    { path: "tickets", element: <AdminTickets /> },
+                    { path: "audit-log", element: <AdminAuditLog /> },
+                    { path: "settings", element: <AdminSettings /> },
+                    { path: "service-requests", element: <AdminServiceRequests /> },
+                ],
+            },
+            { path: "*", element: <Navigate to="/" replace /> },
         ],
     },
-    { path: "/dashboard/login", element: <DashboardLogin /> },
-    { path: "/dashboard/verify", element: <VerifyOtp /> },
-    {
-        path: "/dashboard",
-        element: <DashboardLayout />,
-        children: [
-            { index: true, element: <DashboardOverview /> },
-            { path: "seats", element: <MySeats /> },
-            { path: "listings", element: <MyListings /> },
-            { path: "transactions", element: <Transactions /> },
-            { path: "payout", element: <PayoutSettings /> },
-            { path: "profile", element: <Profile /> },
-            { path: "support", element: <Support /> },
-        ],
-    },
-    { path: "/admin/login", element: <SplitSubsAdminLogin /> },
-    {
-        path: "/admin",
-        element: <SplitSubsAdminLayout />,
-        children: [
-            { index: true, element: <AdminOverview /> },
-            { path: "catalog", element: <AdminCatalog /> },
-            { path: "listings", element: <AdminListings /> },
-            { path: "hosts", element: <AdminHosts /> },
-            { path: "disputes", element: <AdminDisputes /> },
-            { path: "transactions", element: <AdminTransactions /> },
-            { path: "settlements", element: <AdminSettlements /> },
-            { path: "tickets", element: <AdminTickets /> },
-            { path: "audit-log", element: <AdminAuditLog /> },
-            { path: "settings", element: <AdminSettings /> },
-            { path: "service-requests", element: <AdminServiceRequests /> },
-        ],
-    },
-    { path: "*", element: <Navigate to="/" replace /> },
 ]);

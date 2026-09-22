@@ -141,7 +141,7 @@ export function ListingDetail() {
                 <Link to="/" className="text-xs text-muted-foreground hover:text-foreground inline-block">← Back to browse</Link>
                 <div className="flex items-center gap-2">
                     <button onClick={toggleWishlist} className="p-2 border border-border hover:bg-secondary" title="Save to wishlist">
-                        <Heart size={16} className={isWishlisted ? "fill-rose-500 text-rose-500" : "text-muted-foreground"} />
+                        <Heart size={16} className={isWishlisted ? "fill-destructive text-destructive" : "text-muted-foreground"} />
                     </button>
                     <button onClick={handleShare} className="p-2 border border-border hover:bg-secondary" title="Share this listing">
                         <Share2 size={16} className="text-muted-foreground" />
@@ -214,7 +214,7 @@ export function ListingDetail() {
                                 You pay {money(listing.pricing.totalPaid)} + your bank's own transaction charge — no hidden fees from us, as promised.
                             </p>
                             {listing.pctSaved > 0 && (
-                                <span className="inline-block mt-3 px-2.5 py-1 bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-widest">
+                                <span className="inline-block mt-3 px-2.5 py-1 bg-accent/10 text-accent text-[10px] font-bold uppercase tracking-widest">
                                     You save {listing.pctSaved}% vs paying {money(listing.plan_cost)} alone
                                 </span>
                             )}
@@ -230,7 +230,7 @@ export function ListingDetail() {
 
                         <div className="flex items-center justify-between text-sm border-t border-border pt-4">
                             <span className="text-muted-foreground">Seats available</span>
-                            <span className={`font-semibold ${listing.openSeats <= 2 ? "text-rose-500" : ""}`}>
+                            <span className={`font-semibold ${listing.openSeats <= 2 ? "text-destructive" : ""}`}>
                                 {listing.openSeats} of {listing.total_seats - 1}{listing.openSeats <= 2 && listing.openSeats > 0 ? " — almost gone!" : ""}
                             </span>
                         </div>

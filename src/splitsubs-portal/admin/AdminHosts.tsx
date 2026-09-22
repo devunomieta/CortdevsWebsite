@@ -108,7 +108,7 @@ export function AdminHosts() {
                                 <p className="text-xs text-muted-foreground">
                                     {h.completed_splits} splits · {h.rating_count > 0 ? (h.rating_sum / h.rating_count).toFixed(1) : "—"} rating · {h.strikes} strike(s)
                                     {h.bank_account_name ? ` · ${h.bank_account_name}` : " · no payout account"}
-                                    {" · "}<span className={h.kyc_status === "approved" ? "text-primary" : h.kyc_status === "pending" ? "text-amber-600" : h.kyc_status === "rejected" ? "text-rose-500" : ""}>KYC {h.kyc_status}</span>
+                                    {" · "}<span className={h.kyc_status === "approved" ? "text-primary" : h.kyc_status === "pending" ? "text-amber-600" : h.kyc_status === "rejected" ? "text-destructive" : ""}>KYC {h.kyc_status}</span>
                                 </p>
                             </div>
                             <div className="flex flex-wrap items-center gap-2 shrink-0">
@@ -116,7 +116,7 @@ export function AdminHosts() {
                                     <>
                                         <button onClick={() => viewId(h.id)} className="p-2 border border-border hover:bg-secondary" title="View submitted ID"><Eye size={14} /></button>
                                         <button onClick={() => resolveKyc(h.id, "approve")} disabled={busyId === h.id} className="p-2 border border-border hover:bg-secondary text-primary" title="Approve KYC"><Check size={14} /></button>
-                                        <button onClick={() => resolveKyc(h.id, "reject")} disabled={busyId === h.id} className="p-2 border border-border hover:bg-secondary text-rose-500" title="Reject KYC"><X size={14} /></button>
+                                        <button onClick={() => resolveKyc(h.id, "reject")} disabled={busyId === h.id} className="p-2 border border-border hover:bg-secondary text-destructive" title="Reject KYC"><X size={14} /></button>
                                     </>
                                 )}
                                 <select value={h.verification_tier} onChange={(e) => setTier(h.id, e.target.value)} className="px-3 py-2 bg-background border border-border text-xs outline-none">
@@ -124,7 +124,7 @@ export function AdminHosts() {
                                     <option value="bank_verified">Bank verified</option>
                                     <option value="id_verified">ID verified</option>
                                 </select>
-                                <button onClick={() => toggleBan(h.id, h.is_banned)} className={`p-2 border border-border hover:bg-secondary ${h.is_banned ? "text-rose-500" : "text-muted-foreground"}`} title={h.is_banned ? "Unban" : "Ban"}>
+                                <button onClick={() => toggleBan(h.id, h.is_banned)} className={`p-2 border border-border hover:bg-secondary ${h.is_banned ? "text-destructive" : "text-muted-foreground"}`} title={h.is_banned ? "Unban" : "Ban"}>
                                     {h.is_banned ? <ShieldOff size={14} /> : <ShieldCheck size={14} />}
                                 </button>
                             </div>
