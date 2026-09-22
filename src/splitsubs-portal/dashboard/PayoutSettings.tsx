@@ -46,7 +46,7 @@ function WalletCard() {
             <div className="grid grid-cols-3 gap-3">
                 <div className="border border-border p-4 bg-card">
                     <p className="text-2xl font-light">{money(wallet?.balance || 0)}</p>
-                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mt-1">Wallet balance</p>
+                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mt-1">Earnings balance</p>
                 </div>
                 <div className="border border-primary/30 bg-primary/5 p-4">
                     <p className="text-2xl font-light text-primary">{money(wallet?.available || 0)}</p>
@@ -130,10 +130,11 @@ export function PayoutSettings() {
 
     return (
         <div className="max-w-xl mx-auto space-y-8">
-            <SEO title="Wallet & Payout Account" description="Your SplitSubs wallet balance and payout account." path="/dashboard/payout" noindex />
+            <SEO title="Earnings & Payout Account" description="Your SplitSubs hosting earnings and payout account." path="/dashboard/payout" noindex />
             <div>
-                <h1 className="text-2xl font-light tracking-tight mb-1 flex items-center gap-2"><Wallet size={22} /> Wallet</h1>
-                <p className="text-sm text-muted-foreground">Every confirmed seat pays into this wallet — no charge on the plan cost, ever. Only a small payout charge applies when you withdraw.</p>
+                <h1 className="text-2xl font-light tracking-tight mb-1 flex items-center gap-2"><Wallet size={22} /> Earnings</h1>
+                <p className="text-sm text-muted-foreground">Every confirmed seat on your listings pays into this wallet — no charge on the plan cost, ever. Only a small payout charge applies when you withdraw.</p>
+                <p className="text-xs text-muted-foreground mt-1">This is what you've <em>earned</em> from hosting. Money you've topped up to pay for seats lives separately — see <a href="/dashboard/transactions" className="text-primary underline">Transactions</a>.</p>
             </div>
 
             {!profile?.bank_account_name && (

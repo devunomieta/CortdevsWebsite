@@ -3,6 +3,15 @@ import { supabase } from '../../_lib/supabase.js';
 import { verifyAuth } from '../../_lib/auth.js';
 import { parseListParams } from '../../_lib/splitsubsListQuery.js';
 
+// A Paystack checkout row starts 'pending' the instant initializeTransaction
+// is called, before the user has even seen Paystack's page — if they abandon
+// it, Paystack never sends a webhook (there's no charge to report), so it
+// sits 'pending' forever with nothing for anyone to act on, and it's just
+// clutter here. Direct Transfer's 'pending' is the opposite — it's exactly
+// the state that means "waiting on an admin to confirm this," so it stays
+// visible (also shown, more prominently, on My Seats/Wallet already).
+const HIDDEN_PENDING_SOURCES = ['paystack', 'paystack_topup'];
+
 // GET ?page=&pageSize=&sort=&order= — every money movement tied to the
 // signed-in user, whichever ledger it actually lives in: seat payments
 // (every attempt, not just successful ones — a failed/pending charge is
@@ -27,6 +36,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             .from('ss_transaction_ledger')
             .select('*', { count: 'exact' })
             .eq('user_id', user.id)
+            .or(`status.neq.pending,source.not.in.(${HIDDEN_PENDING_SOURCES.join(',')})`)
             .order(params.sort, { ascending: params.order === 'asc' })
             .range(params.from, params.to);
         if (error) throw error;

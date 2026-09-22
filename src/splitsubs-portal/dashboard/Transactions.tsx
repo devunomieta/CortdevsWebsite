@@ -66,20 +66,23 @@ function PrepaidWalletCard() {
     if (isLoading) return <div className="flex justify-center py-6"><RefreshCw className="animate-spin text-muted-foreground" size={18} /></div>;
 
     return (
-        <div className="border border-border p-5 bg-card flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-                <Wallet size={20} className="text-primary" />
-                <div>
-                    <p className="text-2xl font-light">{money(balance || 0)}</p>
-                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Wallet balance — pay for seats instantly, no checkout</p>
+        <div className="border border-border p-5 bg-card space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                    <Wallet size={20} className="text-primary" />
+                    <div>
+                        <p className="text-2xl font-light">{money(balance || 0)}</p>
+                        <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Spending balance — pay for seats instantly, no checkout</p>
+                    </div>
                 </div>
+                <form onSubmit={handleTopUp} className="flex items-center gap-2">
+                    <input type="number" min={1} required value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount (₦)" className="w-32 px-3 py-2.5 bg-background border border-border outline-none focus:border-primary text-sm" />
+                    <button type="submit" disabled={isToppingUp} className="px-4 py-2.5 bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 disabled:opacity-50">
+                        {isToppingUp ? <RefreshCw size={14} className="animate-spin" /> : <Plus size={14} />} Top Up
+                    </button>
+                </form>
             </div>
-            <form onSubmit={handleTopUp} className="flex items-center gap-2">
-                <input type="number" min={1} required value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount (₦)" className="w-32 px-3 py-2.5 bg-background border border-border outline-none focus:border-primary text-sm" />
-                <button type="submit" disabled={isToppingUp} className="px-4 py-2.5 bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 disabled:opacity-50">
-                    {isToppingUp ? <RefreshCw size={14} className="animate-spin" /> : <Plus size={14} />} Top Up
-                </button>
-            </form>
+            <p className="text-xs text-muted-foreground">This is money <em>you've</em> added to spend on seats. What you've earned from hosting lives separately — see <a href="/dashboard/payout" className="text-primary underline">Earnings</a>.</p>
         </div>
     );
 }
