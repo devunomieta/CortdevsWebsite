@@ -136,9 +136,16 @@ export async function releaseEscrowForSeat(seatId: string, reason: string) {
 
     const listing = seat.ss_listings;
 
-    await supabase.rpc('ss_increment_completed_splits', { p_host_id: listing.host_id }).catch(() => {
+    try {
         // Best-effort — a missing profile row here shouldn't block the credit.
-    });
+        // Supabase's query/RPC builder is a thenable, not a real Promise, so it
+        // has no .catch() of its own; chaining one directly threw
+        // "supabase.rpc(...).catch is not a function" at runtime. try/catch
+        // around the awaited call is the correct way to swallow this error.
+        await supabase.rpc('ss_increment_completed_splits', { p_host_id: listing.host_id });
+    } catch {
+        // ignored — see comment above
+    }
 
     const { data: settings } = await supabase.from('ss_platform_settings').select('*').eq('id', 1).single();
 
