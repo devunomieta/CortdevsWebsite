@@ -8,7 +8,7 @@ import { broadcastAdminUpdate } from '../../_lib/eventRealtime.js';
 // ways. Filing a request never returns data; only an admin approval (see
 // api/admin/events/export-requests.ts) populates a downloadable file_url.
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-    const session = await verifyEventAccess(req, res, { requireRole: 'full' });
+    const session = await verifyEventAccess(req, res, { requireRole: 'organizer' });
     if (!session) return;
 
     if (req.method === 'GET') {

@@ -16,7 +16,7 @@ import { attendeesFromCsv } from '../../_lib/csv.js';
 // rejected immediately with a specific reason, so the organizer gets real-time
 // feedback instead of finding out only when an admin tries to approve it.
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-    const session = await verifyEventAccess(req, res, { requireRole: 'full' });
+    const session = await verifyEventAccess(req, res, { requireRole: 'organizer' });
     if (!session) return;
 
     if (req.method === 'GET') {

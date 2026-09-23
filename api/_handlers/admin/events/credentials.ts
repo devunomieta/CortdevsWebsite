@@ -52,7 +52,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     label: label.trim(),
                     email: String(email).toLowerCase().trim(),
                     password_hash: encryptSecret(password),
-                    role: role === 'view_only' ? 'view_only' : 'full',
+                    role: ['organizer', 'reception', 'view_only', 'full'].includes(role) ? role : 'organizer',
                     created_by: admin.id,
                 }])
                 .select('id')

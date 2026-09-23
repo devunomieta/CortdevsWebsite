@@ -14,7 +14,7 @@ export interface EventDay {
 export interface DashboardContext {
     token: string;
     label: string;
-    role: "full" | "view_only";
+    role: "organizer" | "reception" | "view_only" | "full";
     slug: string;
     eventId: string;
     eventTitle: string;
@@ -94,9 +94,9 @@ export function DashboardLayout() {
 
                     <div className="flex items-center justify-end gap-4 min-w-0">
                         <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-secondary text-xs font-medium whitespace-nowrap">
-                            {isFull ? <ShieldCheck size={14} /> : <Eye size={14} />}
+                            {(ctx.role === "organizer" || ctx.role === "full") ? <ShieldCheck size={14} /> : <Eye size={14} />}
                             <span>{ctx.label}</span>
-                            <span className="text-muted-foreground">· {isFull ? "Full access" : "View only"}</span>
+                            <span className="text-muted-foreground">· {ctx.role === "organizer" || ctx.role === "full" ? "Organizer" : ctx.role === "reception" ? "Reception" : "View only"}</span>
                         </div>
                         <button
                             onClick={handleSignOut}

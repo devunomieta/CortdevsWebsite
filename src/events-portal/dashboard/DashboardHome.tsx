@@ -68,9 +68,10 @@ const EMPTY_ANALYTICS: Analytics = { totalGuests: 0, checkedIn: 0, newRegistrati
 export function DashboardHome() {
     const ctx = useOutletContext<DashboardContext>();
     const { showToast } = useToast();
-    const isFull = ctx.role === "full";
+    const isOrganizer = ctx.role === "organizer" || ctx.role === "full";
+    const canCheckIn = ctx.role === "organizer" || ctx.role === "reception" || ctx.role === "full";
 
-    const [tab, setTab] = useState<Tab>(isFull ? "checkin" : "analytics");
+    const [tab, setTab] = useState<Tab>(canCheckIn ? "checkin" : "analytics");
     const [activeDayId, setActiveDayId] = useState(ctx.days[0]?.id || "");
     const [analytics, setAnalytics] = useState<Analytics>(EMPTY_ANALYTICS);
     const [query, setQuery] = useState("");
@@ -93,24 +94,24 @@ export function DashboardHome() {
     }, [activeDayId, ctx.token]);
 
     const loadExportStatus = useCallback(async () => {
-        if (!isFull) return;
+        if (!isOrganizer) return;
         try {
             const data = await eventFetch("/api/events/export-request", ctx.token);
             setLatestExport(data.latest);
         } catch {
             // non-critical
         }
-    }, [ctx.token, isFull]);
+    }, [ctx.token, isOrganizer]);
 
     const loadImportStatus = useCallback(async () => {
-        if (!isFull) return;
+        if (!isOrganizer) return;
         try {
             const data = await eventFetch("/api/events/import-request", ctx.token);
             setLatestImport(data.latest);
         } catch {
             // non-critical
         }
-    }, [ctx.token, isFull]);
+    }, [ctx.token, isOrganizer]);
 
     useEffect(() => { loadAnalytics(); }, [loadAnalytics]);
     useEffect(() => { loadExportStatus(); }, [loadExportStatus]);
@@ -258,13 +259,18 @@ export function DashboardHome() {
         : null;
     const maxHourly = Math.max(1, ...analytics.hourly.map((h) => h.count));
 
-    const tabs: { id: Tab; label: string; icon: typeof LayoutDashboard }[] = isFull
+    const tabs: { id: Tab; label: string; icon: typeof LayoutDashboard }[] = isOrganizer
         ? [
             { id: "checkin", label: "Check-in", icon: ClipboardCheck },
             { id: "analytics", label: "Analytics", icon: LayoutDashboard },
             { id: "manage", label: "Manage Event", icon: Settings2 },
         ]
-        : [{ id: "analytics", label: "Analytics", icon: LayoutDashboard }];
+        : canCheckIn
+            ? [
+                { id: "checkin", label: "Check-in", icon: ClipboardCheck },
+                { id: "analytics", label: "Analytics", icon: LayoutDashboard },
+            ]
+            : [{ id: "analytics", label: "Analytics", icon: LayoutDashboard }];
 
     return (
         <div className="space-y-8">
@@ -381,16 +387,16 @@ export function DashboardHome() {
                         </div>
                     )}
 
-                    {!isFull && (
+                    {!canCheckIn && (
                         <div className="border border-border p-6 bg-card text-sm text-muted-foreground flex items-center gap-3">
                             <UserX size={16} className="shrink-0" />
-                            You can see the numbers, but this login can't check people in or request the guest list.
+                            You can see the numbers, but this view-only login can't check people in or request the guest list.
                         </div>
                     )}
                 </div>
             )}
 
-            {tab === "checkin" && isFull && (
+            {tab === "checkin" && canCheckIn && (
                 <div className="space-y-8">
                     {!isEventDay && dayStatusNote && (
                         <div className="flex items-start gap-3 border border-amber-500/30 bg-amber-500/5 p-4 text-sm text-amber-700">
@@ -460,7 +466,7 @@ export function DashboardHome() {
                 </div>
             )}
 
-            {tab === "manage" && isFull && (
+            {tab === "manage" && isOrganizer && (
                 <div className="space-y-8">
                     {/* Export */}
                     <div className="border border-border p-6 bg-card flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

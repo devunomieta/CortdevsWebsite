@@ -73,7 +73,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             eventId: event.id,
             slug: event.slug,
             label: credential.label,
-            role: credential.role as 'full' | 'view_only',
+            role: credential.role as any,
         });
 
         await logEventActivity({

@@ -55,12 +55,14 @@ export function verifyStoredPassword(password: string, stored: string): boolean 
     return crypto.timingSafeEqual(a, b);
 }
 
+export type EventRole = 'organizer' | 'reception' | 'view_only' | 'full';
+
 export interface EventTokenPayload {
     credentialId: string;
     eventId: string;
     slug: string;
     label: string;
-    role: 'full' | 'view_only';
+    role: EventRole;
     exp: number; // unix seconds
 }
 
@@ -97,7 +99,7 @@ export function verifyEventToken(token: string): EventTokenPayload | null {
 export async function verifyEventAccess(
     req: VercelRequest,
     res: VercelResponse,
-    opts: { requireRole?: 'full' } = {}
+    opts: { requireRole?: 'organizer' | 'checkin_allowed' | 'full' } = {}
 ): Promise<EventTokenPayload | null> {
     const authHeader = req.headers.authorization;
     const token = authHeader?.split(' ')[1];
@@ -134,7 +136,17 @@ export async function verifyEventAccess(
         return null;
     }
 
-    if (opts.requireRole === 'full' && payload.role !== 'full') {
+    if (opts.requireRole === 'organizer' && (payload.role !== 'organizer' && payload.role !== 'full')) {
+        res.status(403).json({ error: 'Only event organizers can perform this action.' });
+        return null;
+    }
+
+    if (opts.requireRole === 'checkin_allowed' && payload.role === 'view_only') {
+        res.status(403).json({ error: 'View-only access cannot perform check-ins or walk-ins.' });
+        return null;
+    }
+
+    if (opts.requireRole === 'full' && (payload.role !== 'full' && payload.role !== 'organizer')) {
         res.status(403).json({ error: 'View-only access cannot perform this action.' });
         return null;
     }

@@ -36,7 +36,7 @@ interface Credential {
     id: string;
     label: string;
     email: string;
-    role: "full" | "view_only";
+    role: "organizer" | "reception" | "view_only" | "full";
     event_day_id: string | null;
     is_active: boolean;
 }
@@ -70,7 +70,7 @@ export function AdminEventDetail() {
     const [importRequests, setImportRequests] = useState<ImportRequestRow[]>([]);
     const [auditLog, setAuditLog] = useState<AuditEntry[]>([]);
     const [showIssue, setShowIssue] = useState(false);
-    const [issueForm, setIssueForm] = useState({ label: "", email: "", role: "full" as "full" | "view_only", dayId: "" });
+    const [issueForm, setIssueForm] = useState({ label: "", email: "", role: "organizer" as "organizer" | "reception" | "view_only", dayId: "" });
     const [isUploadingFlier, setIsUploadingFlier] = useState(false);
     const [isProcessingImport, setIsProcessingImport] = useState(false);
     const [newFieldName, setNewFieldName] = useState("");
@@ -308,7 +308,7 @@ export function AdminEventDetail() {
             });
             showToast(`Login created for ${issueForm.label}. Password: ${data.password} (copy it now — it won't be shown again)`, "success");
             setShowIssue(false);
-            setIssueForm({ label: "", email: "", role: "full", dayId: "" });
+            setIssueForm({ label: "", email: "", role: "organizer", dayId: "" });
             loadAll();
         } catch (err) {
             showToast(err instanceof ApiError ? err.message : "Could not create this login.", "error");
@@ -423,10 +423,10 @@ export function AdminEventDetail() {
                         <div key={cred.id} className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                             <div className="min-w-0">
                                 <div className="flex items-center gap-2 mb-1">
-                                    {cred.role === "full" ? <ShieldCheck size={14} className="text-muted-foreground" /> : <Eye size={14} className="text-muted-foreground" />}
+                                    {(cred.role === "organizer" || cred.role === "full") ? <ShieldCheck size={14} className="text-muted-foreground" /> : <Eye size={14} className="text-muted-foreground" />}
                                     <p className="font-medium truncate">{cred.label}</p>
                                     <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                                        {cred.role === "full" ? "Full" : "View-only"}
+                                        {cred.role === "organizer" || cred.role === "full" ? "Organizer" : cred.role === "reception" ? "Reception" : "View-only"}
                                     </span>
                                     {!cred.is_active && (
                                         <span className="text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 bg-destructive/10 text-destructive">
@@ -678,10 +678,11 @@ export function AdminEventDetail() {
                                     <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Role</label>
                                     <select
                                         value={issueForm.role}
-                                        onChange={(e) => setIssueForm((p) => ({ ...p, role: e.target.value as "full" | "view_only" }))}
+                                        onChange={(e) => setIssueForm((p) => ({ ...p, role: e.target.value as "organizer" | "reception" | "view_only" }))}
                                         className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm"
                                     >
-                                        <option value="full">Full access</option>
+                                        <option value="organizer">Event Organizer</option>
+                                        <option value="reception">Reception User</option>
                                         <option value="view_only">View-only</option>
                                     </select>
                                 </div>
