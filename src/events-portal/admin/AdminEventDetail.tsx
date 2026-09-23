@@ -149,6 +149,28 @@ export function AdminEventDetail() {
         }
     };
 
+    const downloadAttendanceCsvDirectly = async () => {
+        if (!eventId) return;
+        try {
+            const data = await adminFetch("/api/admin/events/export-requests", {
+                method: "POST",
+                body: JSON.stringify({ action: "download-now", eventId }),
+            });
+            const blob = new Blob([data.csv], { type: "text/csv;charset=utf-8;" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.setAttribute("download", data.fileName || `attendance-${eventId}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            showToast("Attendance CSV downloaded successfully.", "success");
+        } catch (err) {
+            showToast(err instanceof ApiError ? err.message : "Could not download attendance CSV.", "error");
+        }
+    };
+
     const decideImport = async (id: string, decision: "approved" | "denied") => {
         try {
             const data = await adminFetch("/api/admin/events/imports", { method: "POST", body: JSON.stringify({ action: decision === "approved" ? "approve" : "deny", requestId: id }) });
@@ -464,11 +486,19 @@ export function AdminEventDetail() {
                 </div>
             </section>
 
-            {/* Export requests */}
+            {/* Export requests & Direct Download */}
             <section className="space-y-4">
-                <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
-                    Download Requests {pendingExports.length > 0 && <span className="text-destructive">({pendingExports.length} pending)</span>}
-                </h2>
+                <div className="flex items-center justify-between gap-4">
+                    <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
+                        Download Requests {pendingExports.length > 0 && <span className="text-destructive">({pendingExports.length} pending)</span>}
+                    </h2>
+                    <button
+                        onClick={downloadAttendanceCsvDirectly}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-xs font-bold uppercase tracking-widest hover:opacity-90 transition-all shrink-0"
+                    >
+                        <FileDown size={14} /> Download Attendance CSV
+                    </button>
+                </div>
                 <div className="border border-border bg-card divide-y divide-border">
                     {exportRequests.length === 0 && <p className="p-5 text-sm text-muted-foreground">No requests yet.</p>}
                     {exportRequests.map((req) => (

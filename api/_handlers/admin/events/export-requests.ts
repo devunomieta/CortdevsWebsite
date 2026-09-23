@@ -56,7 +56,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    const { action, requestId } = req.body || {};
+    const { action, requestId, eventId } = req.body || {};
+
+    if (action === 'download-now') {
+        if (!eventId) return res.status(400).json({ error: 'eventId is required.' });
+        try {
+            const csv = await buildAttendeeCsv(eventId);
+            await logEventActivity({
+                eventId,
+                actorType: 'admin',
+                actorId: admin.id,
+                actorLabel: `Admin — ${admin.email}`,
+                action: 'Downloaded attendance CSV directly',
+            });
+            return res.status(200).json({ csv, fileName: `attendance-${eventId}-${Date.now()}.csv` });
+        } catch (err: any) {
+            console.error('admin export download-now error:', err);
+            return res.status(500).json({ error: err.message || 'Could not generate CSV download.' });
+        }
+    }
+
     if (!requestId || (action !== 'approve' && action !== 'deny')) {
         return res.status(400).json({ error: 'requestId and a valid action are required.' });
     }
