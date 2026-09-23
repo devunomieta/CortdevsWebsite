@@ -17,6 +17,13 @@ import {
     UserX,
     Repeat,
     CalendarClock,
+    Plus,
+    ShieldCheck,
+    Eye,
+    KeyRound,
+    RotateCw,
+    Ban,
+    Mail,
 } from "lucide-react";
 import { useToast } from "../../app/components/Toast";
 import { eventFetch, ApiError } from "../lib/api";
@@ -63,13 +70,24 @@ interface ImportStatus {
     skipped_count?: number | null;
 }
 
+interface CredentialRow {
+    id: string;
+    label: string;
+    email: string;
+    role: "reception" | "view_only" | "organizer" | "full";
+    event_day_id: string | null;
+    is_active: boolean;
+    created_at: string;
+}
+
 const EMPTY_ANALYTICS: Analytics = { totalGuests: 0, checkedIn: 0, newRegistrations: 0, checkInRate: 0, noShows: 0, hourly: [], crossDay: null };
 
 export function DashboardHome() {
     const ctx = useOutletContext<DashboardContext>();
     const { showToast } = useToast();
     const isOrganizer = ctx.role === "organizer" || ctx.role === "full";
-    const canCheckIn = ctx.role === "organizer" || ctx.role === "reception" || ctx.role === "full";
+    const isReception = ctx.role === "reception";
+    const canCheckIn = isOrganizer || isReception;
 
     const [tab, setTab] = useState<Tab>(canCheckIn ? "checkin" : "analytics");
     const [activeDayId, setActiveDayId] = useState(ctx.days[0]?.id || "");
@@ -82,6 +100,19 @@ export function DashboardHome() {
     const [latestExport, setLatestExport] = useState<ExportStatus | null>(null);
     const [latestImport, setLatestImport] = useState<ImportStatus | null>(null);
     const [isUploadingCsv, setIsUploadingCsv] = useState(false);
+    const [credentials, setCredentials] = useState<CredentialRow[]>([]);
+    const [showAddLogin, setShowAddLogin] = useState(false);
+    const [loginForm, setLoginForm] = useState({ label: "", email: "", role: "reception" as "reception" | "view_only", dayId: "" });
+
+    const loadCredentials = useCallback(async () => {
+        if (!isOrganizer) return;
+        try {
+            const data = await eventFetch("/api/events/credentials", ctx.token);
+            setCredentials(data.credentials || []);
+        } catch {
+            // non-critical
+        }
+    }, [ctx.token, isOrganizer]);
 
     const loadAnalytics = useCallback(async () => {
         if (!activeDayId) return;
@@ -116,6 +147,69 @@ export function DashboardHome() {
     useEffect(() => { loadAnalytics(); }, [loadAnalytics]);
     useEffect(() => { loadExportStatus(); }, [loadExportStatus]);
     useEffect(() => { loadImportStatus(); }, [loadImportStatus]);
+    useEffect(() => { loadCredentials(); }, [loadCredentials]);
+
+    const issueStaffLogin = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!loginForm.label.trim()) {
+            showToast("Label is required.", "error");
+            return;
+        }
+        if (!isValidEmail(loginForm.email)) {
+            showToast("Email doesn't look valid.", "error");
+            return;
+        }
+        try {
+            const data = await eventFetch("/api/events/credentials", ctx.token, {
+                method: "POST",
+                body: JSON.stringify({ action: "issue", ...loginForm, dayId: loginForm.dayId || null }),
+            });
+            showToast(`Login created for ${loginForm.label}. Password: ${data.password} (copy it now — it won't be shown again)`, "success");
+            setShowAddLogin(false);
+            setLoginForm({ label: "", email: "", role: "reception", dayId: "" });
+            loadCredentials();
+        } catch (err) {
+            showToast(err instanceof ApiError ? err.message : "Could not create login.", "error");
+        }
+    };
+
+    const toggleStaffLogin = async (cred: CredentialRow) => {
+        try {
+            await eventFetch("/api/events/credentials", ctx.token, {
+                method: "POST",
+                body: JSON.stringify({ action: cred.is_active ? "revoke" : "enable", credentialId: cred.id }),
+            });
+            setCredentials((prev) => prev.map((c) => (c.id === cred.id ? { ...c, is_active: !c.is_active } : c)));
+            showToast(cred.is_active ? `${cred.label}'s access revoked.` : `${cred.label}'s access re-enabled.`, cred.is_active ? "warning" : "success");
+        } catch (err) {
+            showToast(err instanceof ApiError ? err.message : "Could not update login.", "error");
+        }
+    };
+
+    const viewStaffPassword = async (cred: CredentialRow) => {
+        try {
+            const data = await eventFetch("/api/events/credentials", ctx.token, {
+                method: "POST",
+                body: JSON.stringify({ action: "reveal", credentialId: cred.id }),
+            });
+            showToast(`${cred.label}'s current password: ${data.password}`, "info");
+        } catch (err) {
+            showToast(err instanceof ApiError ? err.message : "Could not look up password.", "error");
+        }
+    };
+
+    const rotateStaffPassword = async (cred: CredentialRow) => {
+        if (!confirm(`Create a new password for ${cred.label}? The current one will stop working immediately.`)) return;
+        try {
+            const data = await eventFetch("/api/events/credentials", ctx.token, {
+                method: "POST",
+                body: JSON.stringify({ action: "rotate", credentialId: cred.id }),
+            });
+            showToast(`New password for ${cred.label}: ${data.password}`, "success");
+        } catch (err) {
+            showToast(err instanceof ApiError ? err.message : "Could not rotate password.", "error");
+        }
+    };
 
     // Live multi-device sync: any check-in, or a decision on an export/import
     // request, re-triggers a refetch here — no one has to reload to see the
@@ -313,11 +407,13 @@ export function DashboardHome() {
 
             {tab === "analytics" && (
                 <div className="space-y-8">
-                    <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-                        <div className="border border-border p-6 bg-card">
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Total Invited</p>
-                            <p className="text-3xl font-light tracking-tight">{analytics.totalGuests}</p>
-                        </div>
+                    <div className={`grid gap-4 ${isReception ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-2 lg:grid-cols-5"}`}>
+                        {!isReception && (
+                            <div className="border border-border p-6 bg-card">
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Total Invited</p>
+                                <p className="text-3xl font-light tracking-tight">{analytics.totalGuests}</p>
+                            </div>
+                        )}
                         <div className="border border-border p-6 bg-card">
                             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
                                 Confirmed — {activeDayLabel}
@@ -332,10 +428,12 @@ export function DashboardHome() {
                             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Check-in Rate</p>
                             <p className="text-3xl font-light tracking-tight">{analytics.checkInRate}%</p>
                         </div>
-                        <div className="border border-border p-6 bg-card">
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">No-Shows (so far)</p>
-                            <p className="text-3xl font-light tracking-tight">{analytics.noShows}</p>
-                        </div>
+                        {!isReception && (
+                            <div className="border border-border p-6 bg-card">
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">No-Shows (so far)</p>
+                                <p className="text-3xl font-light tracking-tight">{analytics.noShows}</p>
+                            </div>
+                        )}
                     </div>
 
                     {/* Hourly check-in curve */}
@@ -556,6 +654,84 @@ export function DashboardHome() {
                             </label>
                         </div>
                     </div>
+
+                    {/* Logins & Staff Access */}
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
+                                    Staff Logins ({credentials.length})
+                                </h3>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                    Issue and manage logins for Reception Desk staff or View-only analytics viewers.
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setShowAddLogin(true)}
+                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground text-xs font-bold uppercase tracking-widest hover:opacity-90 transition-all shrink-0"
+                            >
+                                <Plus size={14} /> Add Staff Login
+                            </button>
+                        </div>
+
+                        <div className="border border-border bg-card divide-y divide-border">
+                            {credentials.length === 0 && (
+                                <p className="p-5 text-sm text-muted-foreground">No staff logins issued yet.</p>
+                            )}
+                            {credentials.map((cred) => (
+                                <div key={cred.id} className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                    <div className="min-w-0">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            {(cred.role === "organizer" || cred.role === "full") ? (
+                                                <ShieldCheck size={14} className="text-muted-foreground" />
+                                            ) : (
+                                                <Eye size={14} className="text-muted-foreground" />
+                                            )}
+                                            <p className="font-medium truncate">{cred.label}</p>
+                                            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                                                {cred.role === "organizer" || cred.role === "full" ? "Organizer" : cred.role === "reception" ? "Reception" : "View-only"}
+                                            </span>
+                                            {!cred.is_active && (
+                                                <span className="text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 bg-destructive/10 text-destructive">
+                                                    Revoked
+                                                </span>
+                                            )}
+                                        </div>
+                                        <p className="text-xs text-muted-foreground truncate">
+                                            {cred.email} · {cred.event_day_id ? ctx.days.find((d) => d.id === cred.event_day_id)?.label : "Whole event"}
+                                        </p>
+                                    </div>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        <button
+                                            onClick={() => viewStaffPassword(cred)}
+                                            title="View current password"
+                                            className="p-2 border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                                        >
+                                            <KeyRound size={14} />
+                                        </button>
+                                        <button
+                                            onClick={() => rotateStaffPassword(cred)}
+                                            title="Rotate password — invalidates current password"
+                                            className="p-2 border border-destructive/30 text-destructive hover:bg-destructive/10 transition-colors"
+                                        >
+                                            <RotateCw size={14} />
+                                        </button>
+                                        <button
+                                            onClick={() => toggleStaffLogin(cred)}
+                                            title={cred.is_active ? "Revoke access" : "Re-enable access"}
+                                            className={`p-2 border transition-colors ${
+                                                cred.is_active
+                                                    ? "border-destructive/30 text-destructive hover:bg-destructive/10"
+                                                    : "border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10"
+                                            }`}
+                                        >
+                                            {cred.is_active ? <Ban size={14} /> : <CheckCircle2 size={14} />}
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
                 </div>
             )}
 
@@ -632,6 +808,89 @@ export function DashboardHome() {
                                 className="w-full py-3.5 bg-primary text-primary-foreground text-xs font-bold uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                             >
                                 Register &amp; Check In
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Add Staff Login Modal */}
+            {showAddLogin && (
+                <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-6">
+                    <div className="w-full max-w-md bg-card border border-border p-8 relative">
+                        <button
+                            onClick={() => setShowAddLogin(false)}
+                            className="absolute top-6 right-6 text-muted-foreground hover:text-foreground"
+                        >
+                            <X size={18} />
+                        </button>
+                        <h3 className="text-xl font-medium mb-1">Add Staff Login</h3>
+                        <p className="text-xs text-muted-foreground mb-6">
+                            Create a login for reception desk staff or analytics viewers.
+                        </p>
+                        <form onSubmit={issueStaffLogin} className="space-y-4">
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                    Label (Desk / Staff Member)
+                                </label>
+                                <input
+                                    required
+                                    maxLength={LIMITS.label}
+                                    value={loginForm.label}
+                                    onChange={(e) => setLoginForm((p) => ({ ...p, label: e.target.value }))}
+                                    placeholder="e.g. Reception Desk 1, VIP Entrance"
+                                    className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm"
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                    Staff Email
+                                </label>
+                                <input
+                                    required
+                                    type="email"
+                                    maxLength={200}
+                                    value={loginForm.email}
+                                    onChange={(e) => setLoginForm((p) => ({ ...p, email: e.target.value }))}
+                                    placeholder="e.g. reception@event.com"
+                                    className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm"
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                        Role
+                                    </label>
+                                    <select
+                                        value={loginForm.role}
+                                        onChange={(e) => setLoginForm((p) => ({ ...p, role: e.target.value as "reception" | "view_only" }))}
+                                        className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm"
+                                    >
+                                        <option value="reception">Reception User (Check-in only)</option>
+                                        <option value="view_only">View-only (Analytics only)</option>
+                                    </select>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                        Valid For
+                                    </label>
+                                    <select
+                                        value={loginForm.dayId}
+                                        onChange={(e) => setLoginForm((p) => ({ ...p, dayId: e.target.value }))}
+                                        className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm"
+                                    >
+                                        <option value="">Whole event</option>
+                                        {ctx.days.map((d) => (
+                                            <option key={d.id} value={d.id}>{d.label}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                            <button
+                                type="submit"
+                                className="w-full py-3.5 bg-primary text-primary-foreground text-xs font-bold uppercase tracking-widest hover:opacity-90 transition-all"
+                            >
+                                Issue Login
                             </button>
                         </form>
                     </div>

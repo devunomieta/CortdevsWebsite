@@ -12,7 +12,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    const session = await verifyEventAccess(req, res, { requireRole: 'full' });
+    const session = await verifyEventAccess(req, res, { requireRole: 'checkin_allowed' });
     if (!session) return;
 
     const q = String(req.query.q || '').trim();
