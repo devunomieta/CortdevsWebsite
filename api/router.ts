@@ -17,6 +17,7 @@ import adminEventsCredentialsHandler from './_handlers/admin/events/credentials.
 import adminEventsExportRequestsHandler from './_handlers/admin/events/export-requests.js';
 import adminEventsNotificationsHandler from './_handlers/admin/events/notifications.js';
 import adminEventsPurgeHandler from './_handlers/admin/events/purge.js';
+import adminEventsClearDataHandler from './_handlers/admin/events/clear-data.js';
 import adminEventsUpdateHandler from './_handlers/admin/events/update.js';
 import adminEventsImportsHandler from './_handlers/admin/events/imports.js';
 
@@ -102,6 +103,7 @@ const routes: Record<string, (req: VercelRequest, res: VercelResponse) => any> =
   'admin/events/export-requests': adminEventsExportRequestsHandler,
   'admin/events/notifications': adminEventsNotificationsHandler,
   'admin/events/purge': adminEventsPurgeHandler,
+  'admin/events/clear-data': adminEventsClearDataHandler,
   'admin/events/update': adminEventsUpdateHandler,
   'admin/events/imports': adminEventsImportsHandler,
   'auth/request-reset': authRequestResetHandler,

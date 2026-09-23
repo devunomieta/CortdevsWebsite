@@ -260,6 +260,21 @@ export function AdminEventDetail() {
         }
     };
 
+    const clearEventData = async () => {
+        if (!eventId || !event) return;
+        const confirmed = confirm(
+            `Are you sure you want to clear all data and access logins for "${event.title}"? This will reset all attendees, check-ins, import/export requests, and access logins to as if it's a brand new event. There's no undo.`
+        );
+        if (!confirmed) return;
+        try {
+            await adminFetch("/api/admin/events/clear-data", { method: "POST", body: JSON.stringify({ eventId }) });
+            showToast("Event data and logins cleared. Reset to brand new event state.", "success");
+            loadAll();
+        } catch (err) {
+            showToast(err instanceof ApiError ? err.message : "Could not clear event data.", "error");
+        }
+    };
+
     const deleteEvent = async () => {
         if (!eventId || !event) return;
         const confirmed = confirm(
@@ -590,20 +605,37 @@ export function AdminEventDetail() {
             {/* Danger zone */}
             <section className="space-y-4">
                 <h2 className="text-sm font-bold uppercase tracking-widest text-destructive">Danger Zone</h2>
-                <div className="border border-destructive/30 bg-destructive/5 p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div>
-                        <p className="text-sm font-medium mb-1">Delete this event</p>
-                        <p className="text-xs text-muted-foreground max-w-md">
-                            Removes the event and everything under it — logins, attendees, check-ins, and uploads.
-                            There's no undo.
-                        </p>
+                <div className="border border-destructive/30 bg-destructive/5 divide-y divide-destructive/20">
+                    <div className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <p className="text-sm font-medium mb-1">Clear Event Data &amp; Logins</p>
+                            <p className="text-xs text-muted-foreground max-w-md">
+                                Resets this event back to a fresh state by wiping all attendees, check-ins, import/export requests,
+                                and access logins. The event configuration (title, days, and custom fields) is kept.
+                            </p>
+                        </div>
+                        <button
+                            onClick={clearEventData}
+                            className="inline-flex items-center gap-2 px-5 py-3 border border-destructive/40 text-destructive text-xs font-bold uppercase tracking-widest hover:bg-destructive/15 transition-all whitespace-nowrap shrink-0"
+                        >
+                            <RotateCw size={14} /> Clear Data
+                        </button>
                     </div>
-                    <button
-                        onClick={deleteEvent}
-                        className="inline-flex items-center gap-2 px-5 py-3 bg-destructive text-destructive-foreground text-xs font-bold uppercase tracking-widest hover:opacity-90 transition-all whitespace-nowrap shrink-0"
-                    >
-                        <Trash2 size={14} /> Delete Event
-                    </button>
+                    <div className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <p className="text-sm font-medium mb-1">Delete this event</p>
+                            <p className="text-xs text-muted-foreground max-w-md">
+                                Permanently removes the event and everything under it — logins, attendees, check-ins, and uploads.
+                                There's no undo.
+                            </p>
+                        </div>
+                        <button
+                            onClick={deleteEvent}
+                            className="inline-flex items-center gap-2 px-5 py-3 bg-destructive text-destructive-foreground text-xs font-bold uppercase tracking-widest hover:opacity-90 transition-all whitespace-nowrap shrink-0"
+                        >
+                            <Trash2 size={14} /> Delete Event
+                        </button>
+                    </div>
                 </div>
             </section>
 
