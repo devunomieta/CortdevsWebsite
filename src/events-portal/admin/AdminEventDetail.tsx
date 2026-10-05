@@ -31,6 +31,7 @@ interface EventDetail {
     title: string;
     slug: string;
     flier_url: string | null;
+    banner_url: string | null;
     walkin_fields: string[];
     start_date?: string | null;
     end_date?: string | null;
@@ -81,6 +82,7 @@ export function AdminEventDetail() {
     const [showIssue, setShowIssue] = useState(false);
     const [issueForm, setIssueForm] = useState({ label: "", email: "", role: "organizer" as "organizer" | "reception" | "view_only", dayId: "" });
     const [isUploadingFlier, setIsUploadingFlier] = useState(false);
+    const [isUploadingBanner, setIsUploadingBanner] = useState(false);
     const [isProcessingImport, setIsProcessingImport] = useState(false);
     const [newFieldName, setNewFieldName] = useState("");
     const [isSavingFields, setIsSavingFields] = useState(false);
@@ -412,6 +414,26 @@ export function AdminEventDetail() {
         }
     };
 
+    const uploadBanner = async (file: File) => {
+        if (!eventId || !event) return;
+        setIsUploadingBanner(true);
+        try {
+            const ext = file.name.split(".").pop();
+            const path = `event-banners/${event.slug}-${Date.now()}.${ext}`;
+            const { error: uploadError } = await supabase.storage.from("assets").upload(path, file, { upsert: true });
+            if (uploadError) throw new ApiError(uploadError.message);
+            const bannerUrl = supabase.storage.from("assets").getPublicUrl(path).data.publicUrl;
+
+            await adminFetch("/api/admin/events/update", { method: "POST", body: JSON.stringify({ id: eventId, bannerUrl }) });
+            setEvent((prev) => (prev ? { ...prev, banner_url: bannerUrl } : prev));
+            showToast("Event brand banner updated.", "success");
+        } catch (err) {
+            showToast(err instanceof ApiError ? err.message : "Could not upload banner.", "error");
+        } finally {
+            setIsUploadingBanner(false);
+        }
+    };
+
     const purgeAttendeeData = async () => {
         if (!eventId) return;
         try {
@@ -640,6 +662,60 @@ export function AdminEventDetail() {
                         </div>
                     </div>
                 )}
+            </section>
+
+            {/* Brand Banner */}
+            <section className="space-y-4">
+                <div>
+                    <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Event Brand Banner</h2>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                        Wide rectangular branding banner displayed prominently across the top of attendee check-in and dashboard screens.
+                    </p>
+                </div>
+                <div className="border border-border bg-card p-6 space-y-4">
+                    {event.banner_url ? (
+                        <div className="relative w-full aspect-[4/1] sm:aspect-[5/1] max-h-56 overflow-hidden border border-border bg-black/40">
+                            <img src={event.banner_url} alt={`${event.title} brand banner`} className="w-full h-full object-cover object-center" />
+                        </div>
+                    ) : (
+                        <div className="w-full aspect-[5/1] max-h-36 border border-dashed border-border flex flex-col items-center justify-center text-muted-foreground gap-2">
+                            <ImageIcon size={28} />
+                            <span className="text-xs">No brand banner uploaded yet</span>
+                        </div>
+                    )}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
+                        <p className="text-xs text-muted-foreground">
+                            Recommended size: rectangular wide banner (e.g. 1600×320 or 1200×300, JPEG/PNG/WebP).
+                        </p>
+                        <div className="flex items-center gap-3">
+                            {event.banner_url && (
+                                <button
+                                    type="button"
+                                    onClick={async () => {
+                                        if (!confirm("Remove this brand banner?")) return;
+                                        await adminFetch("/api/admin/events/update", { method: "POST", body: JSON.stringify({ id: eventId, bannerUrl: null }) });
+                                        setEvent((p) => (p ? { ...p, banner_url: null } : p));
+                                        showToast("Banner removed.", "info");
+                                    }}
+                                    className="px-4 py-2.5 border border-destructive/30 text-destructive hover:bg-destructive/10 text-xs font-bold uppercase tracking-widest transition-colors"
+                                >
+                                    Remove Banner
+                                </button>
+                            )}
+                            <label className="inline-flex items-center gap-2 px-5 py-2.5 border border-border text-xs font-bold uppercase tracking-widest hover:bg-muted transition-colors cursor-pointer whitespace-nowrap">
+                                {isUploadingBanner ? <RefreshCw size={13} className="animate-spin" /> : <ImageIcon size={13} />}
+                                {isUploadingBanner ? "Uploading…" : event.banner_url ? "Replace Banner" : "Upload Brand Banner"}
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    disabled={isUploadingBanner}
+                                    className="hidden"
+                                    onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadBanner(f); e.target.value = ""; }}
+                                />
+                            </label>
+                        </div>
+                    </div>
+                </div>
             </section>
 
             {/* Flier */}

@@ -44,6 +44,8 @@ export function AdminOverview() {
     const [days, setDays] = useState<DayInput[]>([{ date: todayISO(), label: "Day 1" }]);
     const [flierFile, setFlierFile] = useState<File | null>(null);
     const [flierPreview, setFlierPreview] = useState<string | null>(null);
+    const [bannerFile, setBannerFile] = useState<File | null>(null);
+    const [bannerPreview, setBannerPreview] = useState<string | null>(null);
     const [customFields, setCustomFields] = useState<string[]>([]);
     const [newFieldName, setNewFieldName] = useState("");
 
@@ -72,6 +74,12 @@ export function AdminOverview() {
         const file = e.target.files?.[0] || null;
         setFlierFile(file);
         setFlierPreview(file ? URL.createObjectURL(file) : null);
+    };
+
+    const handleBannerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0] || null;
+        setBannerFile(file);
+        setBannerPreview(file ? URL.createObjectURL(file) : null);
     };
 
     const loadEvents = () => {
@@ -151,6 +159,15 @@ export function AdminOverview() {
                 flierUrl = supabase.storage.from("assets").getPublicUrl(path).data.publicUrl;
             }
 
+            let bannerUrl: string | null = null;
+            if (bannerFile) {
+                const ext = bannerFile.name.split(".").pop();
+                const path = `event-banners/${slugify(form.title) || "event"}-${Date.now()}.${ext}`;
+                const { error: uploadError } = await supabase.storage.from("assets").upload(path, bannerFile, { upsert: true });
+                if (uploadError) throw new ApiError(`Banner upload failed: ${uploadError.message}`);
+                bannerUrl = supabase.storage.from("assets").getPublicUrl(path).data.publicUrl;
+            }
+
             await adminFetch("/api/admin/events", {
                 method: "POST",
                 body: JSON.stringify({
@@ -158,6 +175,7 @@ export function AdminOverview() {
                     startDate: form.startDate || null,
                     endDate: form.endDate || null,
                     flierUrl,
+                    bannerUrl,
                     days,
                     walkinFields: customFields,
                 }),
@@ -175,6 +193,8 @@ export function AdminOverview() {
             setDays([{ date: todayISO(), label: "Day 1" }]);
             setFlierFile(null);
             setFlierPreview(null);
+            setBannerFile(null);
+            setBannerPreview(null);
             setCustomFields([]);
             loadEvents();
         } catch (err) {
@@ -482,6 +502,33 @@ export function AdminOverview() {
                                         Add Field
                                     </button>
                                 </div>
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                    Event Brand Banner (optional)
+                                </label>
+                                <p className="text-[11px] text-muted-foreground">
+                                    Full width rectangular banner shown at the top of attendee dashboard screens.
+                                </p>
+                                {bannerPreview ? (
+                                    <div className="relative border border-border p-2 bg-black/30">
+                                        <img src={bannerPreview} alt="Brand banner preview" className="w-full max-h-28 object-cover" />
+                                        <button
+                                            type="button"
+                                            onClick={() => { setBannerFile(null); setBannerPreview(null); }}
+                                            className="absolute top-2 right-2 p-1.5 bg-black/70 text-white"
+                                        >
+                                            <X size={12} />
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <label className="border border-dashed border-border p-5 flex flex-col items-center gap-1.5 text-center text-xs text-muted-foreground cursor-pointer hover:border-primary transition-colors">
+                                        <ImageIcon size={20} />
+                                        Click to upload wide rectangular banner (e.g. 1600×320)
+                                        <input type="file" accept="image/*" onChange={handleBannerChange} className="hidden" />
+                                    </label>
+                                )}
                             </div>
 
                             <div className="space-y-1.5">

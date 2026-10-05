@@ -29,6 +29,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             endDate: event.end_date || null,
             websiteUrl: event.website_url || null,
             description: event.description || null,
+            flierUrl: event.flier_url || null,
+            bannerUrl: event.banner_url || null,
         },
         days,
     });

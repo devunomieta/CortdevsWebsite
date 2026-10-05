@@ -23,6 +23,8 @@ export interface DashboardContext {
     endDate: string | null;
     websiteUrl: string | null;
     description: string | null;
+    bannerUrl: string | null;
+    flierUrl: string | null;
     walkinFields: string[];
     days: EventDay[];
     timezone: string;
@@ -58,6 +60,8 @@ export function DashboardLayout() {
                     endDate: data.event.endDate || null,
                     websiteUrl: data.event.websiteUrl || null,
                     description: data.event.description || null,
+                    bannerUrl: data.event.bannerUrl || null,
+                    flierUrl: data.event.flierUrl || null,
                     walkinFields: data.event.walkinFields || [],
                     days: data.days,
                     timezone: data.event.timezone || "UTC",

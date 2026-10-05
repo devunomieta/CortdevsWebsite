@@ -75,7 +75,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === 'POST') {
-        const { title, organizerName, organizerEmail, websiteUrl, flierUrl, description, timezone, startDate, endDate, days, walkinFields } = req.body || {};
+        const { title, organizerName, organizerEmail, websiteUrl, flierUrl, bannerUrl, description, timezone, startDate, endDate, days, walkinFields } = req.body || {};
         if (!isNonEmpty(title) || !isNonEmpty(organizerName) || !isNonEmpty(organizerEmail)) {
             return res.status(400).json({ error: 'title, organizerName, and organizerEmail are required.' });
         }
@@ -84,6 +84,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!isValidEmail(organizerEmail)) return res.status(400).json({ error: 'Organizer email doesn\'t look valid.' });
         if (websiteUrl && (!isValidUrl(websiteUrl) || !withinLength(websiteUrl, LIMITS.url))) {
             return res.status(400).json({ error: 'Website URL must be a valid http(s) link.' });
+        }
+        if (bannerUrl && (!isValidUrl(bannerUrl) || !withinLength(bannerUrl, LIMITS.url))) {
+            return res.status(400).json({ error: 'Banner URL must be a valid http(s) link.' });
         }
         if (description && !withinLength(description, LIMITS.description)) {
             return res.status(400).json({ error: `Description must be ${LIMITS.description} characters or fewer.` });
@@ -122,6 +125,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     organizer_email: organizerEmail.trim().toLowerCase(),
                     website_url: websiteUrl || null,
                     flier_url: flierUrl || null,
+                    banner_url: bannerUrl || null,
                     description: description || null,
                     timezone: timezone || 'Africa/Lagos',
                     walkin_fields: (walkinFields || []).map((f: string) => f.trim()),

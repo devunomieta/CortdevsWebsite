@@ -27,9 +27,11 @@ import {
     Calendar,
     Edit3,
     Trash2,
+    Image as ImageIcon,
 } from "lucide-react";
 import { useToast } from "../../app/components/Toast";
 import { eventFetch, ApiError } from "../lib/api";
+import { supabase } from "../../lib/supabase";
 import { subscribeToChannel } from "../lib/realtime";
 import { sanitizePhoneInput, isValidPhone, isValidEmail, LIMITS } from "../lib/validation";
 import { todayInTimezone } from "../lib/date";
@@ -227,6 +229,49 @@ export function DashboardHome() {
             showToast(err instanceof ApiError ? err.message : "Could not update event details.", "error");
         } finally {
             setIsSavingInfo(false);
+        }
+    };
+
+    const [isUploadingBanner, setIsUploadingBanner] = useState(false);
+
+    const uploadBanner = async (file: File) => {
+        if (!isOrganizer) return;
+        setIsUploadingBanner(true);
+        try {
+            const ext = file.name.split(".").pop();
+            const path = `event-banners/${ctx.slug}-${Date.now()}.${ext}`;
+            const { error: uploadError } = await supabase.storage.from("assets").upload(path, file, { upsert: true });
+            if (uploadError) throw new ApiError(uploadError.message);
+            const bannerUrl = supabase.storage.from("assets").getPublicUrl(path).data.publicUrl;
+
+            await eventFetch("/api/events/update", ctx.token, {
+                method: "POST",
+                body: JSON.stringify({ bannerUrl }),
+            });
+            showToast("Event brand banner updated.", "success");
+            ctx.refreshContext?.();
+        } catch (err) {
+            showToast(err instanceof ApiError ? err.message : "Could not upload banner.", "error");
+        } finally {
+            setIsUploadingBanner(false);
+        }
+    };
+
+    const removeBanner = async () => {
+        if (!isOrganizer) return;
+        if (!confirm("Are you sure you want to remove the brand banner?")) return;
+        setIsUploadingBanner(true);
+        try {
+            await eventFetch("/api/events/update", ctx.token, {
+                method: "POST",
+                body: JSON.stringify({ bannerUrl: null }),
+            });
+            showToast("Brand banner removed.", "info");
+            ctx.refreshContext?.();
+        } catch (err) {
+            showToast(err instanceof ApiError ? err.message : "Could not remove banner.", "error");
+        } finally {
+            setIsUploadingBanner(false);
         }
     };
 
@@ -494,6 +539,19 @@ export function DashboardHome() {
 
     return (
         <div className="space-y-8">
+            {/* Event Brand Banner Section */}
+            {ctx.bannerUrl && (
+                <div className="relative w-full overflow-hidden border border-border bg-black/60 shadow-sm">
+                    <div className="w-full aspect-[4/1] sm:aspect-[5/1] md:aspect-[6/1] max-h-64 flex items-center justify-center">
+                        <img
+                            src={ctx.bannerUrl}
+                            alt={`${ctx.eventTitle} banner`}
+                            className="w-full h-full object-cover object-center"
+                        />
+                    </div>
+                </div>
+            )}
+
             {/* Tab bar */}
             <div className="flex gap-1 border-b border-border">
                 {tabs.map((t) => {
@@ -841,6 +899,60 @@ export function DashboardHome() {
                         >
                             <Edit3 size={14} /> Edit Event Details
                         </button>
+                    </div>
+
+                    {/* Brand Banner Card */}
+                    <div className="border border-border bg-card p-6 space-y-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                            <div>
+                                <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                                    <ImageIcon size={15} /> Event Brand Banner
+                                </h3>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                    Full width rectangular branding banner displayed prominently across the top of your dashboard.
+                                </p>
+                            </div>
+                        </div>
+
+                        {ctx.bannerUrl ? (
+                            <div className="relative w-full aspect-[4/1] sm:aspect-[5/1] max-h-52 overflow-hidden border border-border bg-black/40">
+                                <img src={ctx.bannerUrl} alt={`${ctx.eventTitle} brand banner`} className="w-full h-full object-cover object-center" />
+                            </div>
+                        ) : (
+                            <div className="w-full aspect-[5/1] max-h-32 border border-dashed border-border flex flex-col items-center justify-center text-muted-foreground gap-1.5 p-4">
+                                <ImageIcon size={24} />
+                                <span className="text-xs">No brand banner uploaded yet</span>
+                            </div>
+                        )}
+
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
+                            <p className="text-xs text-muted-foreground">
+                                Recommended size: rectangular wide banner (e.g. 1600×320 or 1200×300).
+                            </p>
+                            <div className="flex items-center gap-3">
+                                {ctx.bannerUrl && (
+                                    <button
+                                        type="button"
+                                        onClick={removeBanner}
+                                        disabled={isUploadingBanner}
+                                        className="px-4 py-2.5 border border-destructive/30 text-destructive hover:bg-destructive/10 text-xs font-bold uppercase tracking-widest transition-colors disabled:opacity-50"
+                                    >
+                                        Remove Banner
+                                    </button>
+                                )}
+                                <label className="inline-flex items-center gap-2 px-5 py-2.5 border border-border text-xs font-bold uppercase tracking-widest hover:bg-muted transition-colors cursor-pointer whitespace-nowrap">
+                                    {isUploadingBanner ? <RefreshCw size={13} className="animate-spin" /> : <ImageIcon size={13} />}
+                                    {isUploadingBanner ? "Uploading…" : ctx.bannerUrl ? "Replace Banner" : "Upload Brand Banner"}
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        disabled={isUploadingBanner}
+                                        className="hidden"
+                                        onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadBanner(f); e.target.value = ""; }}
+                                    />
+                                </label>
+                            </div>
+                        </div>
                     </div>
 
                     {/* Export */}
