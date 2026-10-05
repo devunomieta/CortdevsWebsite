@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams, Link } from "react-router";
-import { Lock, Mail, ArrowRight, RefreshCw, CalendarDays, Eye, EyeOff, Calendar, Sparkles } from "lucide-react";
+import { Lock, Mail, ArrowRight, RefreshCw, Eye, EyeOff, Calendar } from "lucide-react";
 import { Helmet } from "react-helmet-async";
 import { useToast } from "../../app/components/Toast";
 import { ApiError } from "../lib/api";
