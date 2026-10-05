@@ -148,9 +148,6 @@ export function DashboardLogin() {
                     {/* Login Form Column */}
                     <div className={`${hasFlier ? "md:col-span-6 lg:col-span-6" : "w-full"} p-8 sm:p-10 lg:p-12 flex flex-col justify-center space-y-7 bg-card`}>
                         <div className="text-center space-y-2">
-                            <div className="w-11 h-11 bg-primary/10 text-primary flex items-center justify-center mx-auto mb-2">
-                                {hasFlier ? <Sparkles size={20} /> : <CalendarDays size={22} />}
-                            </div>
                             <h1 className="text-2xl font-light tracking-tight text-foreground line-clamp-2">
                                 {eventTitle}
                             </h1>
@@ -231,7 +228,7 @@ export function DashboardLogin() {
                         </form>
 
                         <div className="pt-4 border-t border-border text-center">
-                            <Link to="/contact" className="text-xs text-muted-foreground hover:text-foreground transition-colors font-medium">
+                            <Link to="https://cortdevs.com/contact" className="text-xs text-muted-foreground hover:text-foreground transition-colors font-medium">
                                 Trouble logging in? Contact Cortdevs
                             </Link>
                         </div>
