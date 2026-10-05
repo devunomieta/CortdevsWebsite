@@ -32,6 +32,8 @@ interface EventDetail {
     slug: string;
     flier_url: string | null;
     walkin_fields: string[];
+    start_date?: string | null;
+    end_date?: string | null;
     organizer_name?: string;
     organizer_email?: string;
     website_url?: string | null;
@@ -88,6 +90,8 @@ export function AdminEventDetail() {
     const [isSavingInfo, setIsSavingInfo] = useState(false);
     const [editInfoForm, setEditInfoForm] = useState({
         title: "",
+        startDate: "",
+        endDate: "",
         organizerName: "",
         organizerEmail: "",
         websiteUrl: "",
@@ -107,6 +111,8 @@ export function AdminEventDetail() {
             setDaysDraft((d.days || []).map((x: EventDay) => ({ id: x.id, date: x.date, label: x.label })));
             setEditInfoForm({
                 title: d.event.title || "",
+                startDate: d.event.start_date || "",
+                endDate: d.event.end_date || "",
                 organizerName: d.event.organizer_name || "",
                 organizerEmail: d.event.organizer_email || "",
                 websiteUrl: d.event.website_url || "",
@@ -261,6 +267,10 @@ export function AdminEventDetail() {
             showToast("Event title is required.", "error");
             return;
         }
+        if (editInfoForm.startDate && editInfoForm.endDate && editInfoForm.startDate > editInfoForm.endDate) {
+            showToast("Event start date cannot be after end date.", "error");
+            return;
+        }
         if (!editInfoForm.organizerName.trim()) {
             showToast("Organizer name is required.", "error");
             return;
@@ -276,6 +286,8 @@ export function AdminEventDetail() {
                 body: JSON.stringify({
                     id: eventId,
                     title: editInfoForm.title,
+                    startDate: editInfoForm.startDate || null,
+                    endDate: editInfoForm.endDate || null,
                     organizerName: editInfoForm.organizerName,
                     organizerEmail: editInfoForm.organizerEmail,
                     websiteUrl: editInfoForm.websiteUrl || null,
@@ -318,6 +330,14 @@ export function AdminEventDetail() {
         }
         if (daysDraft.some((d) => !d.date || !d.label.trim())) {
             showToast("Every day must have a date and a label.", "error");
+            return;
+        }
+        if (event?.start_date && daysDraft.some((d) => d.date < event.start_date!)) {
+            showToast(`Schedule date cannot be earlier than event start date (${event.start_date}).`, "error");
+            return;
+        }
+        if (event?.end_date && daysDraft.some((d) => d.date > event.end_date!)) {
+            showToast(`Schedule date cannot be later than event end date (${event.end_date}).`, "error");
             return;
         }
         setIsSavingDays(true);
@@ -479,6 +499,11 @@ export function AdminEventDetail() {
                         <h1 className="text-2xl font-light tracking-tight">{event.title}</h1>
                         <p className="text-sm text-muted-foreground mt-1">
                             /e/{event.slug} · Event ID {eventId}
+                            {event.start_date && (
+                                <span className="font-mono text-foreground font-semibold">
+                                    {" "}· {event.start_date}{event.end_date && event.end_date !== event.start_date ? ` → ${event.end_date}` : ""}
+                                </span>
+                            )}
                             {event.organizer_name && ` · Organizer: ${event.organizer_name}`}
                             {event.organizer_email && ` (${event.organizer_email})`}
                         </p>
@@ -500,7 +525,9 @@ export function AdminEventDetail() {
                             Event Dates &amp; Daily Schedule ({days.length} Day{days.length === 1 ? "" : "s"})
                         </h2>
                         <p className="text-xs text-muted-foreground mt-0.5">
-                            Modify event dates, daily labels, or add/remove days anytime. Check-in and logins automatically respect updated dates.
+                            {event.start_date && event.end_date
+                                ? `Must fall within event bounds (${event.start_date} to ${event.end_date}). Check-in and logins automatically respect updated dates.`
+                                : "Modify event dates, daily labels, or add/remove days anytime. Check-in and logins automatically respect updated dates."}
                         </p>
                     </div>
                     {!isEditingDays && (
@@ -545,7 +572,7 @@ export function AdminEventDetail() {
                     <div className="border border-border bg-card p-6 space-y-4">
                         <div className="flex items-center justify-between">
                             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                                Edit Day Labels &amp; Dates
+                                Edit Day Labels &amp; Dates {event.start_date && event.end_date ? `(Between ${event.start_date} and ${event.end_date})` : ""}
                             </p>
                             <button
                                 type="button"
@@ -564,6 +591,8 @@ export function AdminEventDetail() {
                                     <input
                                         type="date"
                                         required
+                                        min={event.start_date || undefined}
+                                        max={event.end_date || undefined}
                                         value={d.date}
                                         onChange={(e) => updateDraftDay(i, { date: e.target.value })}
                                         className="px-3 py-2 bg-background border border-border text-sm outline-none focus:border-primary shrink-0"
@@ -1018,6 +1047,32 @@ export function AdminEventDetail() {
                                     onChange={(e) => setEditInfoForm((p) => ({ ...p, title: e.target.value }))}
                                     className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm"
                                 />
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                        Start Date
+                                    </label>
+                                    <input
+                                        type="date"
+                                        value={editInfoForm.startDate}
+                                        onChange={(e) => setEditInfoForm((p) => ({ ...p, startDate: e.target.value }))}
+                                        className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm"
+                                    />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                        End Date
+                                    </label>
+                                    <input
+                                        type="date"
+                                        min={editInfoForm.startDate || undefined}
+                                        value={editInfoForm.endDate}
+                                        onChange={(e) => setEditInfoForm((p) => ({ ...p, endDate: e.target.value }))}
+                                        className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm"
+                                    />
+                                </div>
                             </div>
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

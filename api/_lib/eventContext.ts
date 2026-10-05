@@ -2,7 +2,7 @@ import { supabase } from './supabase.js';
 
 export async function getEventContext(eventId: string) {
     const [{ data: event }, { data: days }] = await Promise.all([
-        supabase.from('events').select('id, title, slug, timezone, status, walkin_fields').eq('id', eventId).maybeSingle(),
+        supabase.from('events').select('id, title, slug, timezone, status, walkin_fields, start_date, end_date, website_url, description').eq('id', eventId).maybeSingle(),
         supabase.from('event_days').select('id, date, label').eq('event_id', eventId).order('date', { ascending: true }),
     ]);
     return { event, days: days || [] };

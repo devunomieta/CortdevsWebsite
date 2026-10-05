@@ -19,7 +19,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(200).json({
         session: { label: session.label, role: session.role },
-        event: { id: event.id, title: event.title, slug: event.slug, walkinFields: event.walkin_fields, timezone: event.timezone },
+        event: {
+            id: event.id,
+            title: event.title,
+            slug: event.slug,
+            walkinFields: event.walkin_fields,
+            timezone: event.timezone,
+            startDate: event.start_date || null,
+            endDate: event.end_date || null,
+            websiteUrl: event.website_url || null,
+            description: event.description || null,
+        },
         days,
     });
 }

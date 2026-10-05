@@ -22,6 +22,8 @@ interface EventRow {
     slug: string;
     organizer_name: string;
     status: "active" | "disabled" | "archived";
+    startDate?: string | null;
+    endDate?: string | null;
     dayCount: number;
     checkedIn: number;
 }
@@ -31,7 +33,14 @@ export function AdminOverview() {
     const [events, setEvents] = useState<EventRow[] | null>(null);
     const [showCreate, setShowCreate] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
-    const [form, setForm] = useState({ title: "", organizerName: "", organizerEmail: "", websiteUrl: "" });
+    const [form, setForm] = useState({
+        title: "",
+        organizerName: "",
+        organizerEmail: "",
+        websiteUrl: "",
+        startDate: todayISO(),
+        endDate: todayISO(),
+    });
     const [days, setDays] = useState<DayInput[]>([{ date: todayISO(), label: "Day 1" }]);
     const [flierFile, setFlierFile] = useState<File | null>(null);
     const [flierPreview, setFlierPreview] = useState<string | null>(null);
@@ -103,12 +112,24 @@ export function AdminOverview() {
 
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (form.startDate && form.endDate && form.startDate > form.endDate) {
+            showToast("Event start date cannot be after end date.", "error");
+            return;
+        }
         if (days.length === 0) {
             showToast("Add at least one day.", "error");
             return;
         }
         if (days.some((d) => !d.date || !d.label.trim())) {
             showToast("Every day needs both a date and a label.", "error");
+            return;
+        }
+        if (form.startDate && days.some((d) => d.date < form.startDate)) {
+            showToast(`Schedule date cannot be earlier than event start date (${form.startDate}).`, "error");
+            return;
+        }
+        if (form.endDate && days.some((d) => d.date > form.endDate)) {
+            showToast(`Schedule date cannot be later than event end date (${form.endDate}).`, "error");
             return;
         }
         if (!isValidEmail(form.organizerEmail)) {
@@ -130,10 +151,27 @@ export function AdminOverview() {
                 flierUrl = supabase.storage.from("assets").getPublicUrl(path).data.publicUrl;
             }
 
-            await adminFetch("/api/admin/events", { method: "POST", body: JSON.stringify({ ...form, flierUrl, days, walkinFields: customFields }) });
+            await adminFetch("/api/admin/events", {
+                method: "POST",
+                body: JSON.stringify({
+                    ...form,
+                    startDate: form.startDate || null,
+                    endDate: form.endDate || null,
+                    flierUrl,
+                    days,
+                    walkinFields: customFields,
+                }),
+            });
             showToast(`"${form.title}" created. Add logins from its event page next.`, "success");
             setShowCreate(false);
-            setForm({ title: "", organizerName: "", organizerEmail: "", websiteUrl: "" });
+            setForm({
+                title: "",
+                organizerName: "",
+                organizerEmail: "",
+                websiteUrl: "",
+                startDate: todayISO(),
+                endDate: todayISO(),
+            });
             setDays([{ date: todayISO(), label: "Day 1" }]);
             setFlierFile(null);
             setFlierPreview(null);
@@ -323,6 +361,41 @@ export function AdminOverview() {
                                     />
                                 </div>
                             </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                        Start Date
+                                    </label>
+                                    <input
+                                        type="date"
+                                        required
+                                        value={form.startDate}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            setForm((p) => ({
+                                                ...p,
+                                                startDate: val,
+                                                endDate: p.endDate < val ? val : p.endDate,
+                                            }));
+                                        }}
+                                        className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm"
+                                    />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                        End Date
+                                    </label>
+                                    <input
+                                        type="date"
+                                        required
+                                        min={form.startDate}
+                                        value={form.endDate}
+                                        onChange={(e) => setForm((p) => ({ ...p, endDate: e.target.value }))}
+                                        className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm"
+                                    />
+                                </div>
+                            </div>
+
                             <div className="space-y-1.5">
                                 <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                                     Event Website (optional)
@@ -352,6 +425,8 @@ export function AdminOverview() {
                                             <input
                                                 type="date"
                                                 required
+                                                min={form.startDate || undefined}
+                                                max={form.endDate || undefined}
                                                 value={day.date}
                                                 onChange={(e) => updateDay(i, { date: e.target.value })}
                                                 className="px-3 py-2.5 bg-background border border-border outline-none focus:border-primary text-sm"

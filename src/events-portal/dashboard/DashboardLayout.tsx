@@ -19,6 +19,10 @@ export interface DashboardContext {
     slug: string;
     eventId: string;
     eventTitle: string;
+    startDate: string | null;
+    endDate: string | null;
+    websiteUrl: string | null;
+    description: string | null;
     walkinFields: string[];
     days: EventDay[];
     timezone: string;
@@ -50,6 +54,10 @@ export function DashboardLayout() {
                     slug: data.event.slug,
                     eventId: data.event.id,
                     eventTitle: data.event.title,
+                    startDate: data.event.startDate || null,
+                    endDate: data.event.endDate || null,
+                    websiteUrl: data.event.websiteUrl || null,
+                    description: data.event.description || null,
                     walkinFields: data.event.walkinFields || [],
                     days: data.days,
                     timezone: data.event.timezone || "UTC",

@@ -16,7 +16,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const session = await verifyEventAccess(req, res, { requireRole: 'organizer' });
     if (!session) return;
 
-    const { title, websiteUrl, description, days } = req.body || {};
+    const { title, websiteUrl, description, startDate, endDate, days } = req.body || {};
 
     if (title !== undefined && (!title.trim() || !withinLength(title, LIMITS.title))) {
         return res.status(400).json({ error: `Title is required and must be ${LIMITS.title} characters or fewer.` });
@@ -27,17 +27,58 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (description && !withinLength(description, LIMITS.description)) {
         return res.status(400).json({ error: `Description must be ${LIMITS.description} characters or fewer.` });
     }
-    if (days !== undefined) {
-        if (!Array.isArray(days) || days.length === 0 || days.some((d: any) => !isValidDateString(d.date) || !isNonEmpty(d.label) || !withinLength(d.label, LIMITS.label))) {
-            return res.status(400).json({ error: 'Every day needs a valid date (YYYY-MM-DD) and a label under 60 characters.' });
-        }
+    if (startDate !== undefined && startDate !== null && startDate !== '' && !isValidDateString(startDate)) {
+        return res.status(400).json({ error: 'Start date must be a valid date (YYYY-MM-DD).' });
+    }
+    if (endDate !== undefined && endDate !== null && endDate !== '' && !isValidDateString(endDate)) {
+        return res.status(400).json({ error: 'End date must be a valid date (YYYY-MM-DD).' });
     }
 
     try {
+        // Fetch current event to know existing start/end date if only one is updated, or to validate days
+        const { data: currentEvent, error: currentEventError } = await supabase
+            .from('events')
+            .select('start_date, end_date')
+            .eq('id', session.eventId)
+            .maybeSingle();
+        if (currentEventError || !currentEvent) return res.status(404).json({ error: 'Event not found.' });
+
+        const effectiveStartDate = startDate !== undefined ? (startDate || null) : currentEvent.start_date;
+        const effectiveEndDate = endDate !== undefined ? (endDate || null) : currentEvent.end_date;
+
+        if (effectiveStartDate && effectiveEndDate && effectiveStartDate > effectiveEndDate) {
+            return res.status(400).json({ error: 'Event start date cannot be after end date.' });
+        }
+
+        if (days !== undefined) {
+            if (!Array.isArray(days) || days.length === 0 || days.some((d: any) => !isValidDateString(d.date) || !isNonEmpty(d.label) || !withinLength(d.label, LIMITS.label))) {
+                return res.status(400).json({ error: 'Every day needs a valid date (YYYY-MM-DD) and a label under 60 characters.' });
+            }
+            if (effectiveStartDate && days.some((d: any) => d.date < effectiveStartDate)) {
+                return res.status(400).json({ error: `Schedule date cannot be earlier than event start date (${effectiveStartDate}).` });
+            }
+            if (effectiveEndDate && days.some((d: any) => d.date > effectiveEndDate)) {
+                return res.status(400).json({ error: `Schedule date cannot be later than event end date (${effectiveEndDate}).` });
+            }
+        } else if (startDate !== undefined || endDate !== undefined) {
+            // If days were not provided in this call, verify that existing days satisfy the new boundary
+            const { data: existingDays } = await supabase.from('event_days').select('date, label').eq('event_id', session.eventId);
+            if (existingDays && existingDays.length > 0) {
+                if (effectiveStartDate && existingDays.some((d) => d.date < effectiveStartDate)) {
+                    return res.status(400).json({ error: `Existing day schedule falls before new start date (${effectiveStartDate}). Please adjust schedule days first.` });
+                }
+                if (effectiveEndDate && existingDays.some((d) => d.date > effectiveEndDate)) {
+                    return res.status(400).json({ error: `Existing day schedule falls after new end date (${effectiveEndDate}). Please adjust schedule days first.` });
+                }
+            }
+        }
+
         const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
         if (title) patch.title = title.trim();
-        if (websiteUrl !== undefined) patch.website_url = websiteUrl;
-        if (description !== undefined) patch.description = description;
+        if (websiteUrl !== undefined) patch.website_url = websiteUrl || null;
+        if (description !== undefined) patch.description = description || null;
+        if (startDate !== undefined) patch.start_date = startDate || null;
+        if (endDate !== undefined) patch.end_date = endDate || null;
 
         if (Object.keys(patch).length > 1) {
             const { error: updateError } = await supabase

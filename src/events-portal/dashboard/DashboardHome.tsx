@@ -114,7 +114,24 @@ export function DashboardHome() {
 
     const [isEditingInfo, setIsEditingInfo] = useState(false);
     const [isSavingInfo, setIsSavingInfo] = useState(false);
-    const [infoDraft, setInfoDraft] = useState({ title: ctx.eventTitle });
+    const [infoDraft, setInfoDraft] = useState({
+        title: ctx.eventTitle,
+        startDate: ctx.startDate || "",
+        endDate: ctx.endDate || "",
+        websiteUrl: ctx.websiteUrl || "",
+        description: ctx.description || "",
+    });
+
+    // Sync infoDraft whenever ctx changes
+    useEffect(() => {
+        setInfoDraft({
+            title: ctx.eventTitle,
+            startDate: ctx.startDate || "",
+            endDate: ctx.endDate || "",
+            websiteUrl: ctx.websiteUrl || "",
+            description: ctx.description || "",
+        });
+    }, [ctx.eventTitle, ctx.startDate, ctx.endDate, ctx.websiteUrl, ctx.description]);
 
     // Ensure activeDayId stays valid when ctx.days changes
     useEffect(() => {
@@ -130,7 +147,8 @@ export function DashboardHome() {
 
     const addScheduleDraftDay = () => {
         const today = new Date().toISOString().slice(0, 10);
-        setScheduleDraft((prev) => [...prev, { date: today, label: `Day ${prev.length + 1}` }]);
+        const defaultDate = ctx.startDate && today < ctx.startDate ? ctx.startDate : (ctx.endDate && today > ctx.endDate ? ctx.endDate : today);
+        setScheduleDraft((prev) => [...prev, { date: defaultDate, label: `Day ${prev.length + 1}` }]);
     };
 
     const removeScheduleDraftDay = (index: number) => {
@@ -152,6 +170,14 @@ export function DashboardHome() {
         }
         if (scheduleDraft.some((d) => !d.date || !d.label.trim())) {
             showToast("Every day must have a date and a label.", "error");
+            return;
+        }
+        if (ctx.startDate && scheduleDraft.some((d) => d.date < ctx.startDate!)) {
+            showToast(`Schedule date cannot be earlier than event start date (${ctx.startDate}).`, "error");
+            return;
+        }
+        if (ctx.endDate && scheduleDraft.some((d) => d.date > ctx.endDate!)) {
+            showToast(`Schedule date cannot be later than event end date (${ctx.endDate}).`, "error");
             return;
         }
         setIsSavingSchedule(true);
@@ -178,13 +204,23 @@ export function DashboardHome() {
             showToast("Event title is required.", "error");
             return;
         }
+        if (infoDraft.startDate && infoDraft.endDate && infoDraft.startDate > infoDraft.endDate) {
+            showToast("Event start date cannot be after end date.", "error");
+            return;
+        }
         setIsSavingInfo(true);
         try {
             await eventFetch("/api/events/update", ctx.token, {
                 method: "POST",
-                body: JSON.stringify({ title: infoDraft.title.trim() }),
+                body: JSON.stringify({
+                    title: infoDraft.title.trim(),
+                    startDate: infoDraft.startDate || null,
+                    endDate: infoDraft.endDate || null,
+                    websiteUrl: infoDraft.websiteUrl || null,
+                    description: infoDraft.description || null,
+                }),
             });
-            showToast("Event title updated successfully.", "success");
+            showToast("Event details updated successfully.", "success");
             setIsEditingInfo(false);
             ctx.refreshContext?.();
         } catch (err) {
@@ -664,7 +700,9 @@ export function DashboardHome() {
                                     <Calendar size={15} /> Event Dates &amp; Daily Schedule ({ctx.days.length} {ctx.days.length === 1 ? "day" : "days"})
                                 </h3>
                                 <p className="text-xs text-muted-foreground mt-0.5">
-                                    Update event dates, adjust day labels, or add and remove schedule days.
+                                    {ctx.startDate && ctx.endDate
+                                        ? `Must fall within event bounds (${ctx.startDate} to ${ctx.endDate}). Check-in and logins automatically respect updated dates.`
+                                        : "Update event dates, adjust day labels, or add and remove schedule days."}
                                 </p>
                             </div>
                             {!isEditingSchedule ? (
@@ -738,6 +776,8 @@ export function DashboardHome() {
                                                 </label>
                                                 <input
                                                     type="date"
+                                                    min={ctx.startDate || undefined}
+                                                    max={ctx.endDate || undefined}
                                                     value={d.date}
                                                     onChange={(e) => updateScheduleDraftDay(index, { date: e.target.value })}
                                                     className="w-full px-3 py-2 bg-card border border-border text-xs outline-none focus:border-primary"
@@ -770,20 +810,36 @@ export function DashboardHome() {
 
                     {/* Event Details Card */}
                     <div className="border border-border bg-card p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                        <div>
-                            <p className="text-sm font-medium mb-1">Event Title &amp; Information</p>
-                            <p className="text-xs text-muted-foreground max-w-md">
-                                Current title: <span className="font-semibold text-foreground">{ctx.eventTitle}</span>
+                        <div className="space-y-1">
+                            <p className="text-sm font-medium">Event Information &amp; Dates</p>
+                            <p className="text-xs text-muted-foreground">
+                                Title: <span className="font-semibold text-foreground">{ctx.eventTitle}</span>
                             </p>
+                            {ctx.startDate && (
+                                <p className="text-xs text-muted-foreground">
+                                    Date Range: <span className="font-semibold text-foreground font-mono">{ctx.startDate}{ctx.endDate && ctx.endDate !== ctx.startDate ? ` to ${ctx.endDate}` : ""}</span>
+                                </p>
+                            )}
+                            {ctx.websiteUrl && (
+                                <p className="text-xs text-muted-foreground truncate max-w-md">
+                                    Website: <a href={ctx.websiteUrl} target="_blank" rel="noreferrer" className="text-primary underline">{ctx.websiteUrl}</a>
+                                </p>
+                            )}
                         </div>
                         <button
                             onClick={() => {
-                                setInfoDraft({ title: ctx.eventTitle });
+                                setInfoDraft({
+                                    title: ctx.eventTitle,
+                                    startDate: ctx.startDate || "",
+                                    endDate: ctx.endDate || "",
+                                    websiteUrl: ctx.websiteUrl || "",
+                                    description: ctx.description || "",
+                                });
                                 setIsEditingInfo(true);
                             }}
-                            className="inline-flex items-center justify-center gap-2 px-6 py-3 border border-border text-xs font-bold uppercase tracking-widest hover:bg-muted transition-colors whitespace-nowrap self-start sm:self-auto"
+                            className="inline-flex items-center justify-center gap-2 px-6 py-3 border border-border text-xs font-bold uppercase tracking-widest hover:bg-muted transition-colors whitespace-nowrap self-start sm:self-auto shrink-0"
                         >
-                            <Edit3 size={14} /> Edit Event Title
+                            <Edit3 size={14} /> Edit Event Details
                         </button>
                     </div>
 
@@ -1118,19 +1174,19 @@ export function DashboardHome() {
                 </div>
             )}
 
-            {/* Edit Event Title Modal */}
+            {/* Edit Event Details Modal */}
             {isEditingInfo && (
                 <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-6">
-                    <div className="w-full max-w-md bg-card border border-border p-8 relative">
+                    <div className="w-full max-w-lg bg-card border border-border p-8 relative max-h-[90vh] overflow-y-auto">
                         <button
                             onClick={() => setIsEditingInfo(false)}
                             className="absolute top-6 right-6 text-muted-foreground hover:text-foreground"
                         >
                             <X size={18} />
                         </button>
-                        <h3 className="text-xl font-medium mb-1">Edit Event Title</h3>
+                        <h3 className="text-xl font-medium mb-1">Edit Event Details</h3>
                         <p className="text-xs text-muted-foreground mb-6">
-                            Update the official name of this event shown on badges and portals.
+                            Update event details and dates. Configured daily schedules must stay within these start and end dates.
                         </p>
                         <form onSubmit={saveEventInfo} className="space-y-4">
                             <div className="space-y-1.5">
@@ -1146,12 +1202,67 @@ export function DashboardHome() {
                                     className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm"
                                 />
                             </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                        Start Date
+                                    </label>
+                                    <input
+                                        type="date"
+                                        value={infoDraft.startDate}
+                                        onChange={(e) => setInfoDraft((p) => ({ ...p, startDate: e.target.value }))}
+                                        className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm"
+                                    />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                        End Date
+                                    </label>
+                                    <input
+                                        type="date"
+                                        min={infoDraft.startDate || undefined}
+                                        value={infoDraft.endDate}
+                                        onChange={(e) => setInfoDraft((p) => ({ ...p, endDate: e.target.value }))}
+                                        className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                    Event Website (optional)
+                                </label>
+                                <input
+                                    type="url"
+                                    maxLength={LIMITS.url}
+                                    placeholder="https://…"
+                                    value={infoDraft.websiteUrl}
+                                    onChange={(e) => setInfoDraft((p) => ({ ...p, websiteUrl: e.target.value }))}
+                                    className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm"
+                                />
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                    Description (optional)
+                                </label>
+                                <textarea
+                                    rows={3}
+                                    maxLength={LIMITS.description}
+                                    placeholder="Brief description of the event..."
+                                    value={infoDraft.description}
+                                    onChange={(e) => setInfoDraft((p) => ({ ...p, description: e.target.value }))}
+                                    className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm resize-none"
+                                />
+                            </div>
+
                             <div className="flex items-center justify-end gap-3 pt-2">
                                 <button
                                     type="button"
                                     onClick={() => setIsEditingInfo(false)}
                                     disabled={isSavingInfo}
-                                    className="px-5 py-2.5 border border-border text-xs font-bold uppercase tracking-widest hover:bg-muted transition-colors"
+                                    className="px-5 py-2.5 border border-border text-xs font-bold uppercase tracking-widest hover:bg-muted transition-colors disabled:opacity-50"
                                 >
                                     Cancel
                                 </button>
@@ -1160,8 +1271,8 @@ export function DashboardHome() {
                                     disabled={isSavingInfo}
                                     className="inline-flex items-center gap-1.5 px-6 py-2.5 bg-primary text-primary-foreground text-xs font-bold uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-50"
                                 >
-                                    {isSavingInfo && <RefreshCw size={13} className="animate-spin" />}
-                                    Save
+                                    {isSavingInfo ? <RefreshCw size={13} className="animate-spin" /> : <CheckCircle2 size={13} />}
+                                    {isSavingInfo ? "Saving…" : "Save Details"}
                                 </button>
                             </div>
                         </form>

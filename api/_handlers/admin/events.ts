@@ -33,7 +33,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         try {
             const { data: events, error } = await supabase
                 .from('events')
-                .select('id, title, slug, organizer_name, status, created_at')
+                .select('id, title, slug, organizer_name, status, start_date, end_date, created_at')
                 .order('created_at', { ascending: false });
             if (error) throw error;
 
@@ -61,6 +61,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             const enriched = (events || []).map((e) => ({
                 ...e,
+                startDate: e.start_date || null,
+                endDate: e.end_date || null,
                 dayCount: dayIdsByEvent.get(e.id)?.size || 0,
                 checkedIn: checkedInByEvent.get(e.id) || 0,
             }));
@@ -73,7 +75,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === 'POST') {
-        const { title, organizerName, organizerEmail, websiteUrl, flierUrl, description, timezone, days, walkinFields } = req.body || {};
+        const { title, organizerName, organizerEmail, websiteUrl, flierUrl, description, timezone, startDate, endDate, days, walkinFields } = req.body || {};
         if (!isNonEmpty(title) || !isNonEmpty(organizerName) || !isNonEmpty(organizerEmail)) {
             return res.status(400).json({ error: 'title, organizerName, and organizerEmail are required.' });
         }
@@ -86,8 +88,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (description && !withinLength(description, LIMITS.description)) {
             return res.status(400).json({ error: `Description must be ${LIMITS.description} characters or fewer.` });
         }
+        if (startDate && !isValidDateString(startDate)) {
+            return res.status(400).json({ error: 'Start date must be a valid date (YYYY-MM-DD).' });
+        }
+        if (endDate && !isValidDateString(endDate)) {
+            return res.status(400).json({ error: 'End date must be a valid date (YYYY-MM-DD).' });
+        }
+        if (startDate && endDate && startDate > endDate) {
+            return res.status(400).json({ error: 'Event start date cannot be after end date.' });
+        }
         if (!Array.isArray(days) || days.length === 0 || days.some((d: any) => !isValidDateString(d.date) || !isNonEmpty(d.label) || !withinLength(d.label, LIMITS.label))) {
             return res.status(400).json({ error: 'Every day needs a valid date and a label under 60 characters.' });
+        }
+        if (startDate && days.some((d: any) => d.date < startDate)) {
+            return res.status(400).json({ error: `Schedule date cannot be earlier than event start date (${startDate}).` });
+        }
+        if (endDate && days.some((d: any) => d.date > endDate)) {
+            return res.status(400).json({ error: `Schedule date cannot be later than event end date (${endDate}).` });
         }
         if (walkinFields && (!Array.isArray(walkinFields) || walkinFields.some((f: any) => !isValidFieldName(f)))) {
             return res.status(400).json({ error: 'Custom field names can only use letters, numbers, spaces, and basic punctuation, up to 40 characters.' });
@@ -108,6 +125,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     description: description || null,
                     timezone: timezone || 'Africa/Lagos',
                     walkin_fields: (walkinFields || []).map((f: string) => f.trim()),
+                    start_date: startDate || null,
+                    end_date: endDate || null,
                     status: 'active',
                     created_by: admin.id,
                 }])
