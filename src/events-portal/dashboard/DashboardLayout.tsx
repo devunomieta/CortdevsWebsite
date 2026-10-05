@@ -131,30 +131,84 @@ export function DashboardLayout() {
             <Helmet><meta name="robots" content="noindex, nofollow" /></Helmet>
 
             <header className="border-b border-border bg-card">
-                <div className="max-w-6xl mx-auto px-6 py-4 grid grid-cols-[1fr_auto_1fr] items-center gap-4">
-                    <div className="flex items-center min-w-0">
-                        <img src={config.headerLogo} alt="CortDevs" className="h-7 w-auto object-contain" />
-                    </div>
-
-                    <div className="text-center min-w-0 px-2">
-                        <p className="text-sm font-medium truncate">{ctx.eventTitle}</p>
-                        <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">
-                            Event Dashboard
-                        </p>
-                    </div>
-
-                    <div className="flex items-center justify-end gap-4 min-w-0">
-                        <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-secondary text-xs font-medium whitespace-nowrap">
-                            {(ctx.role === "organizer" || ctx.role === "full") ? <ShieldCheck size={14} /> : <Eye size={14} />}
-                            <span>{ctx.label}</span>
-                            <span className="text-muted-foreground">· {ctx.role === "organizer" || ctx.role === "full" ? "Organizer" : ctx.role === "reception" ? "Reception" : "View only"}</span>
+                <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 sm:py-4">
+                    {/* Mobile layout: clean two-row design so elements never overlap */}
+                    <div className="flex flex-col gap-2.5 md:hidden">
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center shrink-0">
+                                <img src={config.headerLogo} alt="CortDevs" className="h-6 w-auto object-contain" />
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                                <button
+                                    onClick={handleSignOut}
+                                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors whitespace-nowrap"
+                                    title="Sign Out"
+                                >
+                                    <LogOut size={14} />
+                                    <span>Sign Out</span>
+                                </button>
+                            </div>
                         </div>
-                        <button
-                            onClick={handleSignOut}
-                            className="flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-destructive transition-colors whitespace-nowrap"
-                        >
-                            <LogOut size={14} /> Sign Out
-                        </button>
+
+                        {/* Event Title Section on Mobile: Centralized, unclipped, with role underneath (hidden for view_only) */}
+                        <div className="pt-2 border-t border-border/50 flex flex-col items-center text-center gap-1.5 px-1">
+                            <h1 className="text-sm sm:text-base font-semibold text-foreground leading-snug break-words">
+                                {ctx.eventTitle}
+                            </h1>
+                            <div className="flex flex-wrap items-center justify-center gap-2">
+                                <span className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold">
+                                    Event Dashboard
+                                </span>
+                                {ctx.role !== "view_only" && (
+                                    <>
+                                        <span className="text-muted-foreground/40 text-xs">·</span>
+                                        <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-secondary text-[11px] font-medium rounded">
+                                            {(ctx.role === "organizer" || ctx.role === "full") ? (
+                                                <ShieldCheck size={12} className="text-primary shrink-0" />
+                                            ) : (
+                                                <Eye size={12} className="shrink-0" />
+                                            )}
+                                            <span className="text-foreground">{ctx.label}</span>
+                                            <span className="text-muted-foreground font-normal">
+                                                ({ctx.role === "organizer" || ctx.role === "full" ? "Organizer" : "Reception"})
+                                            </span>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Desktop layout: balanced 3-column grid */}
+                    <div className="hidden md:grid md:grid-cols-[1fr_auto_1fr] items-center gap-4">
+                        <div className="flex items-center min-w-0">
+                            <img src={config.headerLogo} alt="CortDevs" className="h-7 w-auto object-contain" />
+                        </div>
+
+                        <div className="text-center min-w-0 px-4 max-w-md mx-auto">
+                            <p className="text-sm font-medium truncate text-foreground" title={ctx.eventTitle}>
+                                {ctx.eventTitle}
+                            </p>
+                            <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">
+                                Event Dashboard
+                            </p>
+                        </div>
+
+                        <div className="flex items-center justify-end gap-3 min-w-0">
+                            <div className="flex items-center gap-2 px-3 py-1.5 bg-secondary text-xs font-medium whitespace-nowrap">
+                                {(ctx.role === "organizer" || ctx.role === "full") ? <ShieldCheck size={14} /> : <Eye size={14} />}
+                                <span className="max-w-[130px] truncate">{ctx.label}</span>
+                                <span className="text-muted-foreground">· {ctx.role === "organizer" || ctx.role === "full" ? "Organizer" : ctx.role === "reception" ? "Reception" : "View only"}</span>
+                            </div>
+                            <button
+                                onClick={handleSignOut}
+                                className="flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-semibold text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors whitespace-nowrap"
+                                title="Sign Out"
+                            >
+                                <LogOut size={14} />
+                                <span>Sign Out</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </header>

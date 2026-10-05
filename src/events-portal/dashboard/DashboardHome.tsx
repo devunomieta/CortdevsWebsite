@@ -14,7 +14,6 @@ import {
     ClipboardCheck,
     Settings2,
     Users,
-    UserX,
     Repeat,
     CalendarClock,
     Plus,
@@ -707,13 +706,6 @@ export function DashboardHome() {
                                     <p className="text-xs text-muted-foreground">Total check-ins (repeat visits included)</p>
                                 </div>
                             </div>
-                        </div>
-                    )}
-
-                    {!canCheckIn && (
-                        <div className="border border-border p-6 bg-card text-sm text-muted-foreground flex items-center gap-3">
-                            <UserX size={16} className="shrink-0" />
-                            You can see the numbers, but this view-only login can't check people in or request the guest list.
                         </div>
                     )}
                 </div>
