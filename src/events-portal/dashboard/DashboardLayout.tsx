@@ -49,6 +49,13 @@ export function DashboardLayout() {
         // stops working here even if the cached token hasn't expired yet.
         eventFetch("/api/events/context", stored.token)
             .then((data) => {
+                const updatedSession = {
+                    ...stored,
+                    event: data.event,
+                    days: data.days,
+                };
+                sessionStorage.setItem("events_session", JSON.stringify(updatedSession));
+
                 setCtx({
                     token: stored.token,
                     label: data.session.label,

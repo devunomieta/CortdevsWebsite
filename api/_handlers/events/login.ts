@@ -21,7 +21,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
         const { data: event } = await supabase
             .from('events')
-            .select('id, title, slug, status, timezone, walkin_fields')
+            .select('id, title, slug, status, timezone, walkin_fields, start_date, end_date, website_url, description, flier_url, banner_url')
             .eq('slug', slug)
             .maybeSingle();
 
@@ -90,7 +90,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(200).json({
             token,
             session: { label: credential.label, role: credential.role },
-            event: { id: event.id, title: event.title, slug: event.slug, walkinFields: event.walkin_fields, timezone: event.timezone },
+            event: {
+                id: event.id,
+                title: event.title,
+                slug: event.slug,
+                walkinFields: event.walkin_fields,
+                timezone: event.timezone,
+                startDate: event.start_date || null,
+                endDate: event.end_date || null,
+                websiteUrl: event.website_url || null,
+                description: event.description || null,
+                flierUrl: event.flier_url || null,
+                bannerUrl: event.banner_url || null,
+            },
             days,
         });
     } catch (err: any) {
