@@ -414,6 +414,21 @@ export function AdminEventDetail() {
         }
     };
 
+    const removeFlier = async () => {
+        if (!eventId || !event) return;
+        if (!confirm("Are you sure you want to remove the promotional flier for this event?")) return;
+        setIsUploadingFlier(true);
+        try {
+            await adminFetch("/api/admin/events/update", { method: "POST", body: JSON.stringify({ id: eventId, flierUrl: null }) });
+            setEvent((prev) => (prev ? { ...prev, flier_url: null } : prev));
+            showToast("Flier removed.", "info");
+        } catch (err) {
+            showToast(err instanceof ApiError ? err.message : "Could not remove flier.", "error");
+        } finally {
+            setIsUploadingFlier(false);
+        }
+    };
+
     const uploadBanner = async (file: File) => {
         if (!eventId || !event) return;
         setIsUploadingBanner(true);
@@ -723,27 +738,42 @@ export function AdminEventDetail() {
                 <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Event Flier</h2>
                 <div className="border border-border bg-card p-6 flex flex-col sm:flex-row sm:items-center gap-6">
                     {event.flier_url ? (
-                        <img src={event.flier_url} alt={`${event.title} flier`} className="w-40 h-40 object-cover border border-border shrink-0" />
+                        <div className="w-36 h-48 sm:w-44 sm:h-60 overflow-hidden border border-border bg-black/60 shrink-0 shadow">
+                            <img src={event.flier_url} alt={`${event.title} flier`} className="w-full h-full object-contain" />
+                        </div>
                     ) : (
-                        <div className="w-40 h-40 border border-dashed border-border flex items-center justify-center text-muted-foreground shrink-0">
-                            <ImageIcon size={24} />
+                        <div className="w-36 h-48 sm:w-44 sm:h-60 border border-dashed border-border flex flex-col items-center justify-center text-muted-foreground shrink-0 gap-2 p-4">
+                            <ImageIcon size={28} />
+                            <span className="text-[11px] text-center">No flier uploaded</span>
                         </div>
                     )}
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                         <p className="text-sm text-muted-foreground max-w-sm">
-                            {event.flier_url ? "Replace the flier for this event." : "No flier uploaded yet."}
+                            {event.flier_url ? "Replace or remove the promotional flier for this event's login screen." : "Upload a portrait promotional flier for this event's private login screen."}
                         </p>
-                        <label className="inline-flex items-center gap-2 px-5 py-2.5 border border-border text-xs font-bold uppercase tracking-widest hover:bg-muted transition-colors cursor-pointer w-fit">
-                            {isUploadingFlier ? <RefreshCw size={13} className="animate-spin" /> : <ImageIcon size={13} />}
-                            {isUploadingFlier ? "Uploading…" : event.flier_url ? "Replace Flier" : "Upload Flier"}
-                            <input
-                                type="file"
-                                accept="image/*"
-                                disabled={isUploadingFlier}
-                                className="hidden"
-                                onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadFlier(f); }}
-                            />
-                        </label>
+                        <div className="flex items-center gap-3">
+                            {event.flier_url && (
+                                <button
+                                    type="button"
+                                    onClick={removeFlier}
+                                    disabled={isUploadingFlier}
+                                    className="px-4 py-2.5 border border-destructive/30 text-destructive hover:bg-destructive/10 text-xs font-bold uppercase tracking-widest transition-colors disabled:opacity-50 cursor-pointer"
+                                >
+                                    Remove Flier
+                                </button>
+                            )}
+                            <label className="inline-flex items-center gap-2 px-5 py-2.5 border border-border text-xs font-bold uppercase tracking-widest hover:bg-muted transition-colors cursor-pointer w-fit">
+                                {isUploadingFlier ? <RefreshCw size={13} className="animate-spin" /> : <ImageIcon size={13} />}
+                                {isUploadingFlier ? "Uploading…" : event.flier_url ? "Replace Flier" : "Upload Flier"}
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    disabled={isUploadingFlier}
+                                    className="hidden"
+                                    onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadFlier(f); e.target.value = ""; }}
+                                />
+                            </label>
+                        </div>
                     </div>
                 </div>
             </section>

@@ -17,7 +17,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const session = await verifyEventAccess(req, res, { requireRole: 'organizer' });
     if (!session) return;
 
-    const { title, websiteUrl, bannerUrl, description, startDate, endDate, days } = req.body || {};
+    const { title, websiteUrl, bannerUrl, flierUrl, description, startDate, endDate, days } = req.body || {};
 
     if (title !== undefined && (!title.trim() || !withinLength(title, LIMITS.title))) {
         return res.status(400).json({ error: `Title is required and must be ${LIMITS.title} characters or fewer.` });
@@ -27,6 +27,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     if (bannerUrl && (!isValidUrl(bannerUrl) || !withinLength(bannerUrl, LIMITS.url))) {
         return res.status(400).json({ error: 'Banner URL must be a valid http(s) link.' });
+    }
+    if (flierUrl && (!isValidUrl(flierUrl) || !withinLength(flierUrl, LIMITS.url))) {
+        return res.status(400).json({ error: 'Flier URL must be a valid http(s) link.' });
     }
     if (description && !withinLength(description, LIMITS.description)) {
         return res.status(400).json({ error: `Description must be ${LIMITS.description} characters or fewer.` });
@@ -88,6 +91,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (newSlug) patch.slug = newSlug;
         if (websiteUrl !== undefined) patch.website_url = websiteUrl || null;
         if (bannerUrl !== undefined) patch.banner_url = bannerUrl || null;
+        if (flierUrl !== undefined) patch.flier_url = flierUrl || null;
         if (description !== undefined) patch.description = description || null;
         if (startDate !== undefined) patch.start_date = startDate || null;
         if (endDate !== undefined) patch.end_date = endDate || null;

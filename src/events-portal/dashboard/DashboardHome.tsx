@@ -274,6 +274,48 @@ export function DashboardHome() {
         }
     };
 
+    const [isUploadingFlier, setIsUploadingFlier] = useState(false);
+    const uploadFlier = async (file: File) => {
+        if (!isOrganizer) return;
+        setIsUploadingFlier(true);
+        try {
+            const ext = file.name.split(".").pop();
+            const path = `event-fliers/${ctx.slug}-${Date.now()}.${ext}`;
+            const { error: uploadError } = await supabase.storage.from("assets").upload(path, file, { upsert: true });
+            if (uploadError) throw new ApiError(uploadError.message);
+            const flierUrl = supabase.storage.from("assets").getPublicUrl(path).data.publicUrl;
+
+            await eventFetch("/api/events/update", ctx.token, {
+                method: "POST",
+                body: JSON.stringify({ flierUrl }),
+            });
+            showToast("Event flier updated successfully.", "success");
+            ctx.refreshContext?.();
+        } catch (err) {
+            showToast(err instanceof ApiError ? err.message : "Could not upload flier.", "error");
+        } finally {
+            setIsUploadingFlier(false);
+        }
+    };
+
+    const removeFlier = async () => {
+        if (!isOrganizer) return;
+        if (!confirm("Are you sure you want to remove the promotional flier?")) return;
+        setIsUploadingFlier(true);
+        try {
+            await eventFetch("/api/events/update", ctx.token, {
+                method: "POST",
+                body: JSON.stringify({ flierUrl: null }),
+            });
+            showToast("Event flier removed.", "info");
+            ctx.refreshContext?.();
+        } catch (err) {
+            showToast(err instanceof ApiError ? err.message : "Could not remove flier.", "error");
+        } finally {
+            setIsUploadingFlier(false);
+        }
+    };
+
     const loadCredentials = useCallback(async () => {
         if (!isOrganizer) return;
         try {
@@ -934,7 +976,7 @@ export function DashboardHome() {
                                         type="button"
                                         onClick={removeBanner}
                                         disabled={isUploadingBanner}
-                                        className="px-4 py-2.5 border border-destructive/30 text-destructive hover:bg-destructive/10 text-xs font-bold uppercase tracking-widest transition-colors disabled:opacity-50"
+                                        className="px-4 py-2.5 border border-destructive/30 text-destructive hover:bg-destructive/10 text-xs font-bold uppercase tracking-widest transition-colors disabled:opacity-50 cursor-pointer"
                                     >
                                         Remove Banner
                                     </button>
@@ -948,6 +990,60 @@ export function DashboardHome() {
                                         disabled={isUploadingBanner}
                                         className="hidden"
                                         onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadBanner(f); e.target.value = ""; }}
+                                    />
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Event Flier Card */}
+                    <div className="border border-border bg-card p-6 space-y-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                            <div>
+                                <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                                    <ImageIcon size={15} /> Event Promotional Flier
+                                </h3>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                    Portrait or square promotional flier displayed prominently on your event's private login screen.
+                                </p>
+                            </div>
+                        </div>
+
+                        {ctx.flierUrl ? (
+                            <div className="relative w-44 sm:w-56 aspect-[3/4] overflow-hidden border border-border bg-black/60 shadow">
+                                <img src={ctx.flierUrl} alt={`${ctx.eventTitle} promotional flier`} className="w-full h-full object-contain object-center" />
+                            </div>
+                        ) : (
+                            <div className="w-44 sm:w-56 aspect-[3/4] border border-dashed border-border flex flex-col items-center justify-center text-muted-foreground gap-1.5 p-4">
+                                <ImageIcon size={24} />
+                                <span className="text-xs text-center">No promotional flier uploaded yet</span>
+                            </div>
+                        )}
+
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
+                            <p className="text-xs text-muted-foreground">
+                                Recommended size: high-res portrait image (e.g. 1080×1350, 1200×1600, or A4).
+                            </p>
+                            <div className="flex items-center gap-3">
+                                {ctx.flierUrl && (
+                                    <button
+                                        type="button"
+                                        onClick={removeFlier}
+                                        disabled={isUploadingFlier}
+                                        className="px-4 py-2.5 border border-destructive/30 text-destructive hover:bg-destructive/10 text-xs font-bold uppercase tracking-widest transition-colors disabled:opacity-50 cursor-pointer"
+                                    >
+                                        Remove Flier
+                                    </button>
+                                )}
+                                <label className="inline-flex items-center gap-2 px-5 py-2.5 border border-border text-xs font-bold uppercase tracking-widest hover:bg-muted transition-colors cursor-pointer whitespace-nowrap">
+                                    {isUploadingFlier ? <RefreshCw size={13} className="animate-spin" /> : <ImageIcon size={13} />}
+                                    {isUploadingFlier ? "Uploading…" : ctx.flierUrl ? "Replace Flier" : "Upload Event Flier"}
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        disabled={isUploadingFlier}
+                                        className="hidden"
+                                        onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadFlier(f); e.target.value = ""; }}
                                     />
                                 </label>
                             </div>
