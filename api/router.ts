@@ -41,6 +41,7 @@ import eventsImportTemplateHandler from './_handlers/events/import-template.js';
 import eventsAnalyticsHandler from './_handlers/events/analytics.js';
 import eventsCredentialsHandler from './_handlers/events/credentials.js';
 import eventsUpdateHandler from './_handlers/events/update.js';
+import eventsInfoHandler from './_handlers/events/info.js';
 
 import paymentsVerifyHandler from './_handlers/payments/verify.js';
 
@@ -126,6 +127,7 @@ const routes: Record<string, (req: VercelRequest, res: VercelResponse) => any> =
   'events/analytics': eventsAnalyticsHandler,
   'events/credentials': eventsCredentialsHandler,
   'events/update': eventsUpdateHandler,
+  'events/info': eventsInfoHandler,
   'payments/verify': paymentsVerifyHandler,
   'splitsubs/services': splitsubsServicesHandler,
   'splitsubs/listings': splitsubsListingsHandler,

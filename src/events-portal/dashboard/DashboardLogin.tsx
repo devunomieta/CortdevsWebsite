@@ -40,7 +40,8 @@ export function DashboardLogin() {
                 const data = await res.json().catch(() => ({}));
                 if (!isMounted) return;
                 if (!res.ok) {
-                    if (res.status === 404 || res.status === 403) {
+                    // Only block the whole page if the event explicitly is inactive or disabled
+                    if (res.status === 403 || (res.status === 404 && data?.error && data.error !== 'Endpoint Not Found')) {
                         setLoadError(data.error || "This link is not active.");
                     }
                     return;
