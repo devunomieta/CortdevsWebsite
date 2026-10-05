@@ -27,8 +27,12 @@ async function broadcast(channelName: string, event: string, payload: Record<str
 
 // Event dashboard: check-ins, walk-ins, and export/import decisions all
 // invalidate whatever that dashboard is currently showing.
-export async function broadcastEventUpdate(eventId: string, kind: 'attendance' | 'export' | 'import' | 'event-data') {
-    await broadcast(`event-${eventId}`, 'update', { kind });
+export async function broadcastEventUpdate(
+    eventId: string,
+    kind: 'attendance' | 'export' | 'import' | 'event-data' | 'slug-changed',
+    extra?: Record<string, unknown>
+) {
+    await broadcast(`event-${eventId}`, 'update', { kind, ...(extra || {}) });
 }
 
 // Kept for the existing call sites (attendance.ts, register.ts).

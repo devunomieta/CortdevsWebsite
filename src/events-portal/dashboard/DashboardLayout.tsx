@@ -5,6 +5,7 @@ import { LogOut, Eye, ShieldCheck, RefreshCw } from "lucide-react";
 import { eventFetch } from "../lib/api";
 import { subscribeToChannel } from "../lib/realtime";
 import { useConfig } from "../../app/context/ConfigContext";
+import { SlugMigrationModal } from "../components/SlugMigrationModal";
 
 export interface EventDay {
     id: string;
@@ -85,15 +86,31 @@ export function DashboardLayout() {
         loadContext();
     }, [loadContext]);
 
+    const [slugMigration, setSlugMigration] = useState<{
+        newSlug: string;
+        newTitle: string;
+        oldSlug: string;
+        reason?: string;
+    } | null>(null);
+
     // Live update when event details or schedule are modified
     useEffect(() => {
         if (!ctx?.eventId) return;
         return subscribeToChannel(`event-${ctx.eventId}`, "update", (payload) => {
+            if (payload?.kind === "slug-changed") {
+                setSlugMigration({
+                    newSlug: payload.newSlug,
+                    newTitle: payload.newTitle,
+                    oldSlug: payload.oldSlug || slug || "",
+                    reason: payload.reason,
+                });
+                return;
+            }
             if (payload?.kind === "event-data") {
                 loadContext();
             }
         });
-    }, [ctx?.eventId, loadContext]);
+    }, [ctx?.eventId, slug, loadContext]);
 
     const handleSignOut = () => {
         sessionStorage.removeItem("events_session");
@@ -108,8 +125,6 @@ export function DashboardLayout() {
         );
     }
     if (ctx === null) return null;
-
-    const isFull = ctx.role === "full";
 
     return (
         <div className="bg-background min-h-screen">
@@ -147,6 +162,15 @@ export function DashboardLayout() {
             <main className="max-w-6xl mx-auto px-6 py-10">
                 <Outlet context={ctx} />
             </main>
+
+            {slugMigration && (
+                <SlugMigrationModal
+                    oldSlug={slugMigration.oldSlug}
+                    newSlug={slugMigration.newSlug}
+                    newTitle={slugMigration.newTitle}
+                    reason={slugMigration.reason}
+                />
+            )}
         </div>
     );
 }

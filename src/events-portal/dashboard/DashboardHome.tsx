@@ -23,7 +23,6 @@ import {
     KeyRound,
     RotateCw,
     Ban,
-    Mail,
     Calendar,
     Edit3,
     Trash2,

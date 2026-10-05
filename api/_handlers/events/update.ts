@@ -3,6 +3,7 @@ import { supabase } from '../../_lib/supabase.js';
 import { verifyEventAccess } from '../../_lib/eventAuth.js';
 import { logEventActivity } from '../../_lib/eventAuditLog.js';
 import { broadcastEventUpdate } from '../../_lib/eventRealtime.js';
+import { uniqueEventSlug } from '../../_lib/slug.js';
 import { withinLength, isValidEmail, isValidUrl, isValidDateString, isNonEmpty, LIMITS } from '../../_lib/validation.js';
 
 // Event Organizer update endpoint:
@@ -38,10 +39,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     try {
-        // Fetch current event to know existing start/end date if only one is updated, or to validate days
+        // Fetch current event to know existing title, slug, and dates
         const { data: currentEvent, error: currentEventError } = await supabase
             .from('events')
-            .select('start_date, end_date')
+            .select('title, slug, start_date, end_date')
             .eq('id', session.eventId)
             .maybeSingle();
         if (currentEventError || !currentEvent) return res.status(404).json({ error: 'Event not found.' });
@@ -76,8 +77,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
         }
 
+        let newSlug: string | null = null;
+        const trimmedTitle = title ? title.trim() : undefined;
+        if (trimmedTitle && trimmedTitle !== currentEvent.title) {
+            newSlug = await uniqueEventSlug(trimmedTitle);
+        }
+
         const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
-        if (title) patch.title = title.trim();
+        if (trimmedTitle) patch.title = trimmedTitle;
+        if (newSlug) patch.slug = newSlug;
         if (websiteUrl !== undefined) patch.website_url = websiteUrl || null;
         if (bannerUrl !== undefined) patch.banner_url = bannerUrl || null;
         if (description !== undefined) patch.description = description || null;
@@ -100,7 +108,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 .eq('event_id', session.eventId);
             if (getDaysError) throw getDaysError;
 
-            const existingMap = new Map((existingDays || []).map((d) => [d.id, d]));
+            const existingMap = new Map<string, { id: string; date: string; label: string }>(
+                (existingDays || []).map((d: any) => [d.id, d])
+            );
             const incomingIds = new Set<string>();
 
             // 1. Update existing or insert new days
@@ -146,20 +156,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             });
         }
 
-        if (title) {
+        if (trimmedTitle) {
             await logEventActivity({
                 eventId: session.eventId,
                 actorType: 'credential',
                 actorId: session.credentialId,
                 actorLabel: `${session.label} (Organizer)`,
-                action: `Updated event details (Title: ${title.trim()})`,
+                action: newSlug
+                    ? `Updated event title to "${trimmedTitle}" (New link: ${newSlug})`
+                    : `Updated event title to "${trimmedTitle}"`,
             });
         }
 
-        // Notify active dashboards and attendees so real-time updates propagate
-        await broadcastEventUpdate(session.eventId, 'event-data');
+        // If the slug changed, notify active dashboards to force a re-login at the new URL
+        if (newSlug) {
+            await broadcastEventUpdate(session.eventId, 'slug-changed', {
+                oldSlug: currentEvent.slug,
+                newSlug,
+                newTitle: trimmedTitle,
+                reason: 'The event title and link were updated by an organizer.',
+            });
+        } else {
+            // Otherwise broadcast standard data update
+            await broadcastEventUpdate(session.eventId, 'event-data');
+        }
 
-        return res.status(200).json({ success: true });
+        return res.status(200).json({ success: true, newSlug: newSlug || currentEvent.slug });
     } catch (err: any) {
         console.error('events/update error:', err);
         return res.status(500).json({ error: err.message || 'Could not update event.' });
