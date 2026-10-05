@@ -17,6 +17,8 @@ import {
     KeyRound,
     RefreshCw,
     Image as ImageIcon,
+    Calendar,
+    Edit3,
 } from "lucide-react";
 import { useToast } from "../../app/components/Toast";
 import { adminFetch, ApiError } from "../lib/api";
@@ -30,6 +32,11 @@ interface EventDetail {
     slug: string;
     flier_url: string | null;
     walkin_fields: string[];
+    organizer_name?: string;
+    organizer_email?: string;
+    website_url?: string | null;
+    description?: string | null;
+    timezone?: string;
 }
 interface EventDay { id: string; date: string; label: string; }
 interface Credential {
@@ -76,9 +83,37 @@ export function AdminEventDetail() {
     const [newFieldName, setNewFieldName] = useState("");
     const [isSavingFields, setIsSavingFields] = useState(false);
 
+    // Editing event info and dates
+    const [isEditingInfo, setIsEditingInfo] = useState(false);
+    const [isSavingInfo, setIsSavingInfo] = useState(false);
+    const [editInfoForm, setEditInfoForm] = useState({
+        title: "",
+        organizerName: "",
+        organizerEmail: "",
+        websiteUrl: "",
+        description: "",
+        timezone: "",
+    });
+
+    const [isEditingDays, setIsEditingDays] = useState(false);
+    const [isSavingDays, setIsSavingDays] = useState(false);
+    const [daysDraft, setDaysDraft] = useState<Array<{ id?: string; date: string; label: string }>>([]);
+
     const loadAll = () => {
         if (!eventId) return;
-        adminFetch(`/api/admin/events?id=${eventId}`).then((d) => { setEvent(d.event); setDays(d.days); }).catch(() => { });
+        adminFetch(`/api/admin/events?id=${eventId}`).then((d) => {
+            setEvent(d.event);
+            setDays(d.days);
+            setDaysDraft((d.days || []).map((x: EventDay) => ({ id: x.id, date: x.date, label: x.label })));
+            setEditInfoForm({
+                title: d.event.title || "",
+                organizerName: d.event.organizer_name || "",
+                organizerEmail: d.event.organizer_email || "",
+                websiteUrl: d.event.website_url || "",
+                description: d.event.description || "",
+                timezone: d.event.timezone || "Africa/Lagos",
+            });
+        }).catch(() => { });
         adminFetch(`/api/admin/events/credentials?eventId=${eventId}`).then((d) => setCredentials(d.credentials)).catch(() => { });
         adminFetch(`/api/admin/events/export-requests?eventId=${eventId}`).then((d) => setExportRequests(d.requests)).catch(() => { });
         adminFetch(`/api/admin/events/imports?eventId=${eventId}`).then((d) => setImportRequests(d.requests)).catch(() => { });
@@ -219,6 +254,91 @@ export function AdminEventDetail() {
         }
     };
 
+    const saveEventInfo = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!eventId) return;
+        if (!editInfoForm.title.trim()) {
+            showToast("Event title is required.", "error");
+            return;
+        }
+        if (!editInfoForm.organizerName.trim()) {
+            showToast("Organizer name is required.", "error");
+            return;
+        }
+        if (!isValidEmail(editInfoForm.organizerEmail)) {
+            showToast("Organizer email doesn't look valid.", "error");
+            return;
+        }
+        setIsSavingInfo(true);
+        try {
+            await adminFetch("/api/admin/events/update", {
+                method: "POST",
+                body: JSON.stringify({
+                    id: eventId,
+                    title: editInfoForm.title,
+                    organizerName: editInfoForm.organizerName,
+                    organizerEmail: editInfoForm.organizerEmail,
+                    websiteUrl: editInfoForm.websiteUrl || null,
+                    description: editInfoForm.description || null,
+                    timezone: editInfoForm.timezone || "Africa/Lagos",
+                }),
+            });
+            showToast("Event details updated successfully.", "success");
+            setIsEditingInfo(false);
+            loadAll();
+        } catch (err) {
+            showToast(err instanceof ApiError ? err.message : "Could not update event details.", "error");
+        } finally {
+            setIsSavingInfo(false);
+        }
+    };
+
+    const addDraftDay = () => {
+        const today = new Date().toISOString().slice(0, 10);
+        setDaysDraft((prev) => [...prev, { date: today, label: `Day ${prev.length + 1}` }]);
+    };
+
+    const removeDraftDay = (index: number) => {
+        if (daysDraft.length <= 1) {
+            showToast("An event must have at least one day.", "error");
+            return;
+        }
+        setDaysDraft((prev) => prev.filter((_, i) => i !== index));
+    };
+
+    const updateDraftDay = (index: number, patch: Partial<{ date: string; label: string }>) => {
+        setDaysDraft((prev) => prev.map((d, i) => (i === index ? { ...d, ...patch } : d)));
+    };
+
+    const saveDays = async () => {
+        if (!eventId) return;
+        if (daysDraft.length === 0) {
+            showToast("An event must have at least one day.", "error");
+            return;
+        }
+        if (daysDraft.some((d) => !d.date || !d.label.trim())) {
+            showToast("Every day must have a date and a label.", "error");
+            return;
+        }
+        setIsSavingDays(true);
+        try {
+            await adminFetch("/api/admin/events/update", {
+                method: "POST",
+                body: JSON.stringify({
+                    id: eventId,
+                    days: daysDraft.map((d) => ({ id: d.id, date: d.date, label: d.label.trim() })),
+                }),
+            });
+            showToast("Event schedule and dates updated.", "success");
+            setIsEditingDays(false);
+            loadAll();
+        } catch (err) {
+            showToast(err instanceof ApiError ? err.message : "Could not update event schedule.", "error");
+        } finally {
+            setIsSavingDays(false);
+        }
+    };
+
     const saveWalkinFields = async (fields: string[]) => {
         if (!eventId) return;
         setIsSavingFields(true);
@@ -354,9 +474,144 @@ export function AdminEventDetail() {
                 <Link to="/admin" className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground mb-4">
                     <ArrowLeft size={14} /> All Events
                 </Link>
-                <h1 className="text-2xl font-light tracking-tight">{event.title}</h1>
-                <p className="text-sm text-muted-foreground mt-1">/e/{event.slug} · Event ID {eventId}</p>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <h1 className="text-2xl font-light tracking-tight">{event.title}</h1>
+                        <p className="text-sm text-muted-foreground mt-1">
+                            /e/{event.slug} · Event ID {eventId}
+                            {event.organizer_name && ` · Organizer: ${event.organizer_name}`}
+                            {event.organizer_email && ` (${event.organizer_email})`}
+                        </p>
+                    </div>
+                    <button
+                        onClick={() => setIsEditingInfo(true)}
+                        className="inline-flex items-center gap-2 px-4 py-2 border border-border text-xs font-bold uppercase tracking-widest hover:bg-muted transition-colors shrink-0"
+                    >
+                        <Edit3 size={13} /> Edit Event Info
+                    </button>
+                </div>
             </div>
+
+            {/* Dates & Daily Schedule */}
+            <section className="space-y-4">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
+                            Event Dates &amp; Daily Schedule ({days.length} Day{days.length === 1 ? "" : "s"})
+                        </h2>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                            Modify event dates, daily labels, or add/remove days anytime. Check-in and logins automatically respect updated dates.
+                        </p>
+                    </div>
+                    {!isEditingDays && (
+                        <button
+                            onClick={() => {
+                                setDaysDraft(days.map((d) => ({ id: d.id, date: d.date, label: d.label })));
+                                setIsEditingDays(true);
+                            }}
+                            className="inline-flex items-center gap-2 px-4 py-2 border border-border text-xs font-bold uppercase tracking-widest hover:bg-muted transition-colors shrink-0"
+                        >
+                            <Calendar size={13} /> Edit Schedule
+                        </button>
+                    )}
+                </div>
+
+                {!isEditingDays ? (
+                    <div className="border border-border bg-card divide-y divide-border">
+                        {days.length === 0 && <p className="p-5 text-sm text-muted-foreground">No days configured.</p>}
+                        {days.map((d, index) => (
+                            <div key={d.id} className="p-4 flex items-center justify-between gap-4">
+                                <div className="flex items-center gap-3">
+                                    <span className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center text-xs font-semibold text-muted-foreground">
+                                        {index + 1}
+                                    </span>
+                                    <div>
+                                        <p className="font-medium text-sm">{d.label}</p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {new Date(d.date + "T00:00:00").toLocaleDateString(undefined, {
+                                                weekday: "short",
+                                                year: "numeric",
+                                                month: "short",
+                                                day: "numeric",
+                                            })}
+                                            <span className="ml-2 font-mono text-[11px] text-muted-foreground">({d.date})</span>
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="border border-border bg-card p-6 space-y-4">
+                        <div className="flex items-center justify-between">
+                            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                Edit Day Labels &amp; Dates
+                            </p>
+                            <button
+                                type="button"
+                                onClick={addDraftDay}
+                                className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-primary hover:opacity-80"
+                            >
+                                <Plus size={13} /> Add Day
+                            </button>
+                        </div>
+                        <div className="space-y-3">
+                            {daysDraft.map((d, i) => (
+                                <div key={i} className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+                                    <span className="w-6 text-xs font-semibold text-muted-foreground shrink-0 hidden sm:inline-block">
+                                        #{i + 1}
+                                    </span>
+                                    <input
+                                        type="date"
+                                        required
+                                        value={d.date}
+                                        onChange={(e) => updateDraftDay(i, { date: e.target.value })}
+                                        className="px-3 py-2 bg-background border border-border text-sm outline-none focus:border-primary shrink-0"
+                                    />
+                                    <input
+                                        type="text"
+                                        required
+                                        maxLength={LIMITS.label}
+                                        value={d.label}
+                                        onChange={(e) => updateDraftDay(i, { label: e.target.value })}
+                                        placeholder="e.g. Day 1 — Opening Keynote"
+                                        className="flex-1 px-3 py-2 bg-background border border-border text-sm outline-none focus:border-primary min-w-0"
+                                    />
+                                    {daysDraft.length > 1 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => removeDraftDay(i)}
+                                            className="p-2 text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                                            title="Remove this day"
+                                        >
+                                            <Trash2 size={15} />
+                                        </button>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                        <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+                            <button
+                                type="button"
+                                onClick={() => setIsEditingDays(false)}
+                                disabled={isSavingDays}
+                                className="px-4 py-2 border border-border text-xs font-bold uppercase tracking-widest hover:bg-muted transition-colors disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={saveDays}
+                                disabled={isSavingDays}
+                                className="inline-flex items-center gap-2 px-5 py-2 bg-primary text-primary-foreground text-xs font-bold uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-50"
+                            >
+                                {isSavingDays ? <RefreshCw size={13} className="animate-spin" /> : <CheckCircle2 size={13} />}
+                                {isSavingDays ? "Saving…" : "Save Schedule"}
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </section>
 
             {/* Flier */}
             <section className="space-y-4">
@@ -733,6 +988,124 @@ export function AdminEventDetail() {
                             <button type="submit" className="w-full py-3.5 bg-primary text-primary-foreground text-xs font-bold uppercase tracking-widest hover:opacity-90 transition-all">
                                 Add Login
                             </button>
+                        </form>
+                    </div>
+                </div>
+            )}
+            {/* Edit Event Info Modal */}
+            {isEditingInfo && (
+                <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-6">
+                    <div className="w-full max-w-lg bg-card border border-border p-8 relative max-h-[90vh] overflow-y-auto">
+                        <button
+                            onClick={() => setIsEditingInfo(false)}
+                            className="absolute top-6 right-6 text-muted-foreground hover:text-foreground"
+                        >
+                            <X size={18} />
+                        </button>
+                        <h3 className="text-xl font-medium mb-1">Edit Event Information</h3>
+                        <p className="text-xs text-muted-foreground mb-6">
+                            Update core event details and organizer contact information.
+                        </p>
+                        <form onSubmit={saveEventInfo} className="space-y-4">
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                    Event Title
+                                </label>
+                                <input
+                                    required
+                                    maxLength={LIMITS.title}
+                                    value={editInfoForm.title}
+                                    onChange={(e) => setEditInfoForm((p) => ({ ...p, title: e.target.value }))}
+                                    className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm"
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                        Organizer Name
+                                    </label>
+                                    <input
+                                        required
+                                        maxLength={LIMITS.name}
+                                        value={editInfoForm.organizerName}
+                                        onChange={(e) => setEditInfoForm((p) => ({ ...p, organizerName: e.target.value }))}
+                                        className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm"
+                                    />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                        Organizer Email
+                                    </label>
+                                    <input
+                                        required
+                                        type="email"
+                                        maxLength={200}
+                                        value={editInfoForm.organizerEmail}
+                                        onChange={(e) => setEditInfoForm((p) => ({ ...p, organizerEmail: e.target.value }))}
+                                        className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                    Event Website (optional)
+                                </label>
+                                <input
+                                    type="url"
+                                    maxLength={LIMITS.url}
+                                    placeholder="https://…"
+                                    value={editInfoForm.websiteUrl}
+                                    onChange={(e) => setEditInfoForm((p) => ({ ...p, websiteUrl: e.target.value }))}
+                                    className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm"
+                                />
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                    Timezone
+                                </label>
+                                <input
+                                    maxLength={50}
+                                    value={editInfoForm.timezone}
+                                    onChange={(e) => setEditInfoForm((p) => ({ ...p, timezone: e.target.value }))}
+                                    placeholder="e.g. Africa/Lagos"
+                                    className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm"
+                                />
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                    Description (optional)
+                                </label>
+                                <textarea
+                                    rows={3}
+                                    maxLength={LIMITS.description}
+                                    value={editInfoForm.description}
+                                    onChange={(e) => setEditInfoForm((p) => ({ ...p, description: e.target.value }))}
+                                    className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm resize-none"
+                                />
+                            </div>
+
+                            <div className="flex items-center justify-end gap-2 pt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsEditingInfo(false)}
+                                    disabled={isSavingInfo}
+                                    className="px-4 py-2.5 border border-border text-xs font-bold uppercase tracking-widest hover:bg-muted transition-colors disabled:opacity-50"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={isSavingInfo}
+                                    className="inline-flex items-center gap-2 px-6 py-2.5 bg-primary text-primary-foreground text-xs font-bold uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-50"
+                                >
+                                    {isSavingInfo ? <RefreshCw size={13} className="animate-spin" /> : <CheckCircle2 size={13} />}
+                                    {isSavingInfo ? "Saving…" : "Save Details"}
+                                </button>
+                            </div>
                         </form>
                     </div>
                 </div>

@@ -24,6 +24,9 @@ import {
     RotateCw,
     Ban,
     Mail,
+    Calendar,
+    Edit3,
+    Trash2,
 } from "lucide-react";
 import { useToast } from "../../app/components/Toast";
 import { eventFetch, ApiError } from "../lib/api";
@@ -103,6 +106,93 @@ export function DashboardHome() {
     const [credentials, setCredentials] = useState<CredentialRow[]>([]);
     const [showAddLogin, setShowAddLogin] = useState(false);
     const [loginForm, setLoginForm] = useState({ label: "", email: "", role: "reception" as "reception" | "view_only", dayId: "" });
+
+    // Editing event schedule / details from Organizer Manage tab
+    const [isEditingSchedule, setIsEditingSchedule] = useState(false);
+    const [isSavingSchedule, setIsSavingSchedule] = useState(false);
+    const [scheduleDraft, setScheduleDraft] = useState<Array<{ id?: string; date: string; label: string }>>([]);
+
+    const [isEditingInfo, setIsEditingInfo] = useState(false);
+    const [isSavingInfo, setIsSavingInfo] = useState(false);
+    const [infoDraft, setInfoDraft] = useState({ title: ctx.eventTitle });
+
+    // Ensure activeDayId stays valid when ctx.days changes
+    useEffect(() => {
+        if (!ctx.days.some((d) => d.id === activeDayId)) {
+            setActiveDayId(ctx.days[0]?.id || "");
+        }
+    }, [ctx.days, activeDayId]);
+
+    const startEditingSchedule = () => {
+        setScheduleDraft(ctx.days.map((d) => ({ id: d.id, date: d.date, label: d.label })));
+        setIsEditingSchedule(true);
+    };
+
+    const addScheduleDraftDay = () => {
+        const today = new Date().toISOString().slice(0, 10);
+        setScheduleDraft((prev) => [...prev, { date: today, label: `Day ${prev.length + 1}` }]);
+    };
+
+    const removeScheduleDraftDay = (index: number) => {
+        if (scheduleDraft.length <= 1) {
+            showToast("An event must have at least one day.", "error");
+            return;
+        }
+        setScheduleDraft((prev) => prev.filter((_, i) => i !== index));
+    };
+
+    const updateScheduleDraftDay = (index: number, patch: Partial<{ date: string; label: string }>) => {
+        setScheduleDraft((prev) => prev.map((d, i) => (i === index ? { ...d, ...patch } : d)));
+    };
+
+    const saveSchedule = async () => {
+        if (scheduleDraft.length === 0) {
+            showToast("An event must have at least one day.", "error");
+            return;
+        }
+        if (scheduleDraft.some((d) => !d.date || !d.label.trim())) {
+            showToast("Every day must have a date and a label.", "error");
+            return;
+        }
+        setIsSavingSchedule(true);
+        try {
+            await eventFetch("/api/events/update", ctx.token, {
+                method: "POST",
+                body: JSON.stringify({
+                    days: scheduleDraft.map((d) => ({ id: d.id, date: d.date, label: d.label.trim() })),
+                }),
+            });
+            showToast("Event schedule and dates updated successfully.", "success");
+            setIsEditingSchedule(false);
+            ctx.refreshContext?.();
+        } catch (err) {
+            showToast(err instanceof ApiError ? err.message : "Could not update event schedule.", "error");
+        } finally {
+            setIsSavingSchedule(false);
+        }
+    };
+
+    const saveEventInfo = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!infoDraft.title.trim()) {
+            showToast("Event title is required.", "error");
+            return;
+        }
+        setIsSavingInfo(true);
+        try {
+            await eventFetch("/api/events/update", ctx.token, {
+                method: "POST",
+                body: JSON.stringify({ title: infoDraft.title.trim() }),
+            });
+            showToast("Event title updated successfully.", "success");
+            setIsEditingInfo(false);
+            ctx.refreshContext?.();
+        } catch (err) {
+            showToast(err instanceof ApiError ? err.message : "Could not update event details.", "error");
+        } finally {
+            setIsSavingInfo(false);
+        }
+    };
 
     const loadCredentials = useCallback(async () => {
         if (!isOrganizer) return;
@@ -566,6 +656,137 @@ export function DashboardHome() {
 
             {tab === "manage" && isOrganizer && (
                 <div className="space-y-8">
+                    {/* Event Dates & Daily Schedule */}
+                    <div className="border border-border bg-card p-6 space-y-5">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                            <div>
+                                <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                                    <Calendar size={15} /> Event Dates &amp; Daily Schedule ({ctx.days.length} {ctx.days.length === 1 ? "day" : "days"})
+                                </h3>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                    Update event dates, adjust day labels, or add and remove schedule days.
+                                </p>
+                            </div>
+                            {!isEditingSchedule ? (
+                                <button
+                                    onClick={startEditingSchedule}
+                                    className="inline-flex items-center gap-2 px-4 py-2 border border-border text-xs font-bold uppercase tracking-widest hover:bg-muted transition-colors whitespace-nowrap self-start sm:self-auto"
+                                >
+                                    <Edit3 size={13} /> Edit Schedule
+                                </button>
+                            ) : (
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => setIsEditingSchedule(false)}
+                                        disabled={isSavingSchedule}
+                                        className="px-4 py-2 border border-border text-xs font-bold uppercase tracking-widest hover:bg-muted transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={saveSchedule}
+                                        disabled={isSavingSchedule}
+                                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground text-xs font-bold uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-50"
+                                    >
+                                        {isSavingSchedule && <RefreshCw size={13} className="animate-spin" />}
+                                        Save Changes
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+
+                        {!isEditingSchedule ? (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                                {ctx.days.map((d) => (
+                                    <div key={d.id} className="p-3.5 border border-border bg-background flex flex-col justify-between">
+                                        <div className="text-xs font-bold uppercase tracking-wider text-primary mb-1">
+                                            {d.label}
+                                        </div>
+                                        <div className="text-sm font-semibold">{d.date}</div>
+                                        <div className="text-[11px] text-muted-foreground mt-0.5">
+                                            {new Date(d.date + "T00:00:00").toLocaleDateString(undefined, {
+                                                weekday: "long",
+                                                month: "short",
+                                                day: "numeric",
+                                                year: "numeric",
+                                            })}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                <div className="space-y-3">
+                                    {scheduleDraft.map((d, index) => (
+                                        <div key={d.id || `new-${index}`} className="flex items-center gap-3 bg-background p-3 border border-border">
+                                            <div className="w-1/3">
+                                                <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                                                    Label
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    value={d.label}
+                                                    maxLength={LIMITS.label}
+                                                    onChange={(e) => updateScheduleDraftDay(index, { label: e.target.value })}
+                                                    placeholder="e.g. Day 1"
+                                                    className="w-full px-3 py-2 bg-card border border-border text-xs outline-none focus:border-primary"
+                                                />
+                                            </div>
+                                            <div className="flex-1">
+                                                <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                                                    Date (YYYY-MM-DD)
+                                                </label>
+                                                <input
+                                                    type="date"
+                                                    value={d.date}
+                                                    onChange={(e) => updateScheduleDraftDay(index, { date: e.target.value })}
+                                                    className="w-full px-3 py-2 bg-card border border-border text-xs outline-none focus:border-primary"
+                                                />
+                                            </div>
+                                            <div className="pt-4">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeScheduleDraftDay(index)}
+                                                    disabled={scheduleDraft.length <= 1}
+                                                    title={scheduleDraft.length <= 1 ? "At least one day is required" : "Remove day"}
+                                                    className="p-2 border border-destructive/30 text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={addScheduleDraftDay}
+                                    className="inline-flex items-center gap-2 px-3.5 py-2 border border-dashed border-border text-xs font-bold uppercase tracking-wider hover:bg-muted transition-colors"
+                                >
+                                    <Plus size={13} /> Add Another Day
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Event Details Card */}
+                    <div className="border border-border bg-card p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div>
+                            <p className="text-sm font-medium mb-1">Event Title &amp; Information</p>
+                            <p className="text-xs text-muted-foreground max-w-md">
+                                Current title: <span className="font-semibold text-foreground">{ctx.eventTitle}</span>
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => {
+                                setInfoDraft({ title: ctx.eventTitle });
+                                setIsEditingInfo(true);
+                            }}
+                            className="inline-flex items-center justify-center gap-2 px-6 py-3 border border-border text-xs font-bold uppercase tracking-widest hover:bg-muted transition-colors whitespace-nowrap self-start sm:self-auto"
+                        >
+                            <Edit3 size={14} /> Edit Event Title
+                        </button>
+                    </div>
+
                     {/* Export */}
                     <div className="border border-border p-6 bg-card flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                         <div>
@@ -892,6 +1113,57 @@ export function DashboardHome() {
                             >
                                 Issue Login
                             </button>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Edit Event Title Modal */}
+            {isEditingInfo && (
+                <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-6">
+                    <div className="w-full max-w-md bg-card border border-border p-8 relative">
+                        <button
+                            onClick={() => setIsEditingInfo(false)}
+                            className="absolute top-6 right-6 text-muted-foreground hover:text-foreground"
+                        >
+                            <X size={18} />
+                        </button>
+                        <h3 className="text-xl font-medium mb-1">Edit Event Title</h3>
+                        <p className="text-xs text-muted-foreground mb-6">
+                            Update the official name of this event shown on badges and portals.
+                        </p>
+                        <form onSubmit={saveEventInfo} className="space-y-4">
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                    Event Title
+                                </label>
+                                <input
+                                    required
+                                    maxLength={LIMITS.title}
+                                    value={infoDraft.title}
+                                    onChange={(e) => setInfoDraft((p) => ({ ...p, title: e.target.value }))}
+                                    placeholder="e.g. Lagos Tech Summit 2026"
+                                    className="w-full px-4 py-3 bg-background border border-border outline-none focus:border-primary text-sm"
+                                />
+                            </div>
+                            <div className="flex items-center justify-end gap-3 pt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsEditingInfo(false)}
+                                    disabled={isSavingInfo}
+                                    className="px-5 py-2.5 border border-border text-xs font-bold uppercase tracking-widest hover:bg-muted transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={isSavingInfo}
+                                    className="inline-flex items-center gap-1.5 px-6 py-2.5 bg-primary text-primary-foreground text-xs font-bold uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-50"
+                                >
+                                    {isSavingInfo && <RefreshCw size={13} className="animate-spin" />}
+                                    Save
+                                </button>
+                            </div>
                         </form>
                     </div>
                 </div>

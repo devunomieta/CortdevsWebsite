@@ -27,7 +27,7 @@ async function broadcast(channelName: string, event: string, payload: Record<str
 
 // Event dashboard: check-ins, walk-ins, and export/import decisions all
 // invalidate whatever that dashboard is currently showing.
-export async function broadcastEventUpdate(eventId: string, kind: 'attendance' | 'export' | 'import') {
+export async function broadcastEventUpdate(eventId: string, kind: 'attendance' | 'export' | 'import' | 'event-data') {
     await broadcast(`event-${eventId}`, 'update', { kind });
 }
 

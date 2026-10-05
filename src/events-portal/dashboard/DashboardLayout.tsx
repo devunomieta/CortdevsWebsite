@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Outlet, useNavigate, useParams } from "react-router";
 import { Helmet } from "react-helmet-async";
 import { LogOut, Eye, ShieldCheck, RefreshCw } from "lucide-react";
 import { eventFetch } from "../lib/api";
+import { subscribeToChannel } from "../lib/realtime";
 import { useConfig } from "../../app/context/ConfigContext";
 
 export interface EventDay {
@@ -21,6 +22,7 @@ export interface DashboardContext {
     walkinFields: string[];
     days: EventDay[];
     timezone: string;
+    refreshContext?: () => void;
 }
 
 export function DashboardLayout() {
@@ -29,7 +31,7 @@ export function DashboardLayout() {
     const { config } = useConfig();
     const [ctx, setCtx] = useState<DashboardContext | null | undefined>(undefined);
 
-    useEffect(() => {
+    const loadContext = useCallback(() => {
         const raw = sessionStorage.getItem("events_session");
         const stored = raw ? JSON.parse(raw) : null;
         if (!stored || stored.slug !== slug || !stored.token) {
@@ -51,6 +53,7 @@ export function DashboardLayout() {
                     walkinFields: data.event.walkinFields || [],
                     days: data.days,
                     timezone: data.event.timezone || "UTC",
+                    refreshContext: loadContext,
                 });
             })
             .catch(() => {
@@ -58,6 +61,20 @@ export function DashboardLayout() {
                 navigate(`/e/${slug}`);
             });
     }, [slug, navigate]);
+
+    useEffect(() => {
+        loadContext();
+    }, [loadContext]);
+
+    // Live update when event details or schedule are modified
+    useEffect(() => {
+        if (!ctx?.eventId) return;
+        return subscribeToChannel(`event-${ctx.eventId}`, "update", (payload) => {
+            if (payload?.kind === "event-data") {
+                loadContext();
+            }
+        });
+    }, [ctx?.eventId, loadContext]);
 
     const handleSignOut = () => {
         sessionStorage.removeItem("events_session");

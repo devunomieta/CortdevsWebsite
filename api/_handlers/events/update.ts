@@ -1,43 +1,31 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { supabase } from '../../../_lib/supabase.js';
-import { verifyAdmin } from '../../../_lib/auth.js';
-import { logEventActivity } from '../../../_lib/eventAuditLog.js';
-import { broadcastEventUpdate } from '../../../_lib/eventRealtime.js';
-import { withinLength, isValidEmail, isValidUrl, isValidFieldName, isValidDateString, isNonEmpty, LIMITS } from '../../../_lib/validation.js';
+import { supabase } from '../../_lib/supabase.js';
+import { verifyEventAccess } from '../../_lib/eventAuth.js';
+import { logEventActivity } from '../../_lib/eventAuditLog.js';
+import { broadcastEventUpdate } from '../../_lib/eventRealtime.js';
+import { withinLength, isValidEmail, isValidUrl, isValidDateString, isNonEmpty, LIMITS } from '../../_lib/validation.js';
 
-// Update event fields, days/dates, or flip status (active <-> disabled, or -> archived) —
-// the dashboard kill switch from PRD §07 is just a status write here.
+// Event Organizer update endpoint:
+// Allows event organizers to edit their event's core information (title, website, description)
+// and manage event dates/days schedule.
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    const admin = await verifyAdmin(req, res);
-    if (!admin) return;
+    const session = await verifyEventAccess(req, res, { requireRole: 'organizer' });
+    if (!session) return;
 
-    const { id, status, title, organizerName, organizerEmail, websiteUrl, flierUrl, description, timezone, walkinFields, days } = req.body || {};
-    if (!id) return res.status(400).json({ error: 'id is required.' });
+    const { title, websiteUrl, description, days } = req.body || {};
 
-    if (status && !['active', 'disabled', 'archived'].includes(status)) {
-        return res.status(400).json({ error: 'Invalid status.' });
-    }
     if (title !== undefined && (!title.trim() || !withinLength(title, LIMITS.title))) {
         return res.status(400).json({ error: `Title is required and must be ${LIMITS.title} characters or fewer.` });
-    }
-    if (organizerName !== undefined && (!organizerName.trim() || !withinLength(organizerName, LIMITS.name))) {
-        return res.status(400).json({ error: `Organizer name is required and must be ${LIMITS.name} characters or fewer.` });
-    }
-    if (organizerEmail !== undefined && !isValidEmail(organizerEmail)) {
-        return res.status(400).json({ error: 'Organizer email doesn\'t look valid.' });
     }
     if (websiteUrl && (!isValidUrl(websiteUrl) || !withinLength(websiteUrl, LIMITS.url))) {
         return res.status(400).json({ error: 'Website URL must be a valid http(s) link.' });
     }
     if (description && !withinLength(description, LIMITS.description)) {
         return res.status(400).json({ error: `Description must be ${LIMITS.description} characters or fewer.` });
-    }
-    if (walkinFields && (!Array.isArray(walkinFields) || walkinFields.some((f: any) => !isValidFieldName(f)))) {
-        return res.status(400).json({ error: 'Custom field names can only use letters, numbers, spaces, and basic punctuation, up to 40 characters.' });
     }
     if (days !== undefined) {
         if (!Array.isArray(days) || days.length === 0 || days.some((d: any) => !isValidDateString(d.date) || !isNonEmpty(d.label) || !withinLength(d.label, LIMITS.label))) {
@@ -47,19 +35,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     try {
         const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
-        if (status) patch.status = status;
         if (title) patch.title = title.trim();
-        if (organizerName) patch.organizer_name = organizerName.trim();
-        if (organizerEmail) patch.organizer_email = organizerEmail.trim().toLowerCase();
         if (websiteUrl !== undefined) patch.website_url = websiteUrl;
-        if (flierUrl !== undefined) patch.flier_url = flierUrl;
         if (description !== undefined) patch.description = description;
-        if (timezone !== undefined) patch.timezone = timezone;
-        if (walkinFields) patch.walkin_fields = walkinFields.map((f: string) => f.trim());
 
         if (Object.keys(patch).length > 1) {
-            const { error } = await supabase.from('events').update(patch).eq('id', id);
-            if (error) throw error;
+            const { error: updateError } = await supabase
+                .from('events')
+                .update(patch)
+                .eq('id', session.eventId);
+            if (updateError) throw updateError;
         }
 
         // Manage event days if provided
@@ -67,7 +52,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const { data: existingDays, error: getDaysError } = await supabase
                 .from('event_days')
                 .select('id, date, label')
-                .eq('event_id', id);
+                .eq('event_id', session.eventId);
             if (getDaysError) throw getDaysError;
 
             const existingMap = new Map((existingDays || []).map((d) => [d.id, d]));
@@ -88,7 +73,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 } else {
                     const { data: newDay, error: insertDayError } = await supabase
                         .from('event_days')
-                        .insert([{ event_id: id, date: d.date, label: d.label.trim() }])
+                        .insert([{ event_id: session.eventId, date: d.date, label: d.label.trim() }])
                         .select('id')
                         .single();
                     if (insertDayError) throw insertDayError;
@@ -96,7 +81,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 }
             }
 
-            // 2. Remove days that were deleted by admin
+            // 2. Remove days that were deleted
             const toDelete = (existingDays || []).filter((d) => !incomingIds.has(d.id));
             if (toDelete.length > 0) {
                 const deleteIds = toDelete.map((d) => d.id);
@@ -108,30 +93,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
 
             await logEventActivity({
-                eventId: id,
-                actorType: 'admin',
-                actorId: admin.id,
-                actorLabel: `Admin — ${admin.email}`,
+                eventId: session.eventId,
+                actorType: 'credential',
+                actorId: session.credentialId,
+                actorLabel: `${session.label} (Organizer)`,
                 action: `Updated event schedule (${days.length} day${days.length === 1 ? '' : 's'})`,
             });
         }
 
-        if (status) {
+        if (title) {
             await logEventActivity({
-                eventId: id,
-                actorType: 'admin',
-                actorId: admin.id,
-                actorLabel: `Admin — ${admin.email}`,
-                action: status === 'disabled' ? 'Disabled dashboard' : status === 'active' ? 'Re-enabled dashboard' : `Set status to ${status}`,
+                eventId: session.eventId,
+                actorType: 'credential',
+                actorId: session.credentialId,
+                actorLabel: `${session.label} (Organizer)`,
+                action: `Updated event details (Title: ${title.trim()})`,
             });
         }
 
-        // Notify active dashboards so they immediately reload updated event data & schedule
-        await broadcastEventUpdate(id, 'event-data');
+        // Notify active dashboards and attendees so real-time updates propagate
+        await broadcastEventUpdate(session.eventId, 'event-data');
 
         return res.status(200).json({ success: true });
     } catch (err: any) {
-        console.error('admin/events/update error:', err);
+        console.error('events/update error:', err);
         return res.status(500).json({ error: err.message || 'Could not update event.' });
     }
 }
