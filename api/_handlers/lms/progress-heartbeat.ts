@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabase } from '../../_lib/supabase.js';
 import {
     evaluateLessonAccess,
+    isValidUuid,
     mergeWatchedRanges,
     requireLmsMember,
     sumWatchedRanges,
@@ -19,7 +20,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!member) return;
 
     const { lessonId, watchedRange, maxSecond, lastPosition, scrollPct, dwellDeltaSeconds } = req.body || {};
-    if (!lessonId) return res.status(400).json({ error: 'lessonId required' });
+    if (!isValidUuid(lessonId)) return res.status(400).json({ error: 'Valid lessonId required' });
 
     const cleanLessonId = String(lessonId);
 

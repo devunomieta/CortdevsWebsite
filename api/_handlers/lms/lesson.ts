@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabase } from '../../_lib/supabase.js';
-import { evaluateLessonAccess, requireLmsMember, sanitizeQuizForClient } from '../../_lib/lmsGate.js';
+import { evaluateLessonAccess, isValidUuid, requireLmsMember, sanitizeQuizForClient } from '../../_lib/lmsGate.js';
 import { isR2Configured, resolveReadingHtmlImages, signLessonVideoUrl } from '../../_lib/lmsR2.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -12,8 +12,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!member) return;
 
     const lessonId = String(req.query?.id || '').trim();
-    if (!lessonId) {
-        return res.status(400).json({ error: 'Missing lesson id' });
+    if (!isValidUuid(lessonId)) {
+        return res.status(400).json({ error: 'Valid lesson id required' });
     }
 
     try {

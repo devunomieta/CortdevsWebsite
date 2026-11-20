@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabase } from '../../_lib/supabase.js';
-import { requireLmsAdmin, requireLmsMember } from '../../_lib/lmsGate.js';
+import { isValidUuid, requireLmsAdmin, requireLmsMember, sanitizePlainText } from '../../_lib/lmsGate.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     const member = await requireLmsMember(req, res);
@@ -24,7 +24,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
             query = query.is('parent_id', null).order('created_at', { ascending: false });
         } else {
-            if (!moduleId) return res.status(400).json({ error: 'moduleId required' });
+            if (!isValidUuid(moduleId)) return res.status(400).json({ error: 'Valid moduleId required' });
             query = query.eq('module_id', moduleId);
         }
 
@@ -65,9 +65,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // POST: Ask a new question (parentId = null) OR post a reply under a question (parentId set)
     if (req.method === 'POST') {
         const { moduleId, body, parentId } = req.body || {};
-        const cleanBody = String(body || '').trim().slice(0, 2000);
-        if (!moduleId || cleanBody.length < 3) {
-            return res.status(400).json({ error: 'Enter a question or reply (3–2000 characters).' });
+        const cleanBody = sanitizePlainText(body, 2000);
+        if (!isValidUuid(moduleId) || cleanBody.length < 3) {
+            return res.status(400).json({ error: 'Enter a valid question or reply (3–2000 characters).' });
+        }
+        if (parentId && !isValidUuid(parentId)) {
+            return res.status(400).json({ error: 'Invalid parentId.' });
         }
 
         const { data, error } = await supabase
@@ -100,11 +103,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!admin) return;
 
         const { questionId, officialAnswer, status = 'answered' } = req.body || {};
-        if (!questionId || !['open', 'answered'].includes(status)) {
-            return res.status(400).json({ error: 'questionId and valid status (open | answered) required.' });
+        if (!isValidUuid(questionId) || !['open', 'answered'].includes(status)) {
+            return res.status(400).json({ error: 'Valid questionId and status (open | answered) required.' });
         }
 
-        const cleanAnswer = String(officialAnswer || '').trim().slice(0, 3000);
+        const cleanAnswer = sanitizePlainText(officialAnswer, 3000);
         if (status === 'answered' && cleanAnswer.length < 5) {
             return res.status(400).json({ error: 'Enter the agreed session answer (at least 5 characters) before marking answered.' });
         }

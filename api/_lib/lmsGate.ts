@@ -4,6 +4,45 @@ import { verifyAuth } from './auth.js';
 
 export type WatchedRange = [number, number];
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+// Strips ASCII control chars (except \n, \t) and Unicode zero-width / BiDi spoofing characters
+// eslint-disable-next-line no-control-regex
+const UNSAFE_CTRL_REGEX = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F\u200B-\u200F\u202A-\u202E\u2066-\u2069]/g;
+
+/**
+ * Sanitizes multi-line plain-text input (reflections, takeaways, Q&A bodies, feedback, nudges):
+ * removes control/BiDi spoofing chars and raw HTML tags, trims, and enforces a strict max length.
+ */
+export function sanitizePlainText(input: unknown, maxLen: number): string {
+    if (typeof input !== 'string') return '';
+    return input
+        .replace(UNSAFE_CTRL_REGEX, '')
+        .replace(/<[^>]*>/g, '')
+        .replace(/\r\n?/g, '\n')
+        .replace(/\n{4,}/g, '\n\n\n')
+        .trim()
+        .slice(0, maxLen);
+}
+
+/**
+ * Sanitizes single-line plain-text input (names, titles, job roles, filenames, cohort names).
+ */
+export function sanitizeSingleLine(input: unknown, maxLen: number): string {
+    return sanitizePlainText(input, maxLen * 2)
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, maxLen);
+}
+
+export function isValidUuid(input: unknown): input is string {
+    return typeof input === 'string' && UUID_REGEX.test(input.trim());
+}
+
+export function isValidEmail(input: unknown): input is string {
+    return typeof input === 'string' && input.trim().length <= 254 && EMAIL_REGEX.test(input.trim());
+}
+
 export interface LmsCohort {
     id: string;
     name: string;

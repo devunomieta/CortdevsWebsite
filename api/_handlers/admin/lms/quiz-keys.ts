@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabase } from '../../../_lib/supabase.js';
-import { requireLmsAdmin } from '../../../_lib/lmsGate.js';
+import { isValidUuid, requireLmsAdmin, sanitizePlainText, sanitizeSingleLine } from '../../../_lib/lmsGate.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     const admin = await requireLmsAdmin(req, res);
@@ -31,14 +31,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (req.method === 'PATCH') {
         const { lessonId, questions, verified = true, passThresholdPct = 80 } = req.body || {};
-        if (!lessonId || !Array.isArray(questions) || questions.length === 0 || questions.length > 100) {
-            return res.status(400).json({ error: 'lessonId and valid questions array (1–100 items) required.' });
+        if (!isValidUuid(lessonId) || !Array.isArray(questions) || questions.length === 0 || questions.length > 100) {
+            return res.status(400).json({ error: 'Valid lessonId and questions array (1–100 items) required.' });
         }
+
+        const sanitizedQuestions = questions.map((q: any, idx: number) => {
+            const options = Array.isArray(q?.options)
+                ? q.options.slice(0, 12).map((o: unknown) => sanitizePlainText(o, 600))
+                : [];
+            const maxOpt = Math.max(0, options.length - 1);
+            const correctIndices: number[] = Array.isArray(q?.correct_indices)
+                ? [...new Set<number>(q.correct_indices.map((v: unknown) => Number(v)))]
+                      .filter((n) => Number.isInteger(n) && n >= 0 && n <= maxOpt)
+                      .sort((a, b) => a - b)
+                : [];
+            return {
+                id: sanitizeSingleLine(q?.id, 40) || `q${idx + 1}`,
+                prompt: sanitizePlainText(q?.prompt, 1500),
+                type: q?.type === 'multi' ? 'multi' : 'single',
+                options,
+                correct_indices: correctIndices,
+                explanation: sanitizePlainText(q?.explanation, 1000),
+            };
+        });
 
         const { data, error } = await supabase
             .from('lms_lessons')
             .update({
-                quiz_questions_json: questions,
+                quiz_questions_json: sanitizedQuestions,
                 quiz_keys_verified: Boolean(verified),
                 pass_threshold_pct: Math.max(50, Math.min(100, Number(passThresholdPct) || 80)),
             })

@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabase } from '../../../_lib/supabase.js';
-import { logLmsEvent, requireLmsAdmin } from '../../../_lib/lmsGate.js';
+import { isValidEmail, isValidUuid, logLmsEvent, requireLmsAdmin, sanitizeSingleLine } from '../../../_lib/lmsGate.js';
 import { sendLmsCredentialsEmail } from '../../../_lib/lmsEmail.js';
 import { getLearnAppUrl } from '../../../_lib/appUrl.js';
 
@@ -32,16 +32,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method === 'POST') {
         try {
             const { email, password, fullName, jobRole = 'Team Member', role = 'learner', sendEmail = false } = req.body || {};
-            const cleanEmail = String(email || '').trim().toLowerCase();
-            const cleanName = String(fullName || '').trim();
-            const cleanPassword = String(password || '');
+            const cleanEmail = sanitizeSingleLine(email, 254).toLowerCase();
+            const cleanName = sanitizeSingleLine(fullName, 120);
+            const cleanJobRole = sanitizeSingleLine(jobRole, 80) || 'Team Member';
+            const cleanPassword = typeof password === 'string' ? password : '';
             const cleanRole = role === 'admin' ? 'admin' : 'learner';
 
-            if (!cleanEmail || !cleanEmail.includes('@') || !cleanName) {
-                return res.status(400).json({ error: 'Full name and valid email address are required.' });
+            if (!isValidEmail(cleanEmail) || cleanName.length < 2) {
+                return res.status(400).json({ error: 'Full name (at least 2 characters) and valid email address are required.' });
             }
-            if (cleanPassword.length < 8) {
-                return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+            if (cleanPassword.length < 8 || cleanPassword.length > 128) {
+                return res.status(400).json({ error: 'Password must be between 8 and 128 characters.' });
             }
 
             let userId: string | undefined;
@@ -95,7 +96,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         user_id: userId,
                         email: cleanEmail,
                         full_name: cleanName,
-                        job_role: String(jobRole || 'Team Member').trim(),
+                        job_role: cleanJobRole,
                         role: cleanRole,
                         status: 'active',
                         onboarding_completed: true,
@@ -151,7 +152,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method === 'PATCH') {
         try {
             const { action, targetUserId, password, status, sendEmail = false } = req.body || {};
-            if (!targetUserId) return res.status(400).json({ error: 'targetUserId is required.' });
+            if (!isValidUuid(targetUserId)) return res.status(400).json({ error: 'Valid targetUserId is required.' });
 
             const { data: member } = await supabase
                 .from('lms_enrollments')
@@ -172,9 +173,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         error: 'Protected administrator accounts cannot have their password changed by other admins.',
                     });
                 }
-                const cleanPassword = String(password || '');
-                if (cleanPassword.length < 8) {
-                    return res.status(400).json({ error: 'New password must be at least 8 characters.' });
+                const cleanPassword = typeof password === 'string' ? password : '';
+                if (cleanPassword.length < 8 || cleanPassword.length > 128) {
+                    return res.status(400).json({ error: 'New password must be between 8 and 128 characters.' });
                 }
                 const { error: updErr } = await supabase.auth.admin.updateUserById(targetUserId, {
                     password: cleanPassword,

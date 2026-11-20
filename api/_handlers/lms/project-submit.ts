@@ -4,6 +4,8 @@ import {
     evaluateLessonAccess,
     logLmsEvent,
     requireLmsMember,
+    sanitizePlainText,
+    sanitizeSingleLine,
     touchLearnerStreak,
 } from '../../_lib/lmsGate.js';
 import { sendLmsProjectSubmitted } from '../../_lib/lmsEmail.js';
@@ -72,9 +74,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Step 2: Finalize submission & auto-unlock next lesson (async review mode)
-    const cleanReflection = String(reflectionNotes || '').trim().slice(0, 5000);
-    const cleanUrl = String(externalUrl || '').trim().slice(0, 1000);
+    const cleanReflection = sanitizePlainText(reflectionNotes, 5000);
+    const cleanUrl = sanitizeSingleLine(externalUrl, 1000).replace(/\s+/g, '');
     const cleanPath = fileStoragePath ? String(fileStoragePath).trim() : '';
+    const cleanFileName = fileName ? sanitizeSingleLine(fileName, 160) : null;
 
     if (cleanUrl && !isValidHttpUrl(cleanUrl)) {
         return res.status(400).json({ error: 'External link must start with https:// or http://' });
@@ -103,7 +106,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 user_id: member.enrollment.user_id,
                 lesson_id: lesson.id,
                 file_storage_path: cleanPath || null,
-                file_name: fileName ? String(fileName).slice(0, 160) : null,
+                file_name: cleanFileName,
                 external_url: cleanUrl || null,
                 reflection_notes: cleanReflection,
                 review_status: 'submitted',

@@ -4,6 +4,7 @@ import {
     evaluateLessonAccess,
     logLmsEvent,
     requireLmsMember,
+    sanitizePlainText,
     touchLearnerStreak,
 } from '../../_lib/lmsGate.js';
 import { sendLmsModuleCompleted } from '../../_lib/lmsEmail.js';
@@ -132,7 +133,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
     }
 
-    const cleanTakeaway = typeof keyTakeaway === 'string' ? keyTakeaway.trim().slice(0, 500) : '';
+    const cleanTakeaway = sanitizePlainText(keyTakeaway, 500);
 
     if (lesson.lesson_type === 'reading' && !isAdmin) {
         const scrollPct = prog?.scroll_depth_pct || 0;

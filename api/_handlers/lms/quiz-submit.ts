@@ -42,12 +42,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'Quiz has no questions configured.' });
     }
 
-    // Verify all questions were answered
+    // Verify all questions were answered and build a strictly sanitized answers map
+    const sanitizedAnswers: Record<string, number[]> = {};
     for (const q of questions) {
         const picked = answers[q.id];
         if (!Array.isArray(picked) || picked.length === 0) {
             return res.status(400).json({ error: `Please answer every question before submitting (${q.id} is unanswered).` });
         }
+        const maxIdx = Math.max(0, (q.options || []).length - 1);
+        const validPicked = [...new Set(picked.map(Number))]
+            .filter((n) => Number.isInteger(n) && n >= 0 && n <= maxIdx)
+            .sort((a, b) => a - b);
+        if (validPicked.length === 0) {
+            return res.status(400).json({ error: `Invalid option selection for question ${q.id}.` });
+        }
+        sanitizedAnswers[q.id] = q.type === 'single' ? [validPicked[0]] : validPicked;
     }
 
     const keysReady = Boolean(lesson.quiz_keys_verified) && questions.every((q) => Array.isArray(q.correct_indices) && q.correct_indices.length > 0);
@@ -55,7 +64,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     let correctCount = 0;
     const breakdown = questions.map((q) => {
-        const picked = [...new Set((answers[q.id] as number[]).map(Number))].sort((a, b) => a - b);
+        const picked = sanitizedAnswers[q.id];
         if (!keysReady) {
             correctCount += 1;
             return {
@@ -93,7 +102,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         user_id: member.enrollment.user_id,
         lesson_id: lesson.id,
         attempt_number: attemptNumber,
-        answers_json: answers,
+        answers_json: sanitizedAnswers,
         score_pct: scorePct,
         passed,
     });

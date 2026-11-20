@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabase } from '../../../_lib/supabase.js';
-import { logLmsEvent, requireLmsAdmin } from '../../../_lib/lmsGate.js';
+import { isValidUuid, logLmsEvent, requireLmsAdmin, sanitizePlainText, sanitizeSingleLine } from '../../../_lib/lmsGate.js';
 import { sendLmsManualNudge } from '../../../_lib/lmsEmail.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -15,6 +15,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!['unlock_drip', 'unlock_lesson'].includes(overrideType)) {
             return res.status(400).json({ error: 'overrideType must be unlock_drip or unlock_lesson' });
         }
+        if (targetUserId && !isValidUuid(targetUserId)) return res.status(400).json({ error: 'Invalid targetUserId' });
+        if (moduleId && !isValidUuid(moduleId)) return res.status(400).json({ error: 'Invalid moduleId' });
+        if (lessonId && !isValidUuid(lessonId)) return res.status(400).json({ error: 'Invalid lessonId' });
+
+        const cleanReason = sanitizeSingleLine(reason, 300) || 'Admin override';
         const { data, error } = await supabase
             .from('lms_overrides')
             .insert({
@@ -23,7 +28,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 module_id: moduleId || null,
                 lesson_id: lessonId || null,
                 override_type: overrideType,
-                reason: String(reason || 'Admin override').trim(),
+                reason: cleanReason,
                 granted_by: admin.user.id,
             })
             .select('*')
@@ -36,16 +41,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             userId: targetUserId || admin.user.id,
             lessonId: lessonId || null,
             eventType: 'admin_override',
-            metadata: { overrideType, moduleId, reason },
+            metadata: { overrideType, moduleId, reason: cleanReason },
         });
 
         return res.status(201).json({ override: data });
     }
 
     // Default: send a personal nudge email to a learner
-    const cleanMsg = String(message || '').trim().slice(0, 2000);
-    if (!targetUserId || cleanMsg.length < 5) {
-        return res.status(400).json({ error: 'targetUserId and a message are required.' });
+    const cleanMsg = sanitizePlainText(message, 2000);
+    if (!isValidUuid(targetUserId) || cleanMsg.length < 5) {
+        return res.status(400).json({ error: 'Valid targetUserId and message (at least 5 characters) are required.' });
     }
 
     const { data: learner } = await supabase

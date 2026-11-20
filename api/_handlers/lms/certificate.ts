@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabase } from '../../_lib/supabase.js';
-import { logLmsEvent, requireLmsMember } from '../../_lib/lmsGate.js';
+import { logLmsEvent, requireLmsMember, sanitizeSingleLine } from '../../_lib/lmsGate.js';
 import { getLearnAppUrl } from '../../_lib/appUrl.js';
 
 const DEFAULT_PROGRAM_TITLE = 'AI Product Management';
@@ -163,7 +163,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === 'POST') {
-        const cleanName = String(req.body?.recipientName || '').trim().slice(0, 120);
+        const cleanName = sanitizeSingleLine(req.body?.recipientName, 120);
         if (cleanName.length < 2) {
             return res.status(400).json({ error: 'Please enter the full name to appear on your certificate.' });
         }

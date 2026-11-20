@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabase } from '../../../_lib/supabase.js';
-import { logLmsEvent, requireLmsAdmin } from '../../../_lib/lmsGate.js';
+import { isValidUuid, logLmsEvent, requireLmsAdmin, sanitizePlainText } from '../../../_lib/lmsGate.js';
 import { sendLmsProjectReviewed } from '../../../_lib/lmsEmail.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -53,16 +53,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (req.method === 'PATCH') {
         const { submissionId, reviewStatus, feedback } = req.body || {};
-        if (!submissionId || !['approved', 'revision_requested'].includes(reviewStatus)) {
-            return res.status(400).json({ error: 'submissionId and reviewStatus (approved | revision_requested) required.' });
+        if (!isValidUuid(submissionId) || !['approved', 'revision_requested'].includes(reviewStatus)) {
+            return res.status(400).json({ error: 'Valid submissionId and reviewStatus (approved | revision_requested) required.' });
         }
+
+        const cleanFeedback = sanitizePlainText(feedback, 2000);
 
         const { data: sub, error } = await supabase
             .from('lms_project_submissions')
             .update({
                 review_status: reviewStatus,
                 reviewer_id: admin.user.id,
-                reviewer_feedback: String(feedback || '').trim().slice(0, 2000),
+                reviewer_feedback: cleanFeedback,
                 reviewed_at: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
             })
@@ -94,7 +96,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 learnerName: learner.full_name,
                 projectTitle: (sub.lms_lessons as any)?.title || 'Project Deliverable',
                 status: reviewStatus,
-                feedback: String(feedback || '').trim(),
+                feedback: cleanFeedback,
                 lessonId: sub.lesson_id,
                 cohortId: admin.cohort.id,
                 userId: sub.user_id,

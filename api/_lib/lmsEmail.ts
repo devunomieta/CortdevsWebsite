@@ -23,7 +23,10 @@ interface SendLmsEmailOptions {
 }
 
 async function sendLmsEmail(opts: SendLmsEmailOptions): Promise<boolean> {
-    const recipients = Array.isArray(opts.to) ? opts.to : [opts.to];
+    const rawRecipients = Array.isArray(opts.to) ? opts.to : [opts.to];
+    // Never send real Resend emails to RFC 2606 synthetic test domains (.test, .invalid, .example)
+    const recipients = rawRecipients.filter((email) => !/\.(test|invalid|example)$/i.test(String(email).trim()));
+    if (recipients.length === 0) return false;
     const primaryEmail = recipients[0];
 
     if (opts.idempotencyKey) {
@@ -56,11 +59,15 @@ async function sendLmsEmail(opts: SendLmsEmailOptions): Promise<boolean> {
     try {
         const payload: any = {
             from: getFromAddress('CortDevs Learn'),
-            to: opts.to,
+            to: recipients,
             subject: opts.subject,
             html,
         };
-        if (opts.cc) payload.cc = opts.cc;
+        if (opts.cc) {
+            const rawCc = Array.isArray(opts.cc) ? opts.cc : [opts.cc];
+            const liveCc = rawCc.filter((email) => !/\.(test|invalid|example)$/i.test(String(email).trim()));
+            if (liveCc.length > 0) payload.cc = liveCc;
+        }
 
         const result = await resend.emails.send(payload);
         await supabase.from('lms_email_logs').insert({

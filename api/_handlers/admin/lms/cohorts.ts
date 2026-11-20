@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabase } from '../../../_lib/supabase.js';
-import { requireLmsAdmin } from '../../../_lib/lmsGate.js';
+import { isValidUuid, requireLmsAdmin, sanitizeSingleLine } from '../../../_lib/lmsGate.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     const admin = await requireLmsAdmin(req, res);
@@ -19,8 +19,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         // Assign a mutual (2-way) peer accountability buddy within the active cohort
         if (action === 'assign_buddy' && enrollmentId) {
+            if (!isValidUuid(enrollmentId)) {
+                return res.status(400).json({ error: 'Valid enrollmentId is required.' });
+            }
             const nowIso = new Date().toISOString();
             const targetPartnerUserId = peerBuddyUserId ? String(peerBuddyUserId).trim() : null;
+            if (targetPartnerUserId && !isValidUuid(targetPartnerUserId)) {
+                return res.status(400).json({ error: 'Valid peerBuddyUserId is required.' });
+            }
 
             const { data: memberA, error: aErr } = await supabase
                 .from('lms_enrollments')
@@ -101,7 +107,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         const updates: Record<string, any> = { updated_at: new Date().toISOString() };
-        if (typeof name === 'string' && name.trim()) updates.name = name.trim();
+        if (typeof name === 'string') {
+            const cleanCohortName = sanitizeSingleLine(name, 140);
+            if (cleanCohortName.length >= 2) updates.name = cleanCohortName;
+        }
         if (typeof start_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(start_date)) {
             updates.start_date = start_date;
             // Automatically keep target_end_date synced to 12 weeks (84 days) after start_date unless explicitly passed
