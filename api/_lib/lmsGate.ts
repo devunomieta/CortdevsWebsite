@@ -164,7 +164,9 @@ export async function requireLmsMember(req: VercelRequest, res: VercelResponse):
     if (!enrollmentRow) {
         const { data: profile } = await supabase.from('profiles').select('role, full_name').eq('id', user.id).maybeSingle();
         const role = profile?.role || user.user_metadata?.role;
-        const isPlatformAdmin = ['Superadmin', 'Admin', 'superadmin', 'admin'].includes(role) || user.email === 'projects@cortdevs.com';
+        const isPlatformAdmin =
+            ['Superadmin', 'Admin', 'superadmin', 'admin'].includes(role) ||
+            ['projects@cortdevs.com', 'learn@cortdevs.com'].includes((user.email || '').toLowerCase());
 
         if (!isPlatformAdmin) {
             res.status(403).json({ error: 'Access denied. Contact your CortDevs administrator for an account.' });
@@ -219,7 +221,7 @@ export async function requireLmsAdmin(req: VercelRequest, res: VercelResponse) {
     const isAdmin =
         member.enrollment.role === 'admin' ||
         ['Superadmin', 'Admin', 'superadmin', 'admin'].includes(platformRole) ||
-        member.user.email === 'projects@cortdevs.com';
+        ['projects@cortdevs.com', 'learn@cortdevs.com'].includes((member.user.email || '').toLowerCase());
 
     if (!isAdmin) {
         res.status(403).json({ error: 'Cohort administrator access required.' });
