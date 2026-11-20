@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { getIsSplitsubsSubdomain } from '../../lib/subdomain';
+import { getIsLearnSubdomain, getIsSplitsubsSubdomain } from '../../lib/subdomain';
 
 export interface BrandingConfig {
     headerLogo: string;
@@ -124,7 +124,7 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
         // own title/description/favicon shortly after each load with the
         // shared "main" site_config row's values — the fix is to just not
         // run it there.
-        if (getIsSplitsubsSubdomain()) return;
+        if (getIsSplitsubsSubdomain() || getIsLearnSubdomain()) return;
 
         // Update Title
         if (config.siteTitle) {

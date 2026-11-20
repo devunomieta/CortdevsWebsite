@@ -38,3 +38,11 @@ export function getSplitsubsAppUrl(): string {
     if (!configured || LOCAL_URL_RE.test(configured)) return SPLITSUBS_URL;
     return configured;
 }
+
+const LEARN_URL = 'https://learn.cortdevs.com';
+
+export function getLearnAppUrl(): string {
+    const configured = process.env.LEARN_APP_URL;
+    if (!configured || LOCAL_URL_RE.test(configured)) return LEARN_URL;
+    return configured;
+}

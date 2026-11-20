@@ -30,6 +30,7 @@ export default defineConfig({
         // See vercel.json's host-matched rewrite for splitsubs.cortdevs.com.
         main: path.resolve(__dirname, 'index.html'),
         splitsubs: path.resolve(__dirname, 'splitsubs.html'),
+        learn: path.resolve(__dirname, 'learn.html'),
       },
     },
   },

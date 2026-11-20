@@ -28,6 +28,25 @@ import authVerifyPasswordHandler from './_handlers/auth/verify-password.js';
 import cronEventRetentionHandler from './_handlers/cron/event-retention.js';
 import cronSplitsubsEscrowReleaseHandler from './_handlers/cron/splitsubs-escrow-release.js';
 import cronSplitsubsRenewalRemindersHandler from './_handlers/cron/splitsubs-renewal-reminders.js';
+import cronLmsDailyRemindersHandler from './_handlers/cron/lms-daily-reminders.js';
+import cronLmsWeeklyDigestHandler from './_handlers/cron/lms-weekly-digest.js';
+
+import lmsSignupHandler from './_handlers/lms/signup.js';
+import lmsProfileHandler from './_handlers/lms/profile.js';
+import lmsCurriculumHandler from './_handlers/lms/curriculum.js';
+import lmsLessonHandler from './_handlers/lms/lesson.js';
+import lmsProgressHeartbeatHandler from './_handlers/lms/progress-heartbeat.js';
+import lmsProgressCompleteHandler from './_handlers/lms/progress-complete.js';
+import lmsQuizSubmitHandler from './_handlers/lms/quiz-submit.js';
+import lmsProjectSubmitHandler from './_handlers/lms/project-submit.js';
+import lmsDiscussionsHandler from './_handlers/lms/discussions.js';
+
+import adminLmsOverviewHandler from './_handlers/admin/lms/overview.js';
+import adminLmsCohortsHandler from './_handlers/admin/lms/cohorts.js';
+import adminLmsInvitesHandler from './_handlers/admin/lms/invites.js';
+import adminLmsReviewsHandler from './_handlers/admin/lms/reviews.js';
+import adminLmsNudgeHandler from './_handlers/admin/lms/nudge.js';
+import adminLmsQuizKeysHandler from './_handlers/admin/lms/quiz-keys.js';
 
 import eventsAttendanceHandler from './_handlers/events/attendance.js';
 import eventsAttendeesHandler from './_handlers/events/attendees.js';
@@ -163,6 +182,23 @@ const routes: Record<string, (req: VercelRequest, res: VercelResponse) => any> =
   'admin/splitsubs/transactions': adminSplitsubsTransactionsHandler,
   'admin/splitsubs/service-requests': adminSplitsubsServiceRequestsHandler,
   'admin/splitsubs/seat-messages': adminSplitsubsSeatMessagesHandler,
+  'cron/lms-daily-reminders': cronLmsDailyRemindersHandler,
+  'cron/lms-weekly-digest': cronLmsWeeklyDigestHandler,
+  'lms/signup': lmsSignupHandler,
+  'lms/profile': lmsProfileHandler,
+  'lms/curriculum': lmsCurriculumHandler,
+  'lms/lesson': lmsLessonHandler,
+  'lms/progress-heartbeat': lmsProgressHeartbeatHandler,
+  'lms/progress-complete': lmsProgressCompleteHandler,
+  'lms/quiz-submit': lmsQuizSubmitHandler,
+  'lms/project-submit': lmsProjectSubmitHandler,
+  'lms/discussions': lmsDiscussionsHandler,
+  'admin/lms/overview': adminLmsOverviewHandler,
+  'admin/lms/cohorts': adminLmsCohortsHandler,
+  'admin/lms/invites': adminLmsInvitesHandler,
+  'admin/lms/reviews': adminLmsReviewsHandler,
+  'admin/lms/nudge': adminLmsNudgeHandler,
+  'admin/lms/quiz-keys': adminLmsQuizKeysHandler,
 };
 
 // Reads the raw request body (once) and, for JSON payloads, parses it onto

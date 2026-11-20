@@ -5,9 +5,10 @@ import { router } from './routes';
 import { jobsRouter } from '../jobs-portal/routes';
 import { eventsRouter } from '../events-portal/routes';
 import { splitsubsRouter } from '../splitsubs-portal/routes';
+import { learnRouter } from '../learn-portal/routes';
 import { ConfigProvider } from './context/ConfigContext';
 import { ToastProvider } from './components/Toast';
-import { getIsSplitsubsSubdomain } from '../lib/subdomain';
+import { getIsLearnSubdomain, getIsSplitsubsSubdomain } from '../lib/subdomain';
 
 // Support production subdomain matching AND local dev testing via ?mode=jobs or ?subdomain=jobs query param or jobs.localhost host
 const getIsJobsSubdomain = () => {
@@ -41,8 +42,17 @@ export default function App() {
   const isJobs = getIsJobsSubdomain();
   const isEvents = getIsEventsSubdomain();
   const isSplitsubs = getIsSplitsubsSubdomain();
+  const isLearn = getIsLearnSubdomain();
 
-  const activeRouter = isJobs ? jobsRouter : isEvents ? eventsRouter : isSplitsubs ? splitsubsRouter : router;
+  const activeRouter = isJobs
+    ? jobsRouter
+    : isEvents
+      ? eventsRouter
+      : isSplitsubs
+        ? splitsubsRouter
+        : isLearn
+          ? learnRouter
+          : router;
 
   return (
     <ConfigProvider>

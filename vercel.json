@@ -11,6 +11,11 @@
         },
         {
             "source": "/((?!api/).*)",
+            "has": [{ "type": "host", "value": "learn.cortdevs.com" }],
+            "destination": "/learn.html"
+        },
+        {
+            "source": "/((?!api/).*)",
             "destination": "/index.html"
         }
     ],
@@ -26,6 +31,14 @@
         {
             "path": "/api/cron/splitsubs-renewal-reminders",
             "schedule": "0 8 * * *"
+        },
+        {
+            "path": "/api/cron/lms-daily-reminders",
+            "schedule": "0 7 * * *"
+        },
+        {
+            "path": "/api/cron/lms-weekly-digest",
+            "schedule": "0 6 * * 1"
         }
     ]
 }

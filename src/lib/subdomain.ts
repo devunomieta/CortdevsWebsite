@@ -14,3 +14,16 @@ export function getIsSplitsubsSubdomain(): boolean {
         searchParams.get('subdomain') === 'splitsubs'
     );
 }
+
+export function getIsLearnSubdomain(): boolean {
+    if (typeof window === 'undefined') return false;
+    const hostname = window.location.hostname;
+    const searchParams = new URLSearchParams(window.location.search);
+
+    return (
+        hostname.startsWith('learn.') ||
+        hostname.includes('learn.cortdevs.com') ||
+        searchParams.get('mode') === 'learn' ||
+        searchParams.get('subdomain') === 'learn'
+    );
+}
