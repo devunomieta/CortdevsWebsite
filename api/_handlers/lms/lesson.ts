@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabase } from '../../_lib/supabase.js';
 import { evaluateLessonAccess, requireLmsMember, sanitizeQuizForClient } from '../../_lib/lmsGate.js';
-import { isR2Configured, signLessonVideoUrl } from '../../_lib/lmsR2.js';
+import { isR2Configured, resolveReadingHtmlImages, signLessonVideoUrl } from '../../_lib/lmsR2.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'GET') {
@@ -135,6 +135,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             );
         }
 
+        let readingContentHtml: string | null = null;
+        if (lesson.lesson_type === 'reading') {
+            readingContentHtml = await resolveReadingHtmlImages(lesson.content_html, 1800);
+        }
+
         return res.status(200).json({
             lesson: {
                 id: lesson.id,
@@ -152,7 +157,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 duration_seconds: lesson.duration_seconds,
                 chapters: lesson.chapters_json || [],
                 // reading
-                content_html: lesson.lesson_type === 'reading' ? lesson.content_html : null,
+                content_html: readingContentHtml,
                 word_count: lesson.word_count,
                 min_dwell_seconds: lesson.min_dwell_seconds,
                 // quiz (answer keys ALWAYS stripped!)

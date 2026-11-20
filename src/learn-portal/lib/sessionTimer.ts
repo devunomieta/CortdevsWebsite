@@ -54,6 +54,12 @@ export function sanitizeReadingHtml(html: string): string {
             el.setAttribute('target', '_blank');
             el.setAttribute('rel', 'noopener noreferrer');
         }
+        if (el.tagName === 'IMG') {
+            el.setAttribute('loading', 'lazy');
+            el.setAttribute('decoding', 'async');
+            el.removeAttribute('width');
+            el.removeAttribute('height');
+        }
     });
 
     return doc.body.innerHTML;

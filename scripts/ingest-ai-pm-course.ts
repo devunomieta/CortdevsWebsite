@@ -14,6 +14,7 @@
  */
 
 import 'dotenv/config';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -25,6 +26,43 @@ const ROOT_DIR = path.resolve(process.cwd(), 'Microsoft AI Product Manager-All A
 const SLICED_DIR = path.resolve(process.cwd(), 'tmp/lms-videos');
 const PREVIEW_FILE = path.resolve(process.cwd(), 'tmp/lms-manifest-preview.json');
 const QUIZ_KEYS_FILE = path.resolve(process.cwd(), 'scripts/quiz-answer-keys.json');
+
+const extractedReadingImages = new Map<string, { contentType: string; buffer?: Buffer }>();
+
+function extensionFromMime(mime: string): string {
+    const clean = mime.toLowerCase().split(';')[0].trim();
+    if (clean === 'image/jpeg' || clean === 'image/jpg') return 'jpg';
+    if (clean === 'image/png') return 'png';
+    if (clean === 'image/webp') return 'webp';
+    if (clean === 'image/gif') return 'gif';
+    if (clean === 'image/svg+xml') return 'svg';
+    if (clean === 'image/bmp') return 'bmp';
+    if (clean === 'image/tiff') return 'tiff';
+    return 'png';
+}
+
+async function convertDocxToHtmlWithR2Tokens(docAbs: string): Promise<string> {
+    const htmlRes = await mammoth.convertToHtml(
+        { path: docAbs },
+        {
+            convertImage: mammoth.images.imgElement(async (image: any) => {
+                const buf: Buffer = await image.read();
+                const contentType = String(image.contentType || 'image/png');
+                const ext = extensionFromMime(contentType);
+                const hash = crypto.createHash('sha256').update(buf).digest('hex').slice(0, 24);
+                const r2Key = `reading-images/${hash}.${ext}`;
+                if (!extractedReadingImages.has(r2Key)) {
+                    extractedReadingImages.set(r2Key, {
+                        contentType,
+                        buffer: DO_UPLOAD_R2 ? buf : undefined,
+                    });
+                }
+                return { src: `r2://${r2Key}` };
+            }),
+        },
+    );
+    return htmlRes.value || '';
+}
 
 const args = new Set(process.argv.slice(2));
 const RUN_ALL = args.has('--all');
@@ -497,7 +535,7 @@ async function buildManifest(): Promise<ManifestCourse[]> {
 
                     if (parsed.questions.length === 0) {
                         // Misnamed pure reading (e.g., C2 M3 "SWOT analysis in action")
-                        const htmlRes = await mammoth.convertToHtml({ path: docAbs });
+                        const convertedHtml = await convertDocxToHtmlWithR2Tokens(docAbs);
                         const words = rawText.split(/\s+/).filter(Boolean).length;
                         const estMins = Math.max(3, Math.round(words / 200));
                         const minDwell = Math.max(30, Math.min(360, Math.round((words / 250) * 60 * 0.4)));
@@ -512,7 +550,7 @@ async function buildManifest(): Promise<ManifestCourse[]> {
                             title: readingTitle,
                             sourcePath: relPath,
                             estimatedMinutes: estMins,
-                            contentHtml: htmlRes.value || `<p>${rawText}</p>`,
+                            contentHtml: convertedHtml || `<p>${rawText}</p>`,
                             wordCount: words,
                             minDwellSeconds: minDwell,
                         });
@@ -541,7 +579,7 @@ async function buildManifest(): Promise<ManifestCourse[]> {
                         });
                     }
                 } else {
-                    const htmlRes = await mammoth.convertToHtml({ path: docAbs });
+                    const convertedHtml = await convertDocxToHtmlWithR2Tokens(docAbs);
                     const words = rawText.split(/\s+/).filter(Boolean).length;
                     const estMins = Math.max(3, Math.round(words / 200));
                     const minDwell = Math.max(30, Math.min(360, Math.round((words / 250) * 60 * 0.4)));
@@ -556,7 +594,7 @@ async function buildManifest(): Promise<ManifestCourse[]> {
                         title: cleanTitle,
                         sourcePath: relPath,
                         estimatedMinutes: estMins,
-                        contentHtml: htmlRes.value || `<p>${rawText}</p>`,
+                        contentHtml: convertedHtml || `<p>${rawText}</p>`,
                         wordCount: words,
                         minDwellSeconds: minDwell,
                     });
@@ -783,7 +821,38 @@ async function uploadVideosToR2(courses: ManifestCourse[], cleanupAfterUpload = 
             }
         }
     }
-    console.log(`R2 Upload complete: ${uploaded} uploaded, ${skipped} already present.`);
+    console.log(`R2 Video Upload complete: ${uploaded} uploaded, ${skipped} already present.`);
+
+    if (extractedReadingImages.size > 0) {
+        let imgUploaded = 0;
+        let imgSkipped = 0;
+        for (const [r2Key, entry] of extractedReadingImages.entries()) {
+            if (!entry.buffer) continue;
+            try {
+                await r2.send(new HeadObjectCommand({ Bucket: bucket, Key: r2Key }));
+                imgSkipped += 1;
+                continue;
+            } catch (err: any) {
+                const status = err?.$metadata?.httpStatusCode;
+                const name = err?.name || '';
+                if (status !== 404 && name !== 'NotFound' && name !== 'NoSuchKey') {
+                    throw err;
+                }
+            }
+            await r2.send(
+                new PutObjectCommand({
+                    Bucket: bucket,
+                    Key: r2Key,
+                    Body: entry.buffer,
+                    ContentLength: entry.buffer.length,
+                    ContentType: entry.contentType,
+                    CacheControl: 'public, max-age=31536000, immutable',
+                }),
+            );
+            imgUploaded += 1;
+        }
+        console.log(`R2 Reading Images complete: ${imgUploaded} uploaded, ${imgSkipped} already present.`);
+    }
 }
 
 async function seedDatabaseAndAssets(courses: ManifestCourse[]) {
