@@ -44,6 +44,7 @@ import lmsDiscussionsHandler from './_handlers/lms/discussions.js';
 import adminLmsOverviewHandler from './_handlers/admin/lms/overview.js';
 import adminLmsCohortsHandler from './_handlers/admin/lms/cohorts.js';
 import adminLmsInvitesHandler from './_handlers/admin/lms/invites.js';
+import adminLmsMembersHandler from './_handlers/admin/lms/members.js';
 import adminLmsReviewsHandler from './_handlers/admin/lms/reviews.js';
 import adminLmsNudgeHandler from './_handlers/admin/lms/nudge.js';
 import adminLmsQuizKeysHandler from './_handlers/admin/lms/quiz-keys.js';
@@ -196,6 +197,7 @@ const routes: Record<string, (req: VercelRequest, res: VercelResponse) => any> =
   'admin/lms/overview': adminLmsOverviewHandler,
   'admin/lms/cohorts': adminLmsCohortsHandler,
   'admin/lms/invites': adminLmsInvitesHandler,
+  'admin/lms/members': adminLmsMembersHandler,
   'admin/lms/reviews': adminLmsReviewsHandler,
   'admin/lms/nudge': adminLmsNudgeHandler,
   'admin/lms/quiz-keys': adminLmsQuizKeysHandler,

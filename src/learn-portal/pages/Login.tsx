@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router';
-import { GraduationCap, Lock, Loader2, ArrowRight } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router';
+import { Loader2, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { CortDevsLearnLogo, CoursePartnerStrip } from '../components/BrandLogos';
 
 export function LearnLogin() {
     const navigate = useNavigate();
@@ -10,6 +11,7 @@ export function LearnLogin() {
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -32,70 +34,90 @@ export function LearnLogin() {
     };
 
     return (
-        <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-6">
-            <div className="w-full max-w-md space-y-6">
-                <div className="text-center space-y-2">
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center mx-auto shadow-xl shadow-indigo-500/25">
-                        <GraduationCap className="w-7 h-7 text-white" />
+        <div className="min-h-screen bg-neutral-50 text-neutral-950 flex flex-col justify-between p-6">
+            <div className="max-w-7xl w-full mx-auto pt-2 flex items-center justify-between">
+                <CortDevsLearnLogo size="md" />
+                <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-[0.22em] text-neutral-500">
+                    Private Team Cohort
+                </span>
+            </div>
+
+            <div className="w-full max-w-md mx-auto my-10 space-y-6">
+                <div className="text-center space-y-3">
+                    <div className="flex justify-center">
+                        <CoursePartnerStrip compact />
                     </div>
-                    <h1 className="text-2xl font-bold tracking-tight">CortDevs Learn</h1>
-                    <p className="text-sm text-slate-400">Microsoft AI Product Manager · Private Team Cohort</p>
+                    <h1 className="text-2xl sm:text-3xl font-light tracking-tight text-neutral-950">
+                        AI Product Manager <span className="font-semibold">Cohort</span>
+                    </h1>
                 </div>
 
                 <form
                     onSubmit={handleSubmit}
-                    className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 sm:p-8 space-y-4 shadow-2xl"
+                    className="bg-white border border-neutral-200 p-6 sm:p-8 space-y-5 shadow-sm"
                 >
-                    <div className="flex items-center gap-2 text-xs text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 rounded-lg px-3 py-2">
-                        <Lock className="w-3.5 h-3.5 shrink-0" />
-                        <span>Gated team portal — invite-only sequential cohort access.</span>
-                    </div>
-
                     {error && (
-                        <div className="text-sm text-red-300 bg-red-500/10 border border-red-500/30 rounded-lg px-3.5 py-2.5">
+                        <div className="text-sm text-red-700 bg-red-50 border border-red-200 px-3.5 py-2.5">
                             {error}
                         </div>
                     )}
 
                     <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-slate-300">Work Email</label>
+                        <label className="text-[11px] font-bold uppercase tracking-[0.15em] text-neutral-700">
+                            Email Address
+                        </label>
                         <input
                             type="email"
                             required
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            placeholder="you@cortdevs.com"
-                            className="w-full rounded-lg bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+                            placeholder="name@example.com"
+                            className="w-full bg-white border border-neutral-300 px-3.5 py-2.5 text-sm text-neutral-950 placeholder:text-neutral-400 focus:outline-none focus:border-neutral-950 transition"
                         />
                     </div>
 
                     <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-slate-300">Password</label>
-                        <input
-                            type="password"
-                            required
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            placeholder="••••••••"
-                            className="w-full rounded-lg bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
-                        />
+                        <label className="text-[11px] font-bold uppercase tracking-[0.15em] text-neutral-700">
+                            Password
+                        </label>
+                        <div className="relative">
+                            <input
+                                type={showPassword ? 'text' : 'password'}
+                                required
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                placeholder="••••••••"
+                                className="w-full bg-white border border-neutral-300 px-3.5 py-2.5 pr-11 text-sm text-neutral-950 placeholder:text-neutral-400 focus:outline-none focus:border-neutral-950 transition"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword((prev) => !prev)}
+                                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-950 p-1 transition"
+                            >
+                                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </button>
+                        </div>
                     </div>
 
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full py-2.5 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white text-sm font-semibold flex items-center justify-center gap-2 transition"
+                        className="w-full py-3.5 px-4 bg-[#030213] hover:bg-neutral-800 disabled:opacity-60 text-white text-xs font-bold uppercase tracking-[0.2em] flex items-center justify-center gap-2 transition"
                     >
-                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Sign In <ArrowRight className="w-4 h-4" /></>}
+                        {loading ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                            <>
+                                Sign In <ArrowRight className="w-3.5 h-3.5" />
+                            </>
+                        )}
                     </button>
-
-                    <div className="text-center pt-2 text-xs text-slate-400">
-                        Have an invite from your team lead?{' '}
-                        <Link to="/signup" className="text-indigo-400 hover:text-indigo-300 font-medium">
-                            Activate your account
-                        </Link>
-                    </div>
                 </form>
+            </div>
+
+            <div className="text-center text-[11px] text-neutral-400 pb-2">
+                CortDevs · Precision Engineering & Product Excellence
             </div>
         </div>
     );

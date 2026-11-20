@@ -33,14 +33,14 @@ async function sendLmsEmail(opts: SendLmsEmailOptions): Promise<boolean> {
     }
 
     const html = `
-      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif; max-width: 580px; margin: 0 auto; color: #111827; line-height: 1.65; background: #ffffff; padding: 28px; border: 1px solid #e5e7eb; border-radius: 12px;">
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #f3f4f6;">
-          <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.18em; color: #4f46e5;">CortDevs Learn · AI Product Manager Cohort</span>
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif; max-width: 580px; margin: 0 auto; color: #111827; line-height: 1.65; background: #ffffff; padding: 28px; border: 1px solid #e4e4e7;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #e4e4e7;">
+          <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.2em; color: #030213;">CortDevs · Learn</span>
         </div>
         ${opts.bodyHtml}
-        <p style="color: #6b7280; font-size: 12px; margin-top: 32px; padding-top: 16px; border-top: 1px solid #f3f4f6;">
+        <p style="color: #71717a; font-size: 12px; margin-top: 32px; padding-top: 16px; border-top: 1px solid #f4f4f5;">
           You're receiving this as a member of the CortDevs Microsoft AI Product Manager cohort.
-          <a href="${getLearnAppUrl()}/settings" style="color: #4f46e5; text-decoration: none;">Manage reminder schedule</a>.
+          <a href="${getLearnAppUrl()}/settings" style="color: #030213; text-decoration: underline;">Manage reminder schedule</a>.
         </p>
       </div>
     `;
@@ -81,7 +81,47 @@ async function sendLmsEmail(opts: SendLmsEmailOptions): Promise<boolean> {
 }
 
 const ctaButton = (href: string, label: string) =>
-    `<p style="margin: 24px 0;"><a href="${href}" style="display:inline-block;padding:12px 24px;background:#111827;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">${label}</a></p>`;
+    `<p style="margin: 24px 0;"><a href="${href}" style="display:inline-block;padding:12px 24px;background:#030213;color:#ffffff;text-decoration:none;font-weight:600;font-size:13px;letter-spacing:0.08em;text-transform:uppercase;">${label}</a></p>`;
+
+export async function sendLmsCredentialsEmail(params: {
+    to: string;
+    fullName: string;
+    password: string;
+    cohortName: string;
+    startDate: string;
+    isPasswordReset?: boolean;
+    cohortId: string;
+    userId: string;
+}) {
+    const loginUrl = `${getLearnAppUrl()}/login`;
+    const isReset = Boolean(params.isPasswordReset);
+    return sendLmsEmail({
+        to: params.to,
+        subject: isReset
+            ? `Your CortDevs Learn password was updated`
+            : `Your CortDevs Learn login credentials — ${params.cohortName}`,
+        emailType: isReset ? 'credentials_reset' : 'credentials_created',
+        cohortId: params.cohortId,
+        userId: params.userId,
+        bodyHtml: `
+            <h2 style="margin: 0 0 12px; font-size: 20px; color: #030213;">${
+                isReset ? `Password updated, ${params.fullName}` : `Welcome to CortDevs Learn, ${params.fullName}`
+            }</h2>
+            <p>${
+                isReset
+                    ? `An administrator has updated your password for <strong>${params.cohortName}</strong>. Use your updated credentials below to sign in:`
+                    : `Your access account for <strong>${params.cohortName}</strong> has been created. Use the credentials below to sign in and begin your course:`
+            }</p>
+            <div style="background: #f4f4f5; border: 1px solid #e4e4e7; padding: 16px 18px; margin: 18px 0; font-size: 14px;">
+                <div style="margin-bottom: 6px;"><strong>Portal URL:</strong> <a href="${loginUrl}" style="color:#030213;">${loginUrl}</a></div>
+                <div style="margin-bottom: 6px;"><strong>Email Address:</strong> ${params.to}</div>
+                <div><strong>Password:</strong> <code style="background:#ffffff;padding:2px 8px;border:1px solid #d4d4d8;font-family:monospace;font-size:14px;">${params.password}</code></div>
+            </div>
+            ${!isReset ? `<p style="font-size: 13px; color: #52525b;"><strong>Cohort Start Date:</strong> ${params.startDate}</p>` : ''}
+            ${ctaButton(loginUrl, 'Sign In to CortDevs Learn')}
+        `,
+    });
+}
 
 export async function sendLmsInvite(params: {
     to: string;

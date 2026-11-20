@@ -1,18 +1,22 @@
 import React from 'react';
 import { Link, NavLink, Outlet, Navigate, useLocation } from 'react-router';
-import { BookOpen, Flame, GraduationCap, LogOut, Settings, ShieldCheck, Loader2 } from 'lucide-react';
+import { BookOpen, Flame, LogOut, Settings, ShieldCheck, Loader2 } from 'lucide-react';
 import { useLearnAuth } from '../context/LearnAuthContext';
+import { CortDevsLearnLogo } from './BrandLogos';
 
 export function LearnLayout() {
-    const { loading, user, enrollment, cohort, authError, isAdmin, signOut } = useLearnAuth();
+    const { loading, user, enrollment, authError, isAdmin, signOut } = useLearnAuth();
     const location = useLocation();
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-slate-950 text-slate-200 flex items-center justify-center">
-                <div className="flex items-center gap-3 text-slate-400">
-                    <Loader2 className="w-5 h-5 animate-spin text-indigo-400" />
-                    <span className="text-sm font-medium">Loading your cohort workspace...</span>
+            <div className="min-h-screen bg-white text-neutral-900 flex items-center justify-center">
+                <div className="flex flex-col items-center gap-4">
+                    <CortDevsLearnLogo size="md" />
+                    <div className="flex items-center gap-2 text-neutral-500 text-xs uppercase tracking-[0.2em]">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-neutral-950" />
+                        <span>Loading Cohort Workspace</span>
+                    </div>
                 </div>
             </div>
         );
@@ -24,19 +28,21 @@ export function LearnLayout() {
 
     if (!enrollment) {
         return (
-            <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-6">
-                <div className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-2xl p-8 text-center space-y-4">
-                    <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mx-auto">
-                        <GraduationCap className="w-6 h-6 text-amber-400" />
+            <div className="min-h-screen bg-neutral-50 text-neutral-950 flex items-center justify-center p-6">
+                <div className="max-w-md w-full bg-white border border-neutral-200 p-8 text-center space-y-5 shadow-sm">
+                    <div className="flex justify-center">
+                        <CortDevsLearnLogo size="md" />
                     </div>
-                    <h1 className="text-xl font-semibold">Cohort Invite Required</h1>
-                    <p className="text-sm text-slate-400">
-                        {authError || 'This learning portal is invite-only for CortDevs AI Product Manager cohort members.'}
-                    </p>
-                    <p className="text-xs text-slate-500">Signed in as {user.email}</p>
+                    <div className="space-y-2">
+                        <h1 className="text-xl font-semibold tracking-tight">Access Restricted</h1>
+                        <p className="text-sm text-neutral-600">
+                            {authError || 'Your account does not currently have active access to this learning portal. Contact your CortDevs administrator.'}
+                        </p>
+                    </div>
+                    <p className="text-xs text-neutral-500">Signed in as {user.email}</p>
                     <button
                         onClick={signOut}
-                        className="w-full py-2.5 px-4 rounded-lg bg-slate-800 hover:bg-slate-700 text-sm font-medium transition"
+                        className="w-full py-3 px-4 bg-[#030213] hover:bg-neutral-800 text-white text-xs font-bold uppercase tracking-[0.2em] transition"
                     >
                         Sign Out
                     </button>
@@ -46,41 +52,33 @@ export function LearnLayout() {
     }
 
     const navItemClass = ({ isActive }: { isActive: boolean }) =>
-        `inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition ${
+        `inline-flex items-center gap-2 px-3 py-1.5 text-xs uppercase tracking-[0.16em] transition ${
             isActive
-                ? 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/30'
-                : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/70'
+                ? 'text-neutral-950 font-bold border-b-2 border-neutral-950'
+                : 'text-neutral-500 hover:text-neutral-950 font-medium'
         }`;
 
     return (
-        <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
-            <header className="sticky top-0 z-30 border-b border-slate-800/80 bg-slate-950/90 backdrop-blur">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-6">
-                        <Link to="/dashboard" className="flex items-center gap-2.5 group">
-                            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                                <GraduationCap className="w-5 h-5 text-white" />
-                            </div>
-                            <div className="leading-tight">
-                                <div className="text-sm font-bold tracking-tight text-white">CortDevs Learn</div>
-                                <div className="text-[11px] text-slate-400 truncate max-w-[190px] sm:max-w-[260px]">
-                                    {cohort?.name || 'AI Product Manager Cohort'}
-                                </div>
-                            </div>
+        <div className="min-h-screen bg-neutral-50/60 text-neutral-950 flex flex-col font-sans">
+            <header className="sticky top-0 z-30 border-b border-neutral-200 bg-white/95 backdrop-blur-md">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-8">
+                        <Link to="/dashboard" className="group transition-opacity hover:opacity-85">
+                            <CortDevsLearnLogo size="md" />
                         </Link>
 
-                        <nav className="hidden md:flex items-center gap-1">
+                        <nav className="hidden md:flex items-center gap-6">
                             <NavLink to="/dashboard" className={navItemClass}>
-                                <BookOpen className="w-4 h-4" />
+                                <BookOpen className="w-3.5 h-3.5" />
                                 Roadmap
                             </NavLink>
                             <NavLink to="/settings" className={navItemClass}>
-                                <Settings className="w-4 h-4" />
+                                <Settings className="w-3.5 h-3.5" />
                                 Reminders
                             </NavLink>
                             {isAdmin && (
                                 <NavLink to="/admin" className={navItemClass}>
-                                    <ShieldCheck className="w-4 h-4" />
+                                    <ShieldCheck className="w-3.5 h-3.5" />
                                     Team Admin
                                 </NavLink>
                             )}
@@ -90,21 +88,23 @@ export function LearnLayout() {
                     <div className="flex items-center gap-3">
                         <div
                             title="Active daily study streak"
-                            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/25 text-orange-300 text-xs font-semibold"
+                            className="inline-flex items-center gap-1.5 px-3 py-1 bg-neutral-100 border border-neutral-200 text-neutral-900 text-xs font-semibold"
                         >
-                            <Flame className="w-3.5 h-3.5 text-orange-400" />
+                            <Flame className="w-3.5 h-3.5 text-amber-600" />
                             <span>{enrollment.current_streak || 0}d streak</span>
                         </div>
 
-                        <div className="hidden sm:flex flex-col text-right leading-tight">
-                            <span className="text-xs font-semibold text-slate-200">{enrollment.full_name}</span>
-                            <span className="text-[11px] text-slate-400 capitalize">{enrollment.role}</span>
+                        <div className="hidden sm:flex flex-col text-right leading-tight pl-2 border-l border-neutral-200">
+                            <span className="text-xs font-semibold text-neutral-900">{enrollment.full_name}</span>
+                            <span className="text-[10px] uppercase tracking-[0.15em] text-neutral-500">
+                                {enrollment.role}
+                            </span>
                         </div>
 
                         <button
                             onClick={signOut}
                             title="Sign out"
-                            className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+                            className="p-2 text-neutral-500 hover:text-neutral-950 hover:bg-neutral-100 transition"
                         >
                             <LogOut className="w-4 h-4" />
                         </button>
@@ -112,24 +112,31 @@ export function LearnLayout() {
                 </div>
 
                 {/* Mobile quick nav */}
-                <div className="md:hidden border-t border-slate-800/80 px-4 py-2 flex items-center gap-2 overflow-x-auto">
+                <div className="md:hidden border-t border-neutral-200 px-4 py-2 flex items-center gap-4 overflow-x-auto bg-white">
                     <NavLink to="/dashboard" className={navItemClass}>
-                        <BookOpen className="w-4 h-4" /> Roadmap
+                        <BookOpen className="w-3.5 h-3.5" /> Roadmap
                     </NavLink>
                     <NavLink to="/settings" className={navItemClass}>
-                        <Settings className="w-4 h-4" /> Reminders
+                        <Settings className="w-3.5 h-3.5" /> Reminders
                     </NavLink>
                     {isAdmin && (
                         <NavLink to="/admin" className={navItemClass}>
-                            <ShieldCheck className="w-4 h-4" /> Admin
+                            <ShieldCheck className="w-3.5 h-3.5" /> Admin
                         </NavLink>
                     )}
                 </div>
             </header>
 
-            <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8">
+            <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <Outlet />
             </main>
+
+            <footer className="border-t border-neutral-200 bg-white mt-12">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex flex-wrap items-center justify-between gap-4 text-xs text-neutral-500">
+                    <span>© {new Date().getFullYear()} CortDevs · Private Internal Learning Portal</span>
+                    <span className="text-[11px] tracking-[0.12em] uppercase">Microsoft AI Product Manager Cohort</span>
+                </div>
+            </footer>
         </div>
     );
 }

@@ -133,50 +133,53 @@ export async function requireLmsMember(req: VercelRequest, res: VercelResponse):
     const user = await verifyAuth(req, res);
     if (!user) return null;
 
-    // Fetch active enrollment
+    // Fetch enrollment (including paused/removed so we can return clear block status)
     const { data: enrollments } = await supabase
         .from('lms_enrollments')
         .select('*, lms_cohorts(*)')
         .eq('user_id', user.id)
-        .neq('status', 'removed')
         .order('created_at', { ascending: false })
         .limit(1);
 
     let enrollmentRow = enrollments?.[0];
 
-    // If not enrolled yet, check if platform admin OR invited by email
+    if (enrollmentRow) {
+        if (enrollmentRow.status === 'paused') {
+            res.status(403).json({
+                error: 'Your access has been temporarily suspended by your administrator.',
+                code: 'TEMP_BLOCKED',
+            });
+            return null;
+        }
+        if (enrollmentRow.status === 'removed') {
+            res.status(403).json({
+                error: 'Your access to this learning portal has been permanently revoked.',
+                code: 'PERM_BLOCKED',
+            });
+            return null;
+        }
+    }
+
+    // If not enrolled yet, only platform admins auto-bootstrap
     if (!enrollmentRow) {
         const { data: profile } = await supabase.from('profiles').select('role, full_name').eq('id', user.id).maybeSingle();
         const role = profile?.role || user.user_metadata?.role;
         const isPlatformAdmin = ['Superadmin', 'Admin', 'superadmin', 'admin'].includes(role) || user.email === 'projects@cortdevs.com';
 
-        const { data: invite } = await supabase
-            .from('lms_invites')
-            .select('*')
-            .ilike('email', user.email || '')
+        if (!isPlatformAdmin) {
+            res.status(403).json({ error: 'Access denied. Contact your CortDevs administrator for an account.' });
+            return null;
+        }
+
+        const { data: activeCohort } = await supabase
+            .from('lms_cohorts')
+            .select('id')
+            .eq('is_active', true)
             .order('created_at', { ascending: false })
             .limit(1)
             .maybeSingle();
 
-        if (!isPlatformAdmin && !invite) {
-            res.status(403).json({ error: 'Invite required. Ask your team lead for a CortDevs Learn cohort invite.' });
-            return null;
-        }
-
-        // Resolve cohort
-        let cohortId = invite?.cohort_id;
-        if (!cohortId) {
-            const { data: activeCohort } = await supabase
-                .from('lms_cohorts')
-                .select('id')
-                .eq('is_active', true)
-                .order('created_at', { ascending: false })
-                .limit(1)
-                .maybeSingle();
-            cohortId = activeCohort?.id;
-        }
-
-        if (!cohortId) {
+        if (!activeCohort?.id) {
             res.status(404).json({ error: 'No active learning cohort exists yet.' });
             return null;
         }
@@ -184,23 +187,19 @@ export async function requireLmsMember(req: VercelRequest, res: VercelResponse):
         const { data: created, error: createErr } = await supabase
             .from('lms_enrollments')
             .insert({
-                cohort_id: cohortId,
+                cohort_id: activeCohort.id,
                 user_id: user.id,
                 email: (user.email || '').toLowerCase(),
-                full_name: invite?.full_name || user.user_metadata?.full_name || profile?.full_name || (user.email || '').split('@')[0],
-                role: isPlatformAdmin || invite?.role === 'admin' ? 'admin' : 'learner',
-                onboarding_completed: isPlatformAdmin,
+                full_name: user.user_metadata?.full_name || profile?.full_name || (user.email || '').split('@')[0],
+                role: 'admin',
+                onboarding_completed: true,
             })
             .select('*, lms_cohorts(*)')
             .single();
 
         if (createErr || !created) {
-            res.status(500).json({ error: 'Failed to initialize enrollment', details: createErr?.message });
+            res.status(500).json({ error: 'Failed to initialize admin enrollment', details: createErr?.message });
             return null;
-        }
-
-        if (invite && !invite.accepted_at) {
-            await supabase.from('lms_invites').update({ accepted_at: new Date().toISOString() }).eq('id', invite.id);
         }
 
         enrollmentRow = created;

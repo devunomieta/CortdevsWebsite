@@ -46,65 +46,65 @@ export function LearnSettings() {
     return (
         <div className="max-w-2xl mx-auto space-y-6">
             <div>
-                <h1 className="text-2xl font-bold text-white flex items-center gap-2.5">
-                    <Bell className="w-6 h-6 text-indigo-400" />
-                    Learning Reminders & Preferences
+                <h1 className="text-2xl font-light tracking-tight text-neutral-950 flex items-center gap-2.5">
+                    <Bell className="w-5 h-5 text-neutral-900" />
+                    Learning <span className="font-semibold">Reminders & Preferences</span>
                 </h1>
-                <p className="text-sm text-slate-400 mt-1">
+                <p className="text-sm text-neutral-500 mt-1">
                     Daily reminders are automatically skipped on days when you have already completed at least one lesson.
                 </p>
             </div>
 
-            <form onSubmit={handleSave} className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-5">
+            <form onSubmit={handleSave} className="bg-white border border-neutral-200 p-6 space-y-5">
                 {savedMsg && (
-                    <div className="flex items-center gap-2 text-sm text-emerald-300 bg-emerald-500/10 border border-emerald-500/25 rounded-lg px-4 py-2.5">
-                        <CheckCircle2 className="w-4 h-4" />
+                    <div className="flex items-center gap-2 text-sm text-emerald-800 bg-emerald-50 border border-emerald-200 px-4 py-2.5">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                         {savedMsg}
                     </div>
                 )}
                 {error && (
-                    <div className="text-sm text-red-300 bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-2.5">
+                    <div className="text-sm text-red-700 bg-red-50 border border-red-200 px-4 py-2.5">
                         {error}
                     </div>
                 )}
 
                 <div className="grid sm:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-slate-300">Full Name</label>
+                        <label className="text-[11px] font-bold uppercase tracking-[0.15em] text-neutral-700">Full Name</label>
                         <input
                             type="text"
                             value={fullName}
                             onChange={(e) => setFullName(e.target.value)}
-                            className="w-full rounded-lg bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-sm text-white"
+                            className="w-full bg-white border border-neutral-300 px-3.5 py-2.5 text-sm text-neutral-950 focus:outline-none focus:border-neutral-950"
                         />
                     </div>
                     <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-slate-300">Role</label>
+                        <label className="text-[11px] font-bold uppercase tracking-[0.15em] text-neutral-700">Role</label>
                         <input
                             type="text"
                             value={jobRole}
                             onChange={(e) => setJobRole(e.target.value)}
-                            className="w-full rounded-lg bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-sm text-white"
+                            className="w-full bg-white border border-neutral-300 px-3.5 py-2.5 text-sm text-neutral-950 focus:outline-none focus:border-neutral-950"
                         />
                     </div>
                 </div>
 
                 <div className="grid sm:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-slate-300">Timezone</label>
+                        <label className="text-[11px] font-bold uppercase tracking-[0.15em] text-neutral-700">Timezone</label>
                         <input
                             type="text"
                             value={timezone}
                             onChange={(e) => setTimezone(e.target.value)}
-                            className="w-full rounded-lg bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-sm text-white"
+                            className="w-full bg-white border border-neutral-300 px-3.5 py-2.5 text-sm text-neutral-950 focus:outline-none focus:border-neutral-950"
                         />
                     </div>
                     <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-slate-300">Preferred Reminder Hour</label>
+                        <label className="text-[11px] font-bold uppercase tracking-[0.15em] text-neutral-700">Preferred Reminder Hour</label>
                         <select
                             value={reminderHour}
                             onChange={(e) => setReminderHour(Number(e.target.value))}
-                            className="w-full rounded-lg bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-sm text-white"
+                            className="w-full bg-white border border-neutral-300 px-3.5 py-2.5 text-sm text-neutral-950 focus:outline-none focus:border-neutral-950"
                         >
                             {Array.from({ length: 18 }, (_, i) => i + 5).map((h) => (
                                 <option key={h} value={h}>
@@ -117,7 +117,7 @@ export function LearnSettings() {
 
                 <div className="grid sm:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-slate-300">Weekly Study Commitment (hrs)</label>
+                        <label className="text-[11px] font-bold uppercase tracking-[0.15em] text-neutral-700">Weekly Study Commitment (hrs)</label>
                         <input
                             type="number"
                             step="0.5"
@@ -125,16 +125,16 @@ export function LearnSettings() {
                             max={30}
                             value={weeklyHours}
                             onChange={(e) => setWeeklyHours(Number(e.target.value))}
-                            className="w-full rounded-lg bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-sm text-white"
+                            className="w-full bg-white border border-neutral-300 px-3.5 py-2.5 text-sm text-neutral-950 focus:outline-none focus:border-neutral-950"
                         />
                     </div>
                     <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-slate-300">Snooze Reminders Until (optional)</label>
+                        <label className="text-[11px] font-bold uppercase tracking-[0.15em] text-neutral-700">Snooze Reminders Until (optional)</label>
                         <input
                             type="date"
                             value={emailPausedUntil}
                             onChange={(e) => setEmailPausedUntil(e.target.value)}
-                            className="w-full rounded-lg bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-sm text-white"
+                            className="w-full bg-white border border-neutral-300 px-3.5 py-2.5 text-sm text-neutral-950 focus:outline-none focus:border-neutral-950"
                         />
                     </div>
                 </div>
@@ -144,15 +144,15 @@ export function LearnSettings() {
                         type="checkbox"
                         checked={weekendReminders}
                         onChange={(e) => setWeekendReminders(e.target.checked)}
-                        className="rounded border-slate-700 bg-slate-950 text-indigo-600 focus:ring-indigo-500"
+                        className="accent-neutral-950"
                     />
-                    <span className="text-sm text-slate-300">Send daily learning reminders on Saturday & Sunday too</span>
+                    <span className="text-sm text-neutral-700">Send daily learning reminders on Saturday & Sunday too</span>
                 </label>
 
                 <button
                     type="submit"
                     disabled={saving}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white text-sm font-semibold transition"
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-[#030213] hover:bg-neutral-800 disabled:opacity-60 text-white text-xs font-bold uppercase tracking-[0.18em] transition"
                 >
                     {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                     Save Preferences

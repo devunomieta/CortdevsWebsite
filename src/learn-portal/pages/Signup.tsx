@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import { CheckCircle2, GraduationCap, Loader2, ShieldAlert } from 'lucide-react';
+import { CheckCircle2, Loader2, ShieldAlert } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { learnApi } from '../lib/api';
+import { CortDevsLearnLogo, CoursePartnerStrip } from '../components/BrandLogos';
 
 export function LearnSignup() {
     const navigate = useNavigate();
@@ -59,7 +60,6 @@ export function LearnSignup() {
                 },
             });
 
-            // Auto sign-in immediately after account creation
             const { error: loginErr } = await supabase.auth.signInWithPassword({
                 email: email.trim().toLowerCase(),
                 password,
@@ -74,76 +74,93 @@ export function LearnSignup() {
     };
 
     return (
-        <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-6">
-            <div className="w-full max-w-lg space-y-6">
-                <div className="text-center space-y-2">
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center mx-auto">
-                        <GraduationCap className="w-7 h-7 text-white" />
+        <div className="min-h-screen bg-neutral-50 text-neutral-950 flex flex-col justify-between p-6">
+            <div className="max-w-7xl w-full mx-auto pt-2 flex items-center justify-between">
+                <CortDevsLearnLogo size="md" />
+                <Link
+                    to="/login"
+                    className="text-xs font-bold uppercase tracking-[0.18em] text-neutral-600 hover:text-neutral-950"
+                >
+                    Sign In
+                </Link>
+            </div>
+
+            <div className="w-full max-w-lg mx-auto my-8 space-y-6">
+                <div className="text-center space-y-3">
+                    <div className="flex justify-center">
+                        <CoursePartnerStrip compact />
                     </div>
-                    <h1 className="text-2xl font-bold">Join the AI Product Manager Cohort</h1>
-                    <p className="text-sm text-slate-400">Create your gated learner profile & set your daily learning reminder.</p>
+                    <h1 className="text-2xl sm:text-3xl font-light tracking-tight">
+                        Activate Your <span className="font-semibold">Cohort Seat</span>
+                    </h1>
+                    <p className="text-sm text-neutral-500">
+                        Set up your gated learner profile & daily study reminder schedule.
+                    </p>
                 </div>
 
                 {checkingInvite ? (
-                    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 text-center text-slate-400 text-sm flex items-center justify-center gap-2">
-                        <Loader2 className="w-4 h-4 animate-spin text-indigo-400" />
+                    <div className="bg-white border border-neutral-200 p-8 text-center text-neutral-500 text-sm flex items-center justify-center gap-2">
+                        <Loader2 className="w-4 h-4 animate-spin text-neutral-950" />
                         Verifying your invite link...
                     </div>
                 ) : inviteError ? (
-                    <div className="bg-slate-900 border border-red-500/30 rounded-2xl p-8 text-center space-y-3">
-                        <ShieldAlert className="w-8 h-8 text-red-400 mx-auto" />
-                        <p className="text-sm text-red-200">{inviteError}</p>
-                        <Link to="/login" className="inline-block text-xs text-indigo-400 hover:underline">
+                    <div className="bg-white border border-red-200 p-8 text-center space-y-3">
+                        <ShieldAlert className="w-8 h-8 text-red-600 mx-auto" />
+                        <p className="text-sm text-red-700">{inviteError}</p>
+                        <Link to="/login" className="inline-block text-xs font-semibold text-neutral-950 underline">
                             Back to Login
                         </Link>
                     </div>
                 ) : (
-                    <form
-                        onSubmit={handleSubmit}
-                        className="bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 space-y-4 shadow-2xl"
-                    >
+                    <form onSubmit={handleSubmit} className="bg-white border border-neutral-200 p-6 sm:p-8 space-y-4 shadow-sm">
                         {inviteInfo?.cohort && (
-                            <div className="flex items-start gap-2.5 text-xs text-emerald-300 bg-emerald-500/10 border border-emerald-500/25 rounded-lg p-3">
-                                <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                            <div className="flex items-start gap-2.5 text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 p-3">
+                                <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-emerald-600" />
                                 <div>
                                     <div className="font-semibold">Invite Verified · {inviteInfo.cohort.name}</div>
-                                    <div className="text-emerald-200/70">Cohort starts {inviteInfo.cohort.start_date}</div>
+                                    <div className="text-emerald-700/80">Cohort starts {inviteInfo.cohort.start_date}</div>
                                 </div>
                             </div>
                         )}
 
                         {error && (
-                            <div className="text-sm text-red-300 bg-red-500/10 border border-red-500/30 rounded-lg px-3.5 py-2.5">
+                            <div className="text-sm text-red-700 bg-red-50 border border-red-200 px-3.5 py-2.5">
                                 {error}
                             </div>
                         )}
 
                         <div className="grid sm:grid-cols-2 gap-4">
                             <div className="space-y-1.5">
-                                <label className="text-xs font-medium text-slate-300">Full Name</label>
+                                <label className="text-[11px] font-bold uppercase tracking-[0.15em] text-neutral-700">
+                                    Full Name
+                                </label>
                                 <input
                                     type="text"
                                     required
                                     value={fullName}
                                     onChange={(e) => setFullName(e.target.value)}
                                     placeholder="Adaeze Okafor"
-                                    className="w-full rounded-lg bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+                                    className="w-full bg-white border border-neutral-300 px-3.5 py-2.5 text-sm text-neutral-950 focus:outline-none focus:border-neutral-950"
                                 />
                             </div>
                             <div className="space-y-1.5">
-                                <label className="text-xs font-medium text-slate-300">Team Role</label>
+                                <label className="text-[11px] font-bold uppercase tracking-[0.15em] text-neutral-700">
+                                    Team Role
+                                </label>
                                 <input
                                     type="text"
                                     value={jobRole}
                                     onChange={(e) => setJobRole(e.target.value)}
                                     placeholder="Product / Engineering / Design"
-                                    className="w-full rounded-lg bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+                                    className="w-full bg-white border border-neutral-300 px-3.5 py-2.5 text-sm text-neutral-950 focus:outline-none focus:border-neutral-950"
                                 />
                             </div>
                         </div>
 
                         <div className="space-y-1.5">
-                            <label className="text-xs font-medium text-slate-300">Invited Email Address</label>
+                            <label className="text-[11px] font-bold uppercase tracking-[0.15em] text-neutral-700">
+                                Invited Email Address
+                            </label>
                             <input
                                 type="email"
                                 required
@@ -151,12 +168,14 @@ export function LearnSignup() {
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 placeholder="you@cortdevs.com"
-                                className="w-full rounded-lg bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-sm text-white disabled:opacity-60 focus:outline-none focus:border-indigo-500"
+                                className="w-full bg-white border border-neutral-300 px-3.5 py-2.5 text-sm text-neutral-950 read-only:bg-neutral-100 focus:outline-none focus:border-neutral-950"
                             />
                         </div>
 
                         <div className="space-y-1.5">
-                            <label className="text-xs font-medium text-slate-300">Create Password (min 8 chars)</label>
+                            <label className="text-[11px] font-bold uppercase tracking-[0.15em] text-neutral-700">
+                                Create Password (min 8 chars)
+                            </label>
                             <input
                                 type="password"
                                 required
@@ -164,17 +183,19 @@ export function LearnSignup() {
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 placeholder="Choose a strong password"
-                                className="w-full rounded-lg bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+                                className="w-full bg-white border border-neutral-300 px-3.5 py-2.5 text-sm text-neutral-950 focus:outline-none focus:border-neutral-950"
                             />
                         </div>
 
-                        <div className="grid sm:grid-cols-2 gap-4 pt-2 border-t border-slate-800">
+                        <div className="grid sm:grid-cols-2 gap-4 pt-3 border-t border-neutral-200">
                             <div className="space-y-1.5">
-                                <label className="text-xs font-medium text-slate-300">Daily Reminder Time</label>
+                                <label className="text-[11px] font-bold uppercase tracking-[0.15em] text-neutral-700">
+                                    Daily Reminder Time
+                                </label>
                                 <select
                                     value={reminderHour}
                                     onChange={(e) => setReminderHour(Number(e.target.value))}
-                                    className="w-full rounded-lg bg-slate-950 border border-slate-800 px-3 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+                                    className="w-full bg-white border border-neutral-300 px-3 py-2.5 text-sm text-neutral-950 focus:outline-none focus:border-neutral-950"
                                 >
                                     {[6, 7, 8, 9, 12, 17, 19, 20].map((h) => (
                                         <option key={h} value={h}>
@@ -184,11 +205,13 @@ export function LearnSignup() {
                                 </select>
                             </div>
                             <div className="space-y-1.5">
-                                <label className="text-xs font-medium text-slate-300">Weekly Study Goal</label>
+                                <label className="text-[11px] font-bold uppercase tracking-[0.15em] text-neutral-700">
+                                    Weekly Study Goal
+                                </label>
                                 <select
                                     value={weeklyHours}
                                     onChange={(e) => setWeeklyHours(Number(e.target.value))}
-                                    className="w-full rounded-lg bg-slate-950 border border-slate-800 px-3 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+                                    className="w-full bg-white border border-neutral-300 px-3 py-2.5 text-sm text-neutral-950 focus:outline-none focus:border-neutral-950"
                                 >
                                     <option value={6}>6 hrs/week (16-week light)</option>
                                     <option value={7.5}>7.5 hrs/week (12-week recommended)</option>
@@ -200,19 +223,23 @@ export function LearnSignup() {
                         <button
                             type="submit"
                             disabled={submitting}
-                            className="w-full py-3 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white text-sm font-semibold flex items-center justify-center gap-2 transition"
+                            className="w-full py-3.5 px-4 bg-[#030213] hover:bg-neutral-800 disabled:opacity-60 text-white text-xs font-bold uppercase tracking-[0.2em] flex items-center justify-center gap-2 transition"
                         >
                             {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Activate Cohort Access'}
                         </button>
 
-                        <div className="text-center text-xs text-slate-400">
+                        <div className="text-center text-xs text-neutral-500 pt-1">
                             Already activated?{' '}
-                            <Link to="/login" className="text-indigo-400 hover:underline">
+                            <Link to="/login" className="text-neutral-950 font-semibold underline underline-offset-4">
                                 Sign in
                             </Link>
                         </div>
                     </form>
                 )}
+            </div>
+
+            <div className="text-center text-[11px] text-neutral-400 pb-2">
+                CortDevs · Precision Engineering & Product Excellence
             </div>
         </div>
     );

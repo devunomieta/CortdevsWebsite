@@ -3,7 +3,6 @@ import { createBrowserRouter, Navigate, Outlet } from 'react-router';
 import { LearnAuthProvider } from './context/LearnAuthContext';
 import { LearnLayout } from './components/LearnLayout';
 import { LearnLogin } from './pages/Login';
-import { LearnSignup } from './pages/Signup';
 import { RoadmapDashboard } from './pages/RoadmapDashboard';
 import { LessonPlayer } from './pages/LessonPlayer';
 import { LearnSettings } from './pages/Settings';
@@ -22,7 +21,7 @@ export const learnRouter = createBrowserRouter([
         element: <LearnRoot />,
         children: [
             { path: '/login', element: <LearnLogin /> },
-            { path: '/signup', element: <LearnSignup /> },
+            { path: '/signup', element: <Navigate to="/login" replace /> },
             {
                 path: '/',
                 element: <LearnLayout />,
