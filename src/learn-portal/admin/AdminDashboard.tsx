@@ -4,7 +4,6 @@ import {
     AlertTriangle,
     Ban,
     BellRing,
-    Calendar,
     Check,
     CheckCircle2,
     Copy,
@@ -505,13 +504,24 @@ export function LearnAdminDashboard() {
                     <p className="text-sm text-neutral-500">{overview?.cohort?.name}</p>
                 </div>
 
-                <button
-                    onClick={handleExportPdf}
-                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#030213] hover:bg-neutral-800 text-xs font-bold uppercase tracking-[0.16em] text-white transition"
-                >
-                    <FileDown className="w-4 h-4" />
-                    Export PDF Report
-                </button>
+                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                    <button
+                        type="button"
+                        onClick={() => setTab('team')}
+                        className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#030213] hover:bg-neutral-800 text-xs font-bold uppercase tracking-[0.16em] text-white transition"
+                    >
+                        <UserPlus className="w-4 h-4" />
+                        Add Learner
+                    </button>
+                    <button
+                        type="button"
+                        onClick={handleExportPdf}
+                        className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white hover:bg-neutral-100 border border-neutral-300 text-xs font-bold uppercase tracking-[0.16em] text-neutral-900 transition"
+                    >
+                        <FileDown className="w-4 h-4" />
+                        Export PDF
+                    </button>
+                </div>
             </div>
 
             {toast && (
@@ -556,13 +566,13 @@ export function LearnAdminDashboard() {
             <div className="flex items-center gap-2 border-b border-neutral-200 pb-3 overflow-x-auto">
                 {[
                     { id: 'matrix', label: 'Team Progress', icon: Users },
+                    { id: 'team', label: `Accounts & Schedule (${members.length})`, icon: UserPlus },
                     { id: 'reviews', label: `Project Reviews (${overview?.summary?.pendingReviewsCount || 0})`, icon: FolderCheck },
                     {
                         id: 'qa',
                         label: `Session Q&A (${questions.filter((q) => q.status !== 'answered').length} open)`,
                         icon: MessageSquare,
                     },
-                    { id: 'team', label: `Team & Schedule (${members.length})`, icon: Calendar },
                     { id: 'quizzes', label: `Quiz Answers (${overview?.summary?.unverifiedQuizzesCount || 0} left)`, icon: FileQuestion },
                 ].map((t) => {
                     const Icon = t.icon;
