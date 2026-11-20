@@ -5,6 +5,13 @@ import { sendLmsCredentialsEmail } from '../../../_lib/lmsEmail.js';
 import { getLearnAppUrl } from '../../../_lib/appUrl.js';
 
 const ROOT_ADMIN_EMAIL = 'learn@cortdevs.com';
+const PLATFORM_ADMIN_EMAILS = new Set(['learn@cortdevs.com', 'projects@cortdevs.com']);
+
+async function isProtectedPlatformAdmin(userId: string, email: string): Promise<boolean> {
+    if (PLATFORM_ADMIN_EMAILS.has(email.toLowerCase())) return true;
+    const { data: profile } = await supabase.from('profiles').select('role').eq('id', userId).maybeSingle();
+    return ['Superadmin', 'Admin', 'superadmin', 'admin'].includes(profile?.role || '');
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     const admin = await requireLmsAdmin(req, res);
@@ -50,7 +57,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             });
 
             if (authErr) {
-                // If user already exists in Supabase Auth, look them up and update password + attach to cohort
+                // If user already exists in Supabase Auth, attach them safely — NEVER overwrite a platform Superadmin's password!
                 if (/already|registered|exists/i.test(authErr.message)) {
                     const { data: listData } = await supabase.auth.admin.listUsers({ perPage: 1000 });
                     const existingAuth = listData?.users?.find((u: any) => u.email?.toLowerCase() === cleanEmail);
@@ -58,10 +65,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         return res.status(409).json({ error: authErr.message });
                     }
                     userId = existingAuth.id;
-                    const { error: updErr } = await supabase.auth.admin.updateUserById(userId, {
+                    const protectedAdmin = await isProtectedPlatformAdmin(existingAuth.id, cleanEmail);
+                    if (protectedAdmin && (admin.user.email || '').toLowerCase() !== cleanEmail) {
+                        return res.status(403).json({
+                            error: 'This email belongs to a protected CortDevs administrator account whose password cannot be overwritten here.',
+                        });
+                    }
+                    const { error: updErr } = await supabase.auth.admin.updateUserById(existingAuth.id, {
                         password: cleanPassword,
                         email_confirm: true,
-                        ban_duration: 'none',
                     });
                     if (updErr) return res.status(500).json({ error: updErr.message });
                 } else {
@@ -151,12 +163,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             if (!member) return res.status(404).json({ error: 'Member not found in this cohort.' });
 
             const targetIsRootAdmin = member.email.toLowerCase() === ROOT_ADMIN_EMAIL;
+            const targetIsProtectedPlatformAdmin = await isProtectedPlatformAdmin(targetUserId, member.email);
             const actorIsRootAdmin = (admin.user.email || '').toLowerCase() === ROOT_ADMIN_EMAIL;
 
             if (action === 'reset_password') {
-                if (targetIsRootAdmin && !actorIsRootAdmin) {
+                if ((targetIsRootAdmin || targetIsProtectedPlatformAdmin) && !actorIsRootAdmin && targetUserId !== admin.user.id) {
                     return res.status(403).json({
-                        error: 'The primary admin account (learn@cortdevs.com) is protected and cannot be modified by other admins.',
+                        error: 'Protected administrator accounts cannot have their password changed by other admins.',
                     });
                 }
                 const cleanPassword = String(password || '');
@@ -272,12 +285,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
                 if (updErr) return res.status(500).json({ error: updErr.message });
 
-                // Also enforce/lift auth ban for permanent block vs active restore
-                if (status === 'removed') {
-                    await supabase.auth.admin.updateUserById(targetUserId, { ban_duration: '876000h' }).catch(() => {});
-                } else if (status === 'active') {
-                    await supabase.auth.admin.updateUserById(targetUserId, { ban_duration: 'none' }).catch(() => {});
-                }
+                // Note: Access revocation is strictly enforced at the CortDevs Learn layer
+                // (requireLmsMember blocks 'paused' and 'removed' with 403) rather than applying
+                // a global Supabase Auth ban that could accidentally lock a user out of SplitSubs/Events.
 
                 await logLmsEvent({
                     cohortId: admin.cohort.id,

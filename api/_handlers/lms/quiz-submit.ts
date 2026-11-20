@@ -26,6 +26,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         cohort: member.cohort,
         enrollment: member.enrollment,
         lessonId: String(lessonId),
+        includeContent: true,
     });
     if (!access.allowed) {
         return res.status(403).json({ error: 'Lesson locked', reason: access.reason });

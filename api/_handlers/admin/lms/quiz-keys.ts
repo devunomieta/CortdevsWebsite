@@ -31,8 +31,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (req.method === 'PATCH') {
         const { lessonId, questions, verified = true, passThresholdPct = 80 } = req.body || {};
-        if (!lessonId || !Array.isArray(questions)) {
-            return res.status(400).json({ error: 'lessonId and questions array required.' });
+        if (!lessonId || !Array.isArray(questions) || questions.length === 0 || questions.length > 100) {
+            return res.status(400).json({ error: 'lessonId and valid questions array (1–100 items) required.' });
         }
 
         const { data, error } = await supabase

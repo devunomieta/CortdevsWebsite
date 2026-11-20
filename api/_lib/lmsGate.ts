@@ -235,11 +235,15 @@ export async function requireLmsAdmin(req: VercelRequest, res: VercelResponse) {
  *   1. Weekly Monday Drip Gate (module.target_week)
  *   2. Strict Sequential Prerequisite Gate (lesson global_order - 1 must be completed)
  * Admins can preview any lesson; overrides bypass either lock cleanly.
+ *
+ * By default (`includeContent: false`), selects ONLY lightweight lesson metadata
+ * (never `content_html` or `quiz_questions_json`) to minimize Supabase free-tier egress!
  */
 export async function evaluateLessonAccess(params: {
     cohort: LmsCohort;
     enrollment: LmsEnrollment;
     lessonId: string;
+    includeContent?: boolean;
 }): Promise<{
     allowed: boolean;
     reason?: 'drip_locked' | 'prerequisite_locked' | 'not_found';
@@ -249,17 +253,21 @@ export async function evaluateLessonAccess(params: {
     lesson?: any;
     module?: any;
 }> {
-    const { cohort, enrollment, lessonId } = params;
+    const { cohort, enrollment, lessonId, includeContent = false } = params;
+
+    const lessonColumns = includeContent
+        ? '*, lms_modules(id, title, target_week, global_order, lms_courses(id, title))'
+        : 'id, module_id, slug, order_index, global_order, lesson_type, title, estimated_minutes, duration_seconds, min_dwell_seconds, pass_threshold_pct, quiz_keys_verified, lms_modules(id, title, target_week, global_order, lms_courses(id, title))';
 
     const { data: lesson } = await supabase
         .from('lms_lessons')
-        .select('*, lms_modules(*, lms_courses(*))')
+        .select(lessonColumns)
         .eq('id', lessonId)
         .maybeSingle();
 
     if (!lesson) return { allowed: false, reason: 'not_found' };
 
-    const mod = lesson.lms_modules;
+    const mod = (lesson as any).lms_modules;
 
     // Fetch overrides for this user or cohort-wide
     const { data: overrides } = await supabase

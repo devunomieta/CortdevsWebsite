@@ -1,20 +1,11 @@
 import React from 'react';
-import { createBrowserRouter, Navigate, Outlet } from 'react-router';
-import { LearnAuthProvider } from './context/LearnAuthContext';
+import { createBrowserRouter, Navigate } from 'react-router';
+import { LearnRoot, LazyAdminRoute } from './components/LearnRoot';
 import { LearnLayout } from './components/LearnLayout';
 import { LearnLogin } from './pages/Login';
 import { RoadmapDashboard } from './pages/RoadmapDashboard';
 import { LessonPlayer } from './pages/LessonPlayer';
 import { LearnSettings } from './pages/Settings';
-import { LearnAdminDashboard } from './admin/AdminDashboard';
-
-function LearnRoot() {
-    return (
-        <LearnAuthProvider>
-            <Outlet />
-        </LearnAuthProvider>
-    );
-}
 
 export const learnRouter = createBrowserRouter([
     {
@@ -30,7 +21,7 @@ export const learnRouter = createBrowserRouter([
                     { path: 'dashboard', element: <RoadmapDashboard /> },
                     { path: 'lesson/:lessonId', element: <LessonPlayer /> },
                     { path: 'settings', element: <LearnSettings /> },
-                    { path: 'admin', element: <LearnAdminDashboard /> },
+                    { path: 'admin', element: <LazyAdminRoute /> },
                 ],
             },
             { path: '*', element: <Navigate to="/dashboard" replace /> },

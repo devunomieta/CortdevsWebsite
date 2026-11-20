@@ -43,9 +43,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (req.method === 'POST') {
         const { moduleId, body, parentId } = req.body || {};
-        const cleanBody = String(body || '').trim();
+        const cleanBody = String(body || '').trim().slice(0, 2000);
         if (!moduleId || cleanBody.length < 3) {
-            return res.status(400).json({ error: 'moduleId and a comment body are required.' });
+            return res.status(400).json({ error: 'moduleId and a comment (3–2000 chars) are required.' });
         }
 
         const { data, error } = await supabase

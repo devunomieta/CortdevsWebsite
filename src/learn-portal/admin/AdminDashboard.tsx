@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Navigate } from 'react-router';
 import {
     AlertTriangle,
@@ -29,8 +29,6 @@ import {
     UserPlus,
     Users,
 } from 'lucide-react';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { useLearnAuth } from '../context/LearnAuthContext';
 import { learnApi } from '../lib/api';
 
@@ -112,37 +110,48 @@ export function LearnAdminDashboard() {
 
     const actorIsRootAdmin = (user?.email || '').toLowerCase() === ROOT_ADMIN_EMAIL;
 
-    const showToast = (msg: string) => {
+    const showToast = useCallback((msg: string) => {
         setToast(msg);
         window.setTimeout(() => setToast(null), 4500);
-    };
+    }, []);
 
-    const loadAll = async () => {
+    const refreshOverview = useCallback(async () => {
+        const ov = await learnApi('admin/lms/overview');
+        setOverview(ov);
+        setCohortStart(ov.cohort?.start_date || '');
+        setCohortEnd(ov.cohort?.target_end_date || '');
+        setCohortPacing(ov.cohort?.pacing_mode || 'weekly_drip_sequential');
+    }, []);
+
+    const refreshMembers = useCallback(async () => {
+        const mem = await learnApi('admin/lms/members');
+        setMembers(mem.members || []);
+    }, []);
+
+    const refreshReviews = useCallback(async () => {
+        const rev = await learnApi('admin/lms/reviews');
+        setReviews(rev.submissions || []);
+    }, []);
+
+    const refreshQuizzes = useCallback(async () => {
+        const qz = await learnApi('admin/lms/quiz-keys');
+        setQuizzes(qz.quizzes || []);
+    }, []);
+
+    const loadAll = useCallback(async () => {
         setLoading(true);
         try {
-            const [ov, rev, mem, qz] = await Promise.all([
-                learnApi('admin/lms/overview'),
-                learnApi('admin/lms/reviews'),
-                learnApi('admin/lms/members'),
-                learnApi('admin/lms/quiz-keys'),
-            ]);
-            setOverview(ov);
-            setCohortStart(ov.cohort?.start_date || '');
-            setCohortEnd(ov.cohort?.target_end_date || '');
-            setCohortPacing(ov.cohort?.pacing_mode || 'weekly_drip_sequential');
-            setReviews(rev.submissions || []);
-            setMembers(mem.members || []);
-            setQuizzes(qz.quizzes || []);
+            await Promise.all([refreshOverview(), refreshReviews(), refreshMembers(), refreshQuizzes()]);
         } catch (err: any) {
             showToast(err?.message || 'Failed to load admin data');
         } finally {
             setLoading(false);
         }
-    };
+    }, [refreshMembers, refreshOverview, refreshQuizzes, refreshReviews, showToast]);
 
     useEffect(() => {
         if (isAdmin) loadAll();
-    }, [isAdmin]);
+    }, [isAdmin, loadAll]);
 
     if (!isAdmin) return <Navigate to="/dashboard" replace />;
 
@@ -178,7 +187,7 @@ export function LearnAdminDashboard() {
                     ? 'Account created and login details emailed!'
                     : 'Account created! Copy the login details below or send via email.',
             );
-            loadAll();
+            await Promise.all([refreshMembers(), refreshOverview()]);
         } catch (err: any) {
             showToast(err?.message || 'Failed to create account');
         } finally {
@@ -272,7 +281,7 @@ export function LearnAdminDashboard() {
                     ? `${member.full_name} is now an Admin.`
                     : `Admin access removed from ${member.full_name}.`,
             );
-            loadAll();
+            await refreshMembers();
         } catch (err: any) {
             showToast(err?.message || 'Failed to update role');
         }
@@ -301,7 +310,7 @@ export function LearnAdminDashboard() {
                       ? 'permanently blocked'
                       : 'restored to active';
             showToast(`${member.full_name} has been ${label}.`);
-            loadAll();
+            await Promise.all([refreshMembers(), refreshOverview()]);
         } catch (err: any) {
             showToast(err?.message || 'Failed to update access status');
         }
@@ -320,7 +329,7 @@ export function LearnAdminDashboard() {
                 },
             });
             showToast('Course start date and weekly schedule updated!');
-            loadAll();
+            await refreshOverview();
         } catch (err: any) {
             showToast(err?.message || 'Update failed');
         } finally {
@@ -334,7 +343,7 @@ export function LearnAdminDashboard() {
             body: { action: 'assign_buddy', enrollmentId, peerBuddyUserId: peerBuddyUserId || null },
         });
         showToast('Study partner updated!');
-        loadAll();
+        await refreshMembers();
     };
 
     const handleReview = async (submissionId: string, status: 'approved' | 'revision_requested') => {
@@ -344,7 +353,7 @@ export function LearnAdminDashboard() {
                 body: { submissionId, reviewStatus: status, feedback: feedbackMap[submissionId] || '' },
             });
             showToast(`Project marked as ${status.replace('_', ' ')} and teammate notified!`);
-            loadAll();
+            await Promise.all([refreshReviews(), refreshOverview()]);
         } catch (err: any) {
             showToast(err?.message || 'Review failed');
         }
@@ -413,11 +422,15 @@ export function LearnAdminDashboard() {
         });
         showToast('Quiz answers saved!');
         setSelectedQuiz(null);
-        loadAll();
+        await Promise.all([refreshQuizzes(), refreshOverview()]);
     };
 
-    const handleExportPdf = () => {
+    const handleExportPdf = async () => {
         if (!overview) return;
+        const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+            import('jspdf'),
+            import('jspdf-autotable'),
+        ]);
         const doc = new jsPDF({ orientation: 'landscape' });
         doc.setFontSize(16);
         doc.text(`CortDevs Learn — Team Progress Report`, 14, 18);

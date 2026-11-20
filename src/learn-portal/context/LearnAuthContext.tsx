@@ -1,6 +1,11 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import { learnApi } from '../lib/api';
+import {
+    clearLearnSessionTimer,
+    isLearnSessionExpired,
+    resetLearnSessionTimer,
+} from '../lib/sessionTimer';
 
 export interface LearnEnrollment {
     id: string;
@@ -70,6 +75,18 @@ export function LearnAuthProvider({ children }: { children: React.ReactNode }) {
             setLoading(false);
             return;
         }
+
+        if (isLearnSessionExpired()) {
+            clearLearnSessionTimer();
+            await supabase.auth.signOut();
+            setUser(null);
+            setEnrollment(null);
+            setCohort(null);
+            setAuthError(null);
+            setLoading(false);
+            return;
+        }
+
         try {
             const res = await learnApi<{ enrollment: LearnEnrollment; cohort: LearnCohort }>('lms/profile');
             setEnrollment(res.enrollment);
@@ -78,7 +95,7 @@ export function LearnAuthProvider({ children }: { children: React.ReactNode }) {
         } catch (err: any) {
             setEnrollment(null);
             setCohort(null);
-            setAuthError(err?.message || 'Unable to load cohort profile.');
+            setAuthError(err?.message || 'Unable to load account profile.');
         } finally {
             setLoading(false);
         }
@@ -86,24 +103,51 @@ export function LearnAuthProvider({ children }: { children: React.ReactNode }) {
 
     useEffect(() => {
         let active = true;
-        supabase.auth.getSession().then(({ data: { session } }) => {
+        supabase.auth.getSession().then(async ({ data: { session } }) => {
             if (!active) return;
             const u = session?.user ?? null;
+            if (u && isLearnSessionExpired()) {
+                clearLearnSessionTimer();
+                await supabase.auth.signOut();
+                if (!active) return;
+                setUser(null);
+                setEnrollment(null);
+                setCohort(null);
+                setLoading(false);
+                return;
+            }
             setUser(u);
             loadProfile(u);
         });
 
         const {
             data: { subscription },
-        } = supabase.auth.onAuthStateChange((_event, session) => {
+        } = supabase.auth.onAuthStateChange((event, session) => {
+            if (event === 'SIGNED_IN') {
+                resetLearnSessionTimer();
+            } else if (event === 'SIGNED_OUT') {
+                clearLearnSessionTimer();
+            }
             const u = session?.user ?? null;
             setUser(u);
             loadProfile(u);
         });
 
+        const onVisibility = async () => {
+            if (document.visibilityState === 'visible' && isLearnSessionExpired()) {
+                const { data } = await supabase.auth.getSession();
+                if (data.session) {
+                    clearLearnSessionTimer();
+                    await supabase.auth.signOut();
+                }
+            }
+        };
+        document.addEventListener('visibilitychange', onVisibility);
+
         return () => {
             active = false;
             subscription.unsubscribe();
+            document.removeEventListener('visibilitychange', onVisibility);
         };
     }, [loadProfile]);
 
@@ -112,6 +156,7 @@ export function LearnAuthProvider({ children }: { children: React.ReactNode }) {
     }, [user, loadProfile]);
 
     const signOut = useCallback(async () => {
+        clearLearnSessionTimer();
         await supabase.auth.signOut();
         setUser(null);
         setEnrollment(null);
@@ -136,6 +181,7 @@ export function LearnAuthProvider({ children }: { children: React.ReactNode }) {
     );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useLearnAuth() {
     return useContext(LearnAuthContext);
 }

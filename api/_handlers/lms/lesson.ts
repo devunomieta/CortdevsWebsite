@@ -21,6 +21,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             cohort: member.cohort,
             enrollment: member.enrollment,
             lessonId,
+            includeContent: true,
         });
 
         if (!access.allowed) {
@@ -100,7 +101,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         // Build content payload specific to lesson type
         let videoSignedUrl: string | null = null;
-        let r2Ready = isR2Configured();
+        const r2Ready = isR2Configured();
         if (lesson.lesson_type === 'video' && lesson.video_r2_key && r2Ready) {
             videoSignedUrl = await signLessonVideoUrl(lesson.video_r2_key, 900);
         }

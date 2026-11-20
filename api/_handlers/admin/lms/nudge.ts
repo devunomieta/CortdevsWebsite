@@ -43,7 +43,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Default: send a personal nudge email to a learner
-    const cleanMsg = String(message || '').trim();
+    const cleanMsg = String(message || '').trim().slice(0, 2000);
     if (!targetUserId || cleanMsg.length < 5) {
         return res.status(400).json({ error: 'targetUserId and a message are required.' });
     }

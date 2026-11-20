@@ -9,9 +9,11 @@ import { sendLmsDailyReminder, sendLmsInactivityNudge } from '../../_lib/lmsEmai
  * - Skips learners who already completed >= 1 lesson today, paused emails, or have finished all currently dripped modules.
  * - Sends standard Daily Reminder OR Day 3 / 5 / 7 Inactivity Escalation (CC'ing cohort admins on Day 7).
  */
+const MAX_DAILY_EMAILS = 80; // Keeps 20/day headroom under Resend Free's 100 emails/day cap
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     const cronSecret = process.env.CRON_SECRET;
-    if (cronSecret && req.headers.authorization !== `Bearer ${cronSecret}`) {
+    if (!cronSecret || req.headers.authorization !== `Bearer ${cronSecret}`) {
         return res.status(401).json({ error: 'Unauthorized' });
     }
 
@@ -71,6 +73,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
 
             for (const enr of enrollments) {
+                if (remindersSent + nudgesSent >= MAX_DAILY_EMAILS) break;
                 if (enr.email_paused_until && enr.email_paused_until >= todayIso) continue;
                 if (isWeekend && !enr.weekend_reminders) continue;
 

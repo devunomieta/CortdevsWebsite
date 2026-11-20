@@ -18,13 +18,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             { data: progress },
             { data: submissions },
             { data: quizAttempts },
-            { data: recentEvents },
         ] = await Promise.all([
             supabase
                 .from('lms_enrollments')
-                .select('*')
+                .select('id, user_id, full_name, email, job_role, role, peer_buddy_user_id, current_streak, longest_streak, last_active_at, created_at, status')
                 .eq('cohort_id', cohort.id)
-                .neq('status', 'removed')
+                .eq('status', 'active')
                 .order('created_at', { ascending: true }),
             supabase
                 .from('lms_modules')
@@ -33,22 +32,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             supabase.from('lms_lessons').select('id, module_id, lesson_type, duration_seconds, quiz_keys_verified'),
             supabase
                 .from('lms_lesson_progress')
-                .select('user_id, lesson_id, status, unique_watched_seconds, active_dwell_seconds, completed_at')
+                .select('user_id, lesson_id, status, unique_watched_seconds, active_dwell_seconds')
                 .eq('cohort_id', cohort.id),
             supabase
                 .from('lms_project_submissions')
-                .select('id, user_id, lesson_id, review_status, submitted_at')
+                .select('id, review_status')
                 .eq('cohort_id', cohort.id),
             supabase
                 .from('lms_quiz_attempts')
-                .select('user_id, lesson_id, score_pct, passed')
+                .select('user_id, score_pct, passed')
                 .eq('cohort_id', cohort.id),
-            supabase
-                .from('lms_activity_events')
-                .select('id, user_id, event_type, metadata, created_at')
-                .eq('cohort_id', cohort.id)
-                .order('created_at', { ascending: false })
-                .limit(30),
         ]);
 
         const allLessons = lessons || [];
@@ -149,9 +142,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const unverifiedQuizzesCount = allLessons.filter((l: any) => l.lesson_type === 'quiz' && !l.quiz_keys_verified).length;
         const totalQuizzesCount = allLessons.filter((l: any) => l.lesson_type === 'quiz').length;
 
-        const nameById = new Map<string, string>();
-        for (const e of enrollments || []) nameById.set(e.user_id, e.full_name);
-
         return res.status(200).json({
             cohort,
             summary: {
@@ -174,10 +164,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 courseOrder: m.lms_courses?.order_index ?? 0,
             })),
             learners: learnerRows,
-            recentEvents: (recentEvents || []).map((ev: any) => ({
-                ...ev,
-                learnerName: nameById.get(ev.user_id) || 'Member',
-            })),
         });
     } catch (err: any) {
         console.error('[admin/lms/overview] Error:', err);

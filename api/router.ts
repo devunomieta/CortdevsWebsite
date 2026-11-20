@@ -31,7 +31,6 @@ import cronSplitsubsRenewalRemindersHandler from './_handlers/cron/splitsubs-ren
 import cronLmsDailyRemindersHandler from './_handlers/cron/lms-daily-reminders.js';
 import cronLmsWeeklyDigestHandler from './_handlers/cron/lms-weekly-digest.js';
 
-import lmsSignupHandler from './_handlers/lms/signup.js';
 import lmsProfileHandler from './_handlers/lms/profile.js';
 import lmsCurriculumHandler from './_handlers/lms/curriculum.js';
 import lmsLessonHandler from './_handlers/lms/lesson.js';
@@ -43,7 +42,6 @@ import lmsDiscussionsHandler from './_handlers/lms/discussions.js';
 
 import adminLmsOverviewHandler from './_handlers/admin/lms/overview.js';
 import adminLmsCohortsHandler from './_handlers/admin/lms/cohorts.js';
-import adminLmsInvitesHandler from './_handlers/admin/lms/invites.js';
 import adminLmsMembersHandler from './_handlers/admin/lms/members.js';
 import adminLmsReviewsHandler from './_handlers/admin/lms/reviews.js';
 import adminLmsNudgeHandler from './_handlers/admin/lms/nudge.js';
@@ -185,7 +183,6 @@ const routes: Record<string, (req: VercelRequest, res: VercelResponse) => any> =
   'admin/splitsubs/seat-messages': adminSplitsubsSeatMessagesHandler,
   'cron/lms-daily-reminders': cronLmsDailyRemindersHandler,
   'cron/lms-weekly-digest': cronLmsWeeklyDigestHandler,
-  'lms/signup': lmsSignupHandler,
   'lms/profile': lmsProfileHandler,
   'lms/curriculum': lmsCurriculumHandler,
   'lms/lesson': lmsLessonHandler,
@@ -196,7 +193,6 @@ const routes: Record<string, (req: VercelRequest, res: VercelResponse) => any> =
   'lms/discussions': lmsDiscussionsHandler,
   'admin/lms/overview': adminLmsOverviewHandler,
   'admin/lms/cohorts': adminLmsCohortsHandler,
-  'admin/lms/invites': adminLmsInvitesHandler,
   'admin/lms/members': adminLmsMembersHandler,
   'admin/lms/reviews': adminLmsReviewsHandler,
   'admin/lms/nudge': adminLmsNudgeHandler,

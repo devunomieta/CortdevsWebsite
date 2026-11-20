@@ -1,19 +1,47 @@
 import React, { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router';
+import { Navigate, useNavigate, useSearchParams } from 'react-router';
 import { Loader2, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { CortDevsLearnLogo, CoursePartnerStrip } from '../components/BrandLogos';
+import { useLearnAuth } from '../context/LearnAuthContext';
+import { resetLearnSessionTimer } from '../lib/sessionTimer';
 
 export function LearnLogin() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
-    const nextUrl = searchParams.get('next') || '/dashboard';
+    const rawNext = searchParams.get('next') || '/dashboard';
+    // Only allow internal relative paths (never redirect back to /login or external URLs)
+    const safeNextUrl =
+        rawNext.startsWith('/') && !rawNext.startsWith('//') && !rawNext.startsWith('/login')
+            ? rawNext
+            : '/dashboard';
+
+    const { loading: authLoading, user, enrollment } = useLearnAuth();
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    if (authLoading) {
+        return (
+            <div className="min-h-screen bg-white text-neutral-900 flex items-center justify-center">
+                <div className="flex flex-col items-center gap-4">
+                    <CortDevsLearnLogo size="md" />
+                    <div className="flex items-center gap-2 text-neutral-500 text-xs uppercase tracking-[0.2em]">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-neutral-950" />
+                        <span>Checking Session</span>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // Auto-redirect already logged-in users straight to their dashboard
+    if (user && enrollment) {
+        return <Navigate to={safeNextUrl} replace />;
+    }
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -25,7 +53,9 @@ export function LearnLogin() {
                 password,
             });
             if (signInErr) throw signInErr;
-            navigate(nextUrl, { replace: true });
+            // Reset the 3-day persistent login timer on every fresh sign-in
+            resetLearnSessionTimer();
+            navigate(safeNextUrl, { replace: true });
         } catch (err: any) {
             setError(err?.message || 'Invalid credentials');
         } finally {

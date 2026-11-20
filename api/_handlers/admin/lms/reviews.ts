@@ -62,7 +62,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             .update({
                 review_status: reviewStatus,
                 reviewer_id: admin.user.id,
-                reviewer_feedback: String(feedback || '').trim(),
+                reviewer_feedback: String(feedback || '').trim().slice(0, 2000),
                 reviewed_at: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
             })

@@ -9,6 +9,17 @@ import {
 import { sendLmsProjectSubmitted } from '../../_lib/lmsEmail.js';
 import { checkAndNotifyModuleCompletion } from './progress-complete.js';
 
+const ALLOWED_EXTENSIONS = new Set(['docx', 'doc', 'xlsx', 'xls', 'csv', 'pdf', 'pptx', 'ppt', 'png', 'jpg', 'jpeg', 'txt', 'md', 'zip']);
+
+function isValidHttpUrl(input: string): boolean {
+    try {
+        const parsed = new URL(input);
+        return parsed.protocol === 'https:' || parsed.protocol === 'http:';
+    } catch {
+        return false;
+    }
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
@@ -24,6 +35,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         cohort: member.cohort,
         enrollment: member.enrollment,
         lessonId: String(lessonId),
+        includeContent: false,
     });
     if (!access.allowed) {
         return res.status(403).json({ error: 'Lesson locked', reason: access.reason });
@@ -31,13 +43,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const lesson = access.lesson;
     if (lesson.lesson_type !== 'project') {
-        return res.status(400).json({ error: 'This lesson is not a project deliverable.' });
+        return res.status(400).json({ error: 'This lesson is not a project assignment.' });
     }
+
+    const expectedPrefix = `submissions/${member.cohort.id}/${member.enrollment.user_id}/${lesson.id}/`;
 
     // Step 1: Request a signed upload URL to private Supabase Storage bucket 'lms-assets'
     if (action === 'upload_url') {
-        const safeName = String(fileName || 'deliverable.docx').replace(/[^a-zA-Z0-9._-]/g, '_');
-        const storagePath = `submissions/${member.cohort.id}/${member.enrollment.user_id}/${lesson.id}/${Date.now()}-${safeName}`;
+        const rawName = String(fileName || 'deliverable.docx').slice(0, 140);
+        const safeName = rawName.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const ext = (safeName.split('.').pop() || '').toLowerCase();
+        if (!ALLOWED_EXTENSIONS.has(ext)) {
+            return res.status(400).json({
+                error: `Unsupported file type (.${ext || 'unknown'}). Allowed: .docx, .xlsx, .pdf, .pptx, .png, .jpg, .csv, .zip`,
+            });
+        }
+
+        const storagePath = `${expectedPrefix}${Date.now()}-${safeName}`;
         const { data, error } = await supabase.storage.from('lms-assets').createSignedUploadUrl(storagePath);
         if (error || !data) {
             return res.status(500).json({ error: error?.message || 'Failed to generate upload URL' });
@@ -50,13 +72,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Step 2: Finalize submission & auto-unlock next lesson (async review mode)
-    const cleanReflection = String(reflectionNotes || '').trim();
-    const cleanUrl = String(externalUrl || '').trim();
-    if (!fileStoragePath && !cleanUrl) {
-        return res.status(400).json({ error: 'Upload a deliverable file or provide a link (Figma / Google Doc / Sheet).' });
+    const cleanReflection = String(reflectionNotes || '').trim().slice(0, 5000);
+    const cleanUrl = String(externalUrl || '').trim().slice(0, 1000);
+    const cleanPath = fileStoragePath ? String(fileStoragePath).trim() : '';
+
+    if (cleanUrl && !isValidHttpUrl(cleanUrl)) {
+        return res.status(400).json({ error: 'External link must start with https:// or http://' });
+    }
+
+    // Security check: strictly enforce that fileStoragePath belongs to THIS user, cohort, and lesson (prevents IDOR / path hijacking)
+    if (cleanPath) {
+        if (!cleanPath.startsWith(expectedPrefix) || cleanPath.includes('..') || cleanPath.includes('\0')) {
+            return res.status(403).json({ error: 'Invalid upload file path.' });
+        }
+    }
+
+    if (!cleanPath && !cleanUrl) {
+        return res.status(400).json({ error: 'Upload a file or provide a link (Figma / Google Doc / Sheet).' });
     }
     if (cleanReflection.length < 40) {
-        return res.status(400).json({ error: 'Include a brief implementation reflection (at least 40 characters).' });
+        return res.status(400).json({ error: 'Include a brief reflection (at least 40 characters).' });
     }
 
     const nowIso = new Date().toISOString();
@@ -67,8 +102,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 cohort_id: member.cohort.id,
                 user_id: member.enrollment.user_id,
                 lesson_id: lesson.id,
-                file_storage_path: fileStoragePath || null,
-                file_name: fileName || null,
+                file_storage_path: cleanPath || null,
+                file_name: fileName ? String(fileName).slice(0, 160) : null,
                 external_url: cleanUrl || null,
                 reflection_notes: cleanReflection,
                 review_status: 'submitted',
@@ -83,7 +118,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (subErr) return res.status(500).json({ error: subErr.message });
 
-    // Auto-unlock next module immediately on upload (locked product decision: async review)
     const autoUnlock = member.cohort.project_gate_mode !== 'approve_to_unlock';
     if (autoUnlock) {
         await supabase.from('lms_lesson_progress').upsert(
@@ -107,16 +141,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         userId: member.enrollment.user_id,
         lessonId: lesson.id,
         eventType: 'project_submitted',
-        metadata: { title: lesson.title, hasFile: Boolean(fileStoragePath), hasUrl: Boolean(cleanUrl) },
+        metadata: { title: lesson.title, hasFile: Boolean(cleanPath), hasUrl: Boolean(cleanUrl) },
     });
 
-    // Notify learner + cohort admins + assigned peer buddy
     const [{ data: admins }, { data: buddy }] = await Promise.all([
         supabase
             .from('lms_enrollments')
             .select('email')
             .eq('cohort_id', member.cohort.id)
-            .eq('role', 'admin'),
+            .eq('role', 'admin')
+            .eq('status', 'active'),
         member.enrollment.peer_buddy_user_id
             ? supabase
                   .from('lms_enrollments')

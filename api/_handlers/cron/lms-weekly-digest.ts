@@ -3,12 +3,13 @@ import { supabase } from '../../_lib/supabase.js';
 import { sendLmsMondayAdminDigest, sendLmsMondayDripLearner } from '../../_lib/lmsEmail.js';
 
 /**
- * Weekly Monday Drip Announcement + Team Accountability Digest (Mondays 06:00 UTC = 07:00 WAT).
- * Gated by CRON_SECRET.
+ * Weekly Monday Drip Announcement + Team Progress Digest (Mondays 06:00 UTC = 07:00 WAT).
+ * Strictly gated by CRON_SECRET (fail-closed).
+ * Also prunes lms_activity_events older than 180 days to protect Supabase Free's 500 MB DB limit.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     const cronSecret = process.env.CRON_SECRET;
-    if (cronSecret && req.headers.authorization !== `Bearer ${cronSecret}`) {
+    if (!cronSecret || req.headers.authorization !== `Bearer ${cronSecret}`) {
         return res.status(401).json({ error: 'Unauthorized' });
     }
 
@@ -16,6 +17,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const now = new Date();
         const weekKey = now.toISOString().slice(0, 10);
         const sevenDaysAgoIso = new Date(now.getTime() - 7 * 86400 * 1000).toISOString();
+        const retentionCutoffIso = new Date(now.getTime() - 180 * 86400 * 1000).toISOString();
+
+        // Prune audit logs older than 180 days (protects Supabase Free 500 MB database limit)
+        await supabase.from('lms_activity_events').delete().lt('created_at', retentionCutoffIso);
 
         const [{ data: cohorts }, { data: modules }, { count: totalLessonsCount }] = await Promise.all([
             supabase.from('lms_cohorts').select('*').eq('is_active', true),
@@ -56,19 +61,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 doneCountByUser.set(p.user_id, cur);
             }
 
-            const rowsHtml: string[] = [];
+            const summaryRows: Array<{ fullName: string; progressPct: number; last7d: number; streak: number }> = [];
             for (const enr of enrollments) {
                 const stats = doneCountByUser.get(enr.user_id) || { total: 0, last7d: 0 };
                 const pct = Math.round((stats.total / totalLessons) * 100);
 
-                rowsHtml.push(
-                    `<tr>
-                        <td style="padding:8px;border-bottom:1px solid #eee;"><strong>${enr.full_name}</strong></td>
-                        <td style="padding:8px;border-bottom:1px solid #eee;">${pct}%</td>
-                        <td style="padding:8px;border-bottom:1px solid #eee;">+${stats.last7d} lessons</td>
-                        <td style="padding:8px;border-bottom:1px solid #eee;">${enr.current_streak || 0}d</td>
-                    </tr>`,
-                );
+                summaryRows.push({
+                    fullName: enr.full_name,
+                    progressPct: pct,
+                    last7d: stats.last7d,
+                    streak: enr.current_streak || 0,
+                });
 
                 const sent = await sendLmsMondayDripLearner({
                     to: enr.email,
@@ -87,25 +90,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             const adminEmails = enrollments.filter((e: any) => e.role === 'admin').map((e: any) => e.email);
             if (adminEmails.length > 0) {
-                const tableHtml = `
-                    <table style="width:100%;border-collapse:collapse;font-size:13px;margin:16px 0;">
-                        <thead>
-                            <tr style="background:#f9fafb;text-align:left;">
-                                <th style="padding:8px;border-bottom:2px solid #e5e7eb;">Member</th>
-                                <th style="padding:8px;border-bottom:2px solid #e5e7eb;">Progress</th>
-                                <th style="padding:8px;border-bottom:2px solid #e5e7eb;">Last 7 Days</th>
-                                <th style="padding:8px;border-bottom:2px solid #e5e7eb;">Streak</th>
-                            </tr>
-                        </thead>
-                        <tbody>${rowsHtml.join('')}</tbody>
-                    </table>
-                `;
                 const sent = await sendLmsMondayAdminDigest({
                     to: adminEmails,
                     cohortName: cohort.name,
                     weekNumber: currentWeek,
                     pendingReviewsCount: pendingReviews || 0,
-                    learnersSummaryHtml: tableHtml,
+                    learnersSummaryRows: summaryRows,
                     cohortId: cohort.id,
                     weekKey,
                 });

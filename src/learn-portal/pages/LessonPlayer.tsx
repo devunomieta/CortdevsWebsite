@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import {
     AlertTriangle,
@@ -22,6 +22,10 @@ import {
 import { formatDuration, learnApi } from '../lib/api';
 import { useLearnAuth } from '../context/LearnAuthContext';
 import { CoursePartnerStrip, CourseraLogo, MicrosoftLogo } from '../components/BrandLogos';
+import { sanitizeReadingHtml } from '../lib/sessionTimer';
+
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10 MB cap to protect Supabase Free 1 GB storage
+const HEARTBEAT_INTERVAL_MS = 30000; // 30s heartbeat (cuts free-tier API + DB load by ~89%)
 
 export function LessonPlayer() {
     const { lessonId } = useParams();
@@ -33,9 +37,10 @@ export function LessonPlayer() {
     const [lockedInfo, setLockedInfo] = useState<any | null>(null);
     const [error, setError] = useState<string | null>(null);
 
-    // Video state
+    // Video state (refs prevent stale closures in heartbeat & pause/ended handlers)
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const segmentStartRef = useRef<number>(0);
+    const maxWatchedRef = useRef<number>(0);
     const [maxWatchedSec, setMaxWatchedSec] = useState(0);
     const [uniqueWatchedSec, setUniqueWatchedSec] = useState(0);
     const [seekWarning, setSeekWarning] = useState(false);
@@ -64,7 +69,7 @@ export function LessonPlayer() {
     const [newComment, setNewComment] = useState('');
     const [postingComment, setPostingComment] = useState(false);
 
-    const loadLesson = async () => {
+    const loadLesson = useCallback(async () => {
         if (!lessonId) return;
         setLoading(true);
         setError(null);
@@ -76,7 +81,9 @@ export function LessonPlayer() {
         try {
             const res = await learnApi(`lms/lesson?id=${encodeURIComponent(lessonId)}`);
             setData(res);
-            setMaxWatchedSec(res.progress?.max_watched_second || 0);
+            const initMax = res.progress?.max_watched_second || 0;
+            maxWatchedRef.current = initMax;
+            setMaxWatchedSec(initMax);
             setUniqueWatchedSec(res.progress?.unique_watched_seconds || 0);
             setScrollPct(res.progress?.scroll_depth_pct || 0);
             setDwellSec(res.progress?.active_dwell_seconds || 0);
@@ -98,55 +105,71 @@ export function LessonPlayer() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [lessonId]);
 
     useEffect(() => {
         loadLesson();
-    }, [lessonId]);
+    }, [loadLesson]);
 
-    // Video 10-second heartbeat + anti-skip enforcement
-    useEffect(() => {
-        if (!data || data.lesson?.lesson_type !== 'video') return;
-        const vid = videoRef.current;
-        if (!vid) return;
+    const activeLessonId = data?.lesson?.id as string | undefined;
+    const activeLessonType = data?.lesson?.lesson_type as string | undefined;
+    const initialLastPosition = (data?.progress?.last_position_seconds as number) || 0;
 
-        if (data.progress?.last_position_seconds > 5) {
-            vid.currentTime = data.progress.last_position_seconds;
-            segmentStartRef.current = data.progress.last_position_seconds;
-        }
-
-        const interval = window.setInterval(async () => {
-            if (!videoRef.current || videoRef.current.paused || document.visibilityState !== 'visible') return;
-            const cur = Math.floor(videoRef.current.currentTime);
+    const flushVideoHeartbeat = useCallback(
+        async (forceLessonId?: string) => {
+            const lid = forceLessonId || activeLessonId;
+            const vid = videoRef.current;
+            if (!lid || !vid) return;
+            const cur = Math.floor(vid.currentTime);
             const start = Math.floor(segmentStartRef.current);
-            if (cur > start && cur - start <= 30) {
+            if (cur > start && cur - start <= 90) {
                 segmentStartRef.current = cur;
+                const nextMax = Math.max(maxWatchedRef.current, cur);
+                maxWatchedRef.current = nextMax;
                 try {
                     const hb = await learnApi('lms/progress-heartbeat', {
                         method: 'POST',
                         body: {
-                            lessonId: data.lesson.id,
+                            lessonId: lid,
                             watchedRange: [start, cur],
-                            maxSecond: Math.max(maxWatchedSec, cur),
+                            maxSecond: nextMax,
                             lastPosition: cur,
                         },
                     });
+                    const serverMax = hb.progress?.max_watched_second || nextMax;
+                    maxWatchedRef.current = Math.max(maxWatchedRef.current, serverMax);
                     setUniqueWatchedSec(hb.progress?.unique_watched_seconds || 0);
-                    setMaxWatchedSec(hb.progress?.max_watched_second || cur);
+                    setMaxWatchedSec(maxWatchedRef.current);
                 } catch {
                     // ignore transient network glitches
                 }
             } else {
                 segmentStartRef.current = cur;
             }
-        }, 10000);
+        },
+        [activeLessonId],
+    );
+
+    // Video 30-second heartbeat + initial resume position
+    useEffect(() => {
+        if (!activeLessonId || activeLessonType !== 'video') return;
+        const vid = videoRef.current;
+        if (vid && initialLastPosition > 5) {
+            vid.currentTime = initialLastPosition;
+            segmentStartRef.current = initialLastPosition;
+        }
+
+        const interval = window.setInterval(() => {
+            if (!videoRef.current || videoRef.current.paused || document.visibilityState !== 'visible') return;
+            flushVideoHeartbeat(activeLessonId);
+        }, HEARTBEAT_INTERVAL_MS);
 
         return () => window.clearInterval(interval);
-    }, [data?.lesson?.id]);
+    }, [activeLessonId, activeLessonType, initialLastPosition, flushVideoHeartbeat]);
 
-    // Reading active dwell timer + scroll depth tracking
+    // Reading active dwell timer (30s heartbeats while tab is visible) + scroll tracking
     useEffect(() => {
-        if (!data || data.lesson?.lesson_type !== 'reading') return;
+        if (!activeLessonId || activeLessonType !== 'reading') return;
         let pendingDelta = 0;
 
         const handleScroll = () => {
@@ -163,7 +186,7 @@ export function LessonPlayer() {
             pendingDelta += 1;
             setDwellSec((prev) => prev + 1);
 
-            if (pendingDelta >= 10) {
+            if (pendingDelta >= 30) {
                 const toSend = pendingDelta;
                 pendingDelta = 0;
                 const docEl = document.documentElement;
@@ -172,7 +195,7 @@ export function LessonPlayer() {
                 learnApi('lms/progress-heartbeat', {
                     method: 'POST',
                     body: {
-                        lessonId: data.lesson.id,
+                        lessonId: activeLessonId,
                         scrollPct: curScroll,
                         dwellDeltaSeconds: toSend,
                     },
@@ -184,7 +207,12 @@ export function LessonPlayer() {
             window.removeEventListener('scroll', handleScroll);
             window.clearInterval(tick);
         };
-    }, [data?.lesson?.id]);
+    }, [activeLessonId, activeLessonType]);
+
+    const safeReadingHtml = useMemo(
+        () => sanitizeReadingHtml(data?.lesson?.content_html || '<p>No reading content found.</p>'),
+        [data?.lesson?.content_html],
+    );
 
     const handleVideoSeeking = () => {
         const vid = videoRef.current;
@@ -280,6 +308,9 @@ export function LessonPlayer() {
             let fileName: string | undefined;
 
             if (projectFile) {
+                if (projectFile.size > MAX_UPLOAD_BYTES) {
+                    throw new Error('File is too large (max 10 MB). Compress the file or paste a Google Drive / Figma link instead.');
+                }
                 const up = await learnApi('lms/project-submit', {
                     method: 'POST',
                     body: {
@@ -510,6 +541,12 @@ export function LessonPlayer() {
                                         onPlay={() => {
                                             if (videoRef.current) segmentStartRef.current = videoRef.current.currentTime;
                                         }}
+                                        onPause={() => {
+                                            flushVideoHeartbeat();
+                                        }}
+                                        onEnded={() => {
+                                            flushVideoHeartbeat();
+                                        }}
                                         className="w-full aspect-video"
                                     />
                                     {seekWarning && (
@@ -621,7 +658,7 @@ export function LessonPlayer() {
                             <div className="overflow-x-auto">
                                 <article
                                     className="p-4 sm:p-8 prose prose-sm sm:prose-base prose-neutral max-w-none prose-headings:text-neutral-950 prose-p:text-neutral-800 prose-p:leading-relaxed prose-li:text-neutral-800 prose-strong:text-neutral-950 break-words"
-                                    dangerouslySetInnerHTML={{ __html: lesson.content_html || '<p>No reading content found.</p>' }}
+                                    dangerouslySetInnerHTML={{ __html: safeReadingHtml }}
                                 />
                             </div>
 
