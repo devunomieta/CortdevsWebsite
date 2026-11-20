@@ -4,8 +4,15 @@ import { supabase } from '../../_lib/supabase.js';
 import { logLmsEvent, requireLmsMember } from '../../_lib/lmsGate.js';
 import { getLearnAppUrl } from '../../_lib/appUrl.js';
 
+const DEFAULT_PROGRAM_TITLE = 'AI Product Management';
+
 const ATTRIBUTION_NOTE =
-    'Structured 12-week internal cohort guided by Microsoft AI Product Manager study materials (covering Enterprise Product Management, Market Research, AI Product Strategy & Roadmapping, UX/UI Design, and Post-Launch AI Operations), independently managed, tracked, and verified by CortDevs.';
+    'Completed the 12-week CortDevs AI Product Management program guided by Microsoft AI Product Manager study materials (covering Enterprise Product Management, Market Research, AI Product Strategy & Roadmapping, UX/UI Design, and Post-Launch AI Operations), independently managed, tracked, and verified by CortDevs.';
+
+function normalizeProgramTitle(title?: string | null): string {
+    if (!title) return DEFAULT_PROGRAM_TITLE;
+    return title.replace(/\s*Training\s*Cohort\s*$/i, '').trim() || DEFAULT_PROGRAM_TITLE;
+}
 
 const DISCLAIMER_NOTE =
     'Issued independently by CortDevs for verified internal cohort completion. Not affiliated with, sponsored by, or officially certified by Microsoft or Coursera.';
@@ -105,8 +112,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             certificate: {
                 certificate_code: cert.certificate_code,
                 recipient_name: cert.recipient_name,
-                program_title: cert.program_title,
-                cohort_name: (cert.lms_cohorts as any)?.name || 'CortDevs AI Product Management Cohort',
+                program_title: normalizeProgramTitle(cert.program_title),
+                cohort_name: (cert.lms_cohorts as any)?.name || 'CortDevs AI Product Management',
                 issued_by_name: cert.issued_by_name,
                 issued_by_title: cert.issued_by_title,
                 completed_lessons: cert.completed_lessons,
@@ -145,6 +152,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             certificate: existing
                 ? {
                       ...existing,
+                      program_title: normalizeProgramTitle(existing.program_title),
                       cohort_name: member.cohort.name,
                       verify_url: `${getLearnAppUrl()}/verify/${existing.certificate_code}`,
                       attribution_note: ATTRIBUTION_NOTE,
@@ -184,6 +192,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 .from('lms_certificates')
                 .update({
                     recipient_name: cleanName,
+                    program_title: DEFAULT_PROGRAM_TITLE,
                     completed_lessons: eligibility.completedLessons,
                     total_lessons: eligibility.totalLessons,
                     approved_projects: eligibility.approvedProjects,
@@ -204,7 +213,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     cohort_id: member.cohort.id,
                     user_id: member.enrollment.user_id,
                     recipient_name: cleanName,
-                    program_title: 'AI Product Management Training Cohort',
+                    program_title: DEFAULT_PROGRAM_TITLE,
                     issued_by_name: 'Joseph Unomieta',
                     issued_by_title: 'Program Manager, CortDevs',
                     completed_lessons: eligibility.completedLessons,

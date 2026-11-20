@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useId, useState } from 'react';
 import { useConfig } from '../../app/context/ConfigContext';
 
 export function CortDevsLearnLogo({
@@ -122,5 +122,61 @@ export function CoursePartnerStrip({
             <span className="opacity-40 text-xs leading-none">×</span>
             <CourseraLogo dark={dark} />
         </div>
+    );
+}
+
+export function CortDevsSealStamp({ size = 96 }: { size?: number }) {
+    const uid = useId().replace(/:/g, '');
+    const topArcId = `cdSealTopArc-${uid}`;
+    const bottomArcId = `cdSealBottomArc-${uid}`;
+
+    return (
+        <svg
+            width={size}
+            height={size}
+            viewBox="0 0 120 120"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            aria-label="CortDevs Official CD Seal"
+            className="select-none shrink-0"
+        >
+            <defs>
+                {/* Top arc: left-to-right over the top so text reads upright */}
+                <path id={topArcId} d="M 19,60 A 41,41 0 1,1 101,60" />
+                {/* Bottom arc: left-to-right under the bottom so text reads upright */}
+                <path id={bottomArcId} d="M 13.5,60 A 46.5,46.5 0 0,0 106.5,60" />
+            </defs>
+            {/* Outer scalloped stamp border */}
+            <circle cx="60" cy="60" r="56" stroke="#030213" strokeWidth="2.2" strokeDasharray="3 2.2" fill="#fafafa" />
+            <circle cx="60" cy="60" r="51" stroke="#030213" strokeWidth="1.5" fill="none" />
+            <circle cx="60" cy="60" r="32" stroke="#030213" strokeWidth="1.2" fill="#030213" />
+            <circle cx="60" cy="60" r="28" stroke="#ffffff" strokeWidth="0.7" strokeOpacity="0.4" fill="none" />
+
+            {/* Curved perimeter text */}
+            <text fill="#030213" fontSize="7.4" fontWeight="700" letterSpacing="2.2" fontFamily="'Inter', sans-serif">
+                <textPath href={`#${topArcId}`} startOffset="50%" textAnchor="middle">
+                    CORTDEVS · VERIFIED
+                </textPath>
+            </text>
+            <text fill="#030213" fontSize="7.2" fontWeight="700" letterSpacing="2.2" fontFamily="'Inter', sans-serif">
+                <textPath href={`#${bottomArcId}`} startOffset="50%" textAnchor="middle">
+                    OFFICIAL SEAL
+                </textPath>
+            </text>
+
+            {/* Center CD Monogram */}
+            <text
+                x="60"
+                y="67"
+                textAnchor="middle"
+                fill="#ffffff"
+                fontSize="24"
+                fontWeight="700"
+                letterSpacing="1.5"
+                fontFamily="Georgia, 'Times New Roman', serif"
+            >
+                CD
+            </text>
+        </svg>
     );
 }

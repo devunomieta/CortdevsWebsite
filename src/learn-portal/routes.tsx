@@ -15,7 +15,8 @@ export const learnRouter = createBrowserRouter([
         children: [
             { path: '/login', element: <LearnLogin /> },
             { path: '/signup', element: <Navigate to="/login" replace /> },
-            // Public credential verification page (no login required)
+            // Public credential verification & QR code scanner pages (no login required)
+            { path: '/verify', element: <VerifyCertificate /> },
             { path: '/verify/:code', element: <VerifyCertificate /> },
             {
                 path: '/',
