@@ -62,12 +62,17 @@ export function LessonPlayer() {
     const [reflection, setReflection] = useState('');
     const [submittingProject, setSubmittingProject] = useState(false);
 
-    // Completion & Discussion state
+    // Completion & Q&A state
     const [completing, setCompleting] = useState(false);
     const [actionMsg, setActionMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const [comments, setComments] = useState<any[]>([]);
     const [newComment, setNewComment] = useState('');
     const [postingComment, setPostingComment] = useState(false);
+    const [replyingToId, setReplyingToId] = useState<string | null>(null);
+    const [replyBody, setReplyBody] = useState('');
+    const [answeringId, setAnsweringId] = useState<string | null>(null);
+    const [officialAnswerDraft, setOfficialAnswerDraft] = useState('');
+    const [savingAnswer, setSavingAnswer] = useState(false);
 
     const loadLesson = useCallback(async () => {
         if (!lessonId) return;
@@ -370,10 +375,47 @@ export function LessonPlayer() {
             });
             setComments((prev) => [...prev, res.comment]);
             setNewComment('');
-        } catch {
-            // ignore
+        } catch (err: any) {
+            setActionMsg({ type: 'error', text: err?.message || 'Could not post question.' });
         } finally {
             setPostingComment(false);
+        }
+    };
+
+    const handlePostReply = async (e: React.FormEvent, parentId: string) => {
+        e.preventDefault();
+        if (!data?.lesson?.module_id || !replyBody.trim()) return;
+        setPostingComment(true);
+        try {
+            const res = await learnApi('lms/discussions', {
+                method: 'POST',
+                body: { moduleId: data.lesson.module_id, parentId, body: replyBody.trim() },
+            });
+            setComments((prev) => [...prev, res.comment]);
+            setReplyBody('');
+            setReplyingToId(null);
+        } catch (err: any) {
+            setActionMsg({ type: 'error', text: err?.message || 'Could not post reply.' });
+        } finally {
+            setPostingComment(false);
+        }
+    };
+
+    const handleSaveOfficialAnswer = async (questionId: string) => {
+        if (!officialAnswerDraft.trim()) return;
+        setSavingAnswer(true);
+        try {
+            const res = await learnApi('lms/discussions', {
+                method: 'PATCH',
+                body: { questionId, status: 'answered', officialAnswer: officialAnswerDraft.trim() },
+            });
+            setComments((prev) => prev.map((c) => (c.id === questionId ? { ...c, ...res.comment } : c)));
+            setAnsweringId(null);
+            setOfficialAnswerDraft('');
+        } catch (err: any) {
+            setActionMsg({ type: 'error', text: err?.message || 'Could not save session answer.' });
+        } finally {
+            setSavingAnswer(false);
         }
     };
 
@@ -510,9 +552,9 @@ export function LessonPlayer() {
                 </div>
             )}
 
-            <div className="grid lg:grid-cols-3 gap-6 items-start">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
                 {/* Main Lesson Pane */}
-                <div className="lg:col-span-2 space-y-6">
+                <div className="lg:col-span-2 min-w-0 space-y-6">
                     {/* 1. VIDEO LESSON */}
                     {lesson.lesson_type === 'video' && (
                         <div className="bg-white border border-neutral-200 overflow-hidden">
@@ -932,35 +974,150 @@ export function LessonPlayer() {
                     )}
                 </div>
 
-                {/* Right Sidebar: Module Team Discussion & Q&A */}
-                <div className="bg-white border border-neutral-200 p-5 space-y-4">
-                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-neutral-900">
-                        <MessageSquare className="w-4 h-4" />
-                        <span>Module Team Discussion</span>
+                {/* Right Sidebar: Module Questions & Session Answers */}
+                <div className="min-w-0 bg-white border border-neutral-200 p-4 sm:p-5 space-y-4">
+                    <div className="space-y-1">
+                        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-neutral-900">
+                            <MessageSquare className="w-4 h-4" />
+                            <span>Questions &amp; Session Answers</span>
+                        </div>
+                        <p className="text-[11px] text-neutral-500 text-left">
+                            Ask questions for the next team session, reply to help teammates, and see the agreed answers once resolved.
+                        </p>
                     </div>
 
-                    <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
-                        {comments.length === 0 ? (
-                            <p className="text-xs text-neutral-500 py-4 text-center">
-                                Ask a question or share an insight with your teammates on this module.
+                    <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+                        {comments.filter((c) => !c.parent_id).length === 0 ? (
+                            <p className="text-xs text-neutral-500 py-2 text-left leading-relaxed">
+                                No questions asked on this module yet. Drop a question below and we will cover it in the next team session.
                             </p>
                         ) : (
-                            comments.map((c) => (
-                                <div key={c.id} className="p-3 bg-neutral-50 border border-neutral-200 space-y-1">
-                                    <div className="flex items-center justify-between text-[11px]">
-                                        <span className="font-semibold text-neutral-950">
-                                            {c.author_name}
-                                            {c.author_role === 'admin' && (
-                                                <span className="ml-1.5 text-[10px] uppercase tracking-wider px-1.5 py-0.5 bg-[#030213] text-white">
-                                                    Lead
+                            comments
+                                .filter((c) => !c.parent_id)
+                                .map((q) => {
+                                    const replies = comments.filter((r) => r.parent_id === q.id);
+                                    const isAnswered = q.status === 'answered';
+                                    return (
+                                        <div key={q.id} className="p-3 bg-neutral-50 border border-neutral-200 space-y-2 text-left">
+                                            <div className="flex items-center justify-between gap-2 text-[11px]">
+                                                <span className="font-semibold text-neutral-950 truncate">
+                                                    {q.author_name}
+                                                    {q.author_role === 'admin' && (
+                                                        <span className="ml-1.5 text-[9px] uppercase tracking-wider px-1.5 py-0.5 bg-[#030213] text-white">
+                                                            Admin
+                                                        </span>
+                                                    )}
                                                 </span>
+                                                <span
+                                                    className={`px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider shrink-0 ${
+                                                        isAnswered
+                                                            ? 'bg-emerald-100 text-emerald-800'
+                                                            : 'bg-amber-100 text-amber-800'
+                                                    }`}
+                                                >
+                                                    {isAnswered ? 'Answered ✓' : 'For Next Session'}
+                                                </span>
+                                            </div>
+
+                                            <p className="text-xs text-neutral-800 whitespace-pre-wrap break-words leading-relaxed">
+                                                {q.body}
+                                            </p>
+
+                                            {/* Pinned Agreed Session Answer */}
+                                            {isAnswered && q.official_answer && (
+                                                <div className="p-2.5 bg-emerald-50 border-l-2 border-emerald-600 text-xs text-emerald-950 space-y-1">
+                                                    <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">
+                                                        Agreed Session Answer {q.answered_by_name ? `· ${q.answered_by_name}` : ''}
+                                                    </div>
+                                                    <p className="whitespace-pre-wrap break-words">{q.official_answer}</p>
+                                                </div>
                                             )}
-                                        </span>
-                                        <span className="text-neutral-400">{new Date(c.created_at).toLocaleDateString()}</span>
-                                    </div>
-                                    <p className="text-xs text-neutral-700 whitespace-pre-wrap">{c.body}</p>
-                                </div>
-                            ))
+
+                                            {/* Threaded Replies */}
+                                            {replies.length > 0 && (
+                                                <div className="pl-3 border-l-2 border-neutral-200 space-y-1.5 pt-1">
+                                                    {replies.map((r) => (
+                                                        <div key={r.id} className="text-[11px] bg-white border border-neutral-200 p-2 space-y-0.5">
+                                                            <div className="font-semibold text-neutral-900">{r.author_name}</div>
+                                                            <p className="text-neutral-700 whitespace-pre-wrap break-words">{r.body}</p>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            {/* Action Links: Reply + Admin Mark Answered */}
+                                            <div className="flex flex-wrap items-center gap-3 pt-1 text-[11px]">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setReplyingToId(replyingToId === q.id ? null : q.id);
+                                                        setReplyBody('');
+                                                    }}
+                                                    className="font-semibold text-neutral-600 hover:text-neutral-950"
+                                                >
+                                                    {replyingToId === q.id ? 'Cancel Reply' : `Reply${replies.length ? ` (${replies.length})` : ''}`}
+                                                </button>
+                                                {isAdmin && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setAnsweringId(answeringId === q.id ? null : q.id);
+                                                            setOfficialAnswerDraft(q.official_answer || '');
+                                                        }}
+                                                        className="font-semibold text-emerald-700 hover:text-emerald-900"
+                                                    >
+                                                        {answeringId === q.id
+                                                            ? 'Cancel'
+                                                            : isAnswered
+                                                              ? 'Edit Agreed Answer'
+                                                              : 'Add Agreed Answer'}
+                                                    </button>
+                                                )}
+                                            </div>
+
+                                            {/* Inline Reply Box */}
+                                            {replyingToId === q.id && (
+                                                <form onSubmit={(e) => handlePostReply(e, q.id)} className="flex gap-1.5 pt-1">
+                                                    <input
+                                                        type="text"
+                                                        value={replyBody}
+                                                        onChange={(e) => setReplyBody(e.target.value)}
+                                                        placeholder="Write a reply..."
+                                                        className="flex-1 bg-white border border-neutral-300 px-2.5 py-1.5 text-base sm:text-xs text-neutral-950 focus:outline-none focus:border-neutral-950"
+                                                    />
+                                                    <button
+                                                        type="submit"
+                                                        disabled={postingComment || !replyBody.trim()}
+                                                        className="px-2.5 py-1.5 bg-[#030213] text-white text-xs font-semibold disabled:opacity-40"
+                                                    >
+                                                        Reply
+                                                    </button>
+                                                </form>
+                                            )}
+
+                                            {/* Admin Agreed Answer Box */}
+                                            {isAdmin && answeringId === q.id && (
+                                                <div className="space-y-2 pt-1">
+                                                    <textarea
+                                                        rows={3}
+                                                        value={officialAnswerDraft}
+                                                        onChange={(e) => setOfficialAnswerDraft(e.target.value)}
+                                                        placeholder="Enter the agreed answer from the live team session..."
+                                                        className="w-full bg-white border border-neutral-300 p-2 text-base sm:text-xs text-neutral-950 focus:outline-none focus:border-neutral-950"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        disabled={savingAnswer || officialAnswerDraft.trim().length < 5}
+                                                        onClick={() => handleSaveOfficialAnswer(q.id)}
+                                                        className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-40 text-white text-[11px] font-bold uppercase tracking-wider"
+                                                    >
+                                                        {savingAnswer ? 'Saving...' : 'Save & Mark Answered'}
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })
                         )}
                     </div>
 
@@ -969,13 +1126,13 @@ export function LessonPlayer() {
                             type="text"
                             value={newComment}
                             onChange={(e) => setNewComment(e.target.value)}
-                            placeholder="Post a note or question..."
-                            className="flex-1 bg-white border border-neutral-300 px-3 py-2 text-xs text-neutral-950 focus:outline-none focus:border-neutral-950"
+                            placeholder="Ask a question for the team session..."
+                            className="flex-1 min-w-0 bg-white border border-neutral-300 px-3 py-2 text-base sm:text-xs text-neutral-950 focus:outline-none focus:border-neutral-950"
                         />
                         <button
                             type="submit"
                             disabled={postingComment || !newComment.trim()}
-                            className="px-3 py-2 bg-[#030213] hover:bg-neutral-800 disabled:opacity-40 text-white"
+                            className="px-3 py-2 bg-[#030213] hover:bg-neutral-800 disabled:opacity-40 text-white shrink-0"
                         >
                             <Send className="w-3.5 h-3.5" />
                         </button>

@@ -18,6 +18,7 @@ import {
     KeyRound,
     Loader2,
     Mail,
+    MessageSquare,
     PauseCircle,
     PlayCircle,
     RefreshCw,
@@ -32,7 +33,7 @@ import {
 import { useLearnAuth } from '../context/LearnAuthContext';
 import { learnApi } from '../lib/api';
 
-type AdminTab = 'matrix' | 'reviews' | 'team' | 'quizzes';
+type AdminTab = 'matrix' | 'reviews' | 'qa' | 'team' | 'quizzes';
 
 const ROOT_ADMIN_EMAIL = 'learn@cortdevs.com';
 
@@ -60,6 +61,8 @@ export function LearnAdminDashboard() {
     const [overview, setOverview] = useState<any | null>(null);
     const [reviews, setReviews] = useState<any[]>([]);
     const [members, setMembers] = useState<any[]>([]);
+    const [questions, setQuestions] = useState<any[]>([]);
+    const [answerDraftMap, setAnswerDraftMap] = useState<Record<string, string>>({});
     const [quizzes, setQuizzes] = useState<any[]>([]);
     const [selectedQuiz, setSelectedQuiz] = useState<any | null>(null);
     const [loading, setLoading] = useState(true);
@@ -138,16 +141,21 @@ export function LearnAdminDashboard() {
         setQuizzes(qz.quizzes || []);
     }, []);
 
+    const refreshQuestions = useCallback(async () => {
+        const qa = await learnApi('lms/discussions?scope=all');
+        setQuestions(qa.comments || []);
+    }, []);
+
     const loadAll = useCallback(async () => {
         setLoading(true);
         try {
-            await Promise.all([refreshOverview(), refreshReviews(), refreshMembers(), refreshQuizzes()]);
+            await Promise.all([refreshOverview(), refreshReviews(), refreshMembers(), refreshQuizzes(), refreshQuestions()]);
         } catch (err: any) {
             showToast(err?.message || 'Failed to load admin data');
         } finally {
             setLoading(false);
         }
-    }, [refreshMembers, refreshOverview, refreshQuizzes, refreshReviews, showToast]);
+    }, [refreshMembers, refreshOverview, refreshQuestions, refreshQuizzes, refreshReviews, showToast]);
 
     useEffect(() => {
         if (isAdmin) loadAll();
@@ -346,6 +354,24 @@ export function LearnAdminDashboard() {
         await refreshMembers();
     };
 
+    const handleSaveQuestionAnswer = async (questionId: string, status: 'answered' | 'open') => {
+        const draft = (answerDraftMap[questionId] ?? '').trim();
+        if (status === 'answered' && draft.length < 5) {
+            showToast('Write the agreed session answer (at least 5 characters) first.');
+            return;
+        }
+        try {
+            await learnApi('lms/discussions', {
+                method: 'PATCH',
+                body: { questionId, status, officialAnswer: draft },
+            });
+            showToast(status === 'answered' ? 'Agreed session answer saved & marked answered!' : 'Question reopened.');
+            await refreshQuestions();
+        } catch (err: any) {
+            showToast(err?.message || 'Could not update question');
+        }
+    };
+
     const handleReview = async (submissionId: string, status: 'approved' | 'revision_requested') => {
         try {
             await learnApi('admin/lms/reviews', {
@@ -531,6 +557,11 @@ export function LearnAdminDashboard() {
                 {[
                     { id: 'matrix', label: 'Team Progress', icon: Users },
                     { id: 'reviews', label: `Project Reviews (${overview?.summary?.pendingReviewsCount || 0})`, icon: FolderCheck },
+                    {
+                        id: 'qa',
+                        label: `Session Q&A (${questions.filter((q) => q.status !== 'answered').length} open)`,
+                        icon: MessageSquare,
+                    },
                     { id: 'team', label: `Team & Schedule (${members.length})`, icon: Calendar },
                     { id: 'quizzes', label: `Quiz Answers (${overview?.summary?.unverifiedQuizzesCount || 0} left)`, icon: FileQuestion },
                 ].map((t) => {
@@ -804,6 +835,81 @@ export function LearnAdminDashboard() {
                                 </div>
                             </div>
                         ))
+                    )}
+                </div>
+            )}
+
+            {/* TAB 2.5: SESSION Q&A AGENDA */}
+            {tab === 'qa' && (
+                <div className="space-y-4">
+                    <p className="text-xs text-neutral-500 text-left">
+                        All questions asked by teammates across every module appear here. Use open questions as your live session agenda, then record the agreed answer and mark each one Answered.
+                    </p>
+                    {questions.length === 0 ? (
+                        <div className="bg-white border border-neutral-200 p-6 text-left text-sm text-neutral-500">
+                            No questions asked yet. When teammates post questions inside any lesson, they will queue up here for your next session.
+                        </div>
+                    ) : (
+                        [...questions]
+                            .sort((a, b) => (a.status === 'answered' ? 1 : 0) - (b.status === 'answered' ? 1 : 0))
+                            .map((q) => {
+                                const isAnswered = q.status === 'answered';
+                                return (
+                                    <div key={q.id} className="bg-white border border-neutral-200 p-4 sm:p-5 space-y-3 text-left">
+                                        <div className="flex flex-wrap items-start justify-between gap-2">
+                                            <div>
+                                                <div className="text-xs font-semibold text-neutral-950">
+                                                    {q.author_name} · <span className="text-neutral-500">Week {q.target_week} · {q.module_title}</span>
+                                                </div>
+                                                <div className="text-[11px] text-neutral-400">
+                                                    Asked {new Date(q.created_at).toLocaleString()}
+                                                </div>
+                                            </div>
+                                            <span
+                                                className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                                                    isAnswered ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                                                }`}
+                                            >
+                                                {isAnswered ? 'Answered ✓' : 'Open · Next Session'}
+                                            </span>
+                                        </div>
+
+                                        <p className="text-sm text-neutral-900 bg-neutral-50 p-3.5 border border-neutral-200 whitespace-pre-wrap">
+                                            {q.body}
+                                        </p>
+
+                                        <div className="space-y-2 pt-1">
+                                            <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-600">
+                                                Agreed Session Answer
+                                            </label>
+                                            <textarea
+                                                rows={3}
+                                                value={answerDraftMap[q.id] ?? q.official_answer ?? ''}
+                                                onChange={(e) => setAnswerDraftMap((p) => ({ ...p, [q.id]: e.target.value }))}
+                                                placeholder="Write the agreed answer from the live session..."
+                                                className="w-full bg-white border border-neutral-300 p-3 text-base sm:text-xs text-neutral-950 focus:outline-none focus:border-neutral-950"
+                                            />
+                                            <div className="flex flex-wrap gap-2">
+                                                <button
+                                                    onClick={() => handleSaveQuestionAnswer(q.id, 'answered')}
+                                                    className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold uppercase tracking-wider inline-flex items-center gap-1.5"
+                                                >
+                                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                                    {isAnswered ? 'Update Agreed Answer' : 'Save & Mark Answered'}
+                                                </button>
+                                                {isAnswered && (
+                                                    <button
+                                                        onClick={() => handleSaveQuestionAnswer(q.id, 'open')}
+                                                        className="px-3.5 py-2 bg-white border border-neutral-300 hover:border-neutral-950 text-neutral-700 text-xs font-semibold"
+                                                    >
+                                                        Reopen Question
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })
                     )}
                 </div>
             )}

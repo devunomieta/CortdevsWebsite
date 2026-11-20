@@ -87,6 +87,8 @@ export function LearnAuthProvider({ children }: { children: React.ReactNode }) {
             return;
         }
 
+        // Set loading true BEFORE async profile fetch so LearnLayout never flashes "Access Restricted"
+        setLoading(true);
         try {
             const res = await learnApi<{ enrollment: LearnEnrollment; cohort: LearnCohort }>('lms/profile');
             setEnrollment(res.enrollment);

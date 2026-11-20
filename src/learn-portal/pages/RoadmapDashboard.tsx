@@ -190,21 +190,21 @@ export function RoadmapDashboard() {
             </div>
 
             {/* Main 2-column layout: Course Lessons + Team Notes */}
-            <div className="grid lg:grid-cols-3 gap-6 items-start">
-                <div className="lg:col-span-2 space-y-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+                <div className="lg:col-span-2 min-w-0 w-full space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
                         <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-neutral-900">
                             Course Lessons
                         </h2>
-                        <div className="inline-flex items-center gap-2.5 text-xs text-neutral-500">
+                        <div className="inline-flex items-center gap-2 text-xs text-neutral-500 shrink-0">
                             <MicrosoftLogo className="h-3.5" />
-                            <span>·</span>
+                            <span>×</span>
                             <CourseraLogo />
                         </div>
                     </div>
 
                     {courses.length === 0 ? (
-                        <div className="bg-white border border-neutral-200 p-8 text-center text-neutral-500 text-sm">
+                        <div className="bg-white border border-neutral-200 p-8 text-left text-neutral-500 text-sm">
                             No courses seeded yet. Run <code className="text-neutral-900 font-semibold">npx tsx scripts/ingest-ai-pm-course.ts --seed-db</code> to populate the curriculum.
                         </div>
                     ) : (
@@ -216,21 +216,23 @@ export function RoadmapDashboard() {
                                     : 0;
 
                             return (
-                                <div key={course.id} className="bg-white border border-neutral-200 overflow-hidden">
+                                <div key={course.id} className="bg-white border border-neutral-200 overflow-hidden w-full">
                                     <button
                                         onClick={() => setOpenCourses((p) => ({ ...p, [course.id]: !p[course.id] }))}
-                                        className="w-full p-5 flex items-center justify-between gap-4 text-left hover:bg-neutral-50 transition"
+                                        className="w-full p-4 sm:p-5 flex items-start sm:items-center justify-between gap-3 text-left hover:bg-neutral-50 transition"
                                     >
-                                        <div className="space-y-1 min-w-0">
-                                            <div className="flex items-center gap-2">
+                                        <div className="space-y-1 min-w-0 flex-1">
+                                            <div className="flex items-start sm:items-center gap-2">
                                                 {isOpen ? (
-                                                    <ChevronDown className="w-4 h-4 text-neutral-500 shrink-0" />
+                                                    <ChevronDown className="w-4 h-4 text-neutral-500 shrink-0 mt-0.5 sm:mt-0" />
                                                 ) : (
-                                                    <ChevronRight className="w-4 h-4 text-neutral-500 shrink-0" />
+                                                    <ChevronRight className="w-4 h-4 text-neutral-500 shrink-0 mt-0.5 sm:mt-0" />
                                                 )}
-                                                <h3 className="font-semibold text-neutral-950 truncate">{course.title}</h3>
+                                                <h3 className="font-semibold text-sm sm:text-base text-neutral-950 break-words leading-snug">
+                                                    {course.title}
+                                                </h3>
                                             </div>
-                                            <p className="text-xs text-neutral-500 pl-6 line-clamp-1">{course.description}</p>
+                                            <p className="text-xs text-neutral-500 pl-6 line-clamp-2">{course.description}</p>
                                         </div>
                                         <div className="shrink-0 text-right">
                                             <div className="text-xs font-bold text-neutral-950">{pct}%</div>
@@ -255,26 +257,28 @@ export function RoadmapDashboard() {
                                                     <div key={mod.id} className="bg-neutral-50/40">
                                                         <button
                                                             onClick={() => setOpenModules((p) => ({ ...p, [mod.id]: !p[mod.id] }))}
-                                                            className="w-full px-4 sm:px-5 py-3.5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 text-left hover:bg-neutral-100/70 transition"
+                                                            className="w-full px-4 sm:px-5 py-3.5 flex items-start sm:items-center justify-between gap-2 text-left hover:bg-neutral-100/70 transition"
                                                         >
-                                                            <div className="flex items-center gap-2.5 min-w-0">
+                                                            <div className="flex items-start sm:items-center gap-2 min-w-0 flex-1 flex-wrap">
                                                                 {modOpen ? (
-                                                                    <ChevronDown className="w-4 h-4 text-neutral-500 shrink-0" />
+                                                                    <ChevronDown className="w-4 h-4 text-neutral-500 shrink-0 mt-0.5 sm:mt-0" />
                                                                 ) : (
-                                                                    <ChevronRight className="w-4 h-4 text-neutral-500 shrink-0" />
+                                                                    <ChevronRight className="w-4 h-4 text-neutral-500 shrink-0 mt-0.5 sm:mt-0" />
                                                                 )}
-                                                                <span className="text-sm font-medium text-neutral-900 truncate">{mod.title}</span>
+                                                                <span className="text-sm font-medium text-neutral-900 break-words leading-snug">
+                                                                    {mod.title}
+                                                                </span>
                                                                 <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 bg-neutral-200/80 text-neutral-700 shrink-0">
                                                                     Week {mod.target_week}
                                                                 </span>
                                                             </div>
                                                             <div className="flex items-center gap-2 shrink-0">
                                                                 {!mod.drip_unlocked ? (
-                                                                    <span className="inline-flex items-center gap-1 text-[11px] px-2.5 py-0.5 bg-amber-50 text-amber-800 border border-amber-200">
-                                                                        <CalendarClock className="w-3 h-3" /> Unlocks {dripDate}
+                                                                    <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 bg-amber-50 text-amber-800 border border-amber-200 whitespace-nowrap">
+                                                                        <CalendarClock className="w-3 h-3" /> {dripDate}
                                                                     </span>
                                                                 ) : (
-                                                                    <span className="text-xs text-neutral-500">
+                                                                    <span className="text-xs text-neutral-500 whitespace-nowrap">
                                                                         {mod.completed_lessons}/{mod.total_lessons} done
                                                                     </span>
                                                                 )}
@@ -282,7 +286,7 @@ export function RoadmapDashboard() {
                                                         </button>
 
                                                         {modOpen && (
-                                                            <div className="px-5 pb-4 pt-1 space-y-1.5 bg-white">
+                                                            <div className="px-3.5 sm:px-5 pb-4 pt-1 space-y-1.5 bg-white">
                                                                 {mod.lessons.map((lesson: any) => {
                                                                     const isLocked =
                                                                         lesson.access_state === 'locked_prereq' ||
@@ -291,7 +295,7 @@ export function RoadmapDashboard() {
 
                                                                     const rowInner = (
                                                                         <div
-                                                                            className={`flex items-center justify-between gap-3 px-3.5 py-2.5 border text-sm transition ${
+                                                                            className={`flex items-start sm:items-center justify-between gap-2.5 px-3 sm:px-3.5 py-2.5 border text-sm transition ${
                                                                                 isLocked
                                                                                     ? 'bg-neutral-50 border-neutral-200/70 text-neutral-400 cursor-not-allowed'
                                                                                     : isDone
@@ -299,18 +303,22 @@ export function RoadmapDashboard() {
                                                                                       : 'bg-white border-neutral-300 text-neutral-950 font-medium hover:border-neutral-950'
                                                                             }`}
                                                                         >
-                                                                            <div className="flex items-center gap-3 min-w-0">
-                                                                                {isDone ? (
-                                                                                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                                                                                ) : isLocked ? (
-                                                                                    <Lock className="w-4 h-4 text-neutral-400 shrink-0" />
-                                                                                ) : (
-                                                                                    <LessonTypeIcon type={lesson.lesson_type} />
-                                                                                )}
-                                                                                <span className="truncate">{lesson.title}</span>
+                                                                            <div className="flex items-start sm:items-center gap-2.5 min-w-0 flex-1">
+                                                                                <span className="mt-0.5 sm:mt-0 shrink-0">
+                                                                                    {isDone ? (
+                                                                                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                                                                                    ) : isLocked ? (
+                                                                                        <Lock className="w-4 h-4 text-neutral-400" />
+                                                                                    ) : (
+                                                                                        <LessonTypeIcon type={lesson.lesson_type} />
+                                                                                    )}
+                                                                                </span>
+                                                                                <span className="break-words leading-snug text-xs sm:text-sm">
+                                                                                    {lesson.title}
+                                                                                </span>
                                                                             </div>
 
-                                                                            <div className="flex items-center gap-2 shrink-0 text-[11px]">
+                                                                            <div className="flex items-center gap-1.5 shrink-0 text-[11px]">
                                                                                 {lesson.project_review_status && (
                                                                                     <span
                                                                                         className={`px-2 py-0.5 capitalize font-semibold ${
@@ -351,7 +359,7 @@ export function RoadmapDashboard() {
                 </div>
 
                 {/* Right Column: Team Notes Feed */}
-                <div className="space-y-4">
+                <div className="min-w-0 w-full space-y-4">
                     <div className="flex items-center gap-2">
                         <MessageSquareQuote className="w-4 h-4 text-neutral-900" />
                         <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-neutral-900">
@@ -361,20 +369,20 @@ export function RoadmapDashboard() {
 
                     <div className="bg-white border border-neutral-200 p-4 space-y-3">
                         {teamFeed.length === 0 ? (
-                            <p className="text-xs text-neutral-500 py-4 text-center">
+                            <p className="text-xs text-neutral-500 py-2 text-left leading-relaxed">
                                 Short notes teammates write after finishing a reading or project show up here.
                             </p>
                         ) : (
                             teamFeed.map((item: any, idx: number) => (
-                                <div key={idx} className="p-3 bg-neutral-50 border border-neutral-200 space-y-1.5">
-                                    <div className="flex items-center justify-between text-[11px]">
-                                        <span className="font-semibold text-neutral-950">{item.learnerName}</span>
-                                        <span className="text-neutral-400">
+                                <div key={idx} className="p-3 bg-neutral-50 border border-neutral-200 space-y-1.5 text-left">
+                                    <div className="flex items-center justify-between gap-2 text-[11px]">
+                                        <span className="font-semibold text-neutral-950 truncate">{item.learnerName}</span>
+                                        <span className="text-neutral-400 shrink-0">
                                             {item.completedAt ? new Date(item.completedAt).toLocaleDateString() : ''}
                                         </span>
                                     </div>
-                                    <div className="text-[11px] text-neutral-500 truncate">{item.lessonTitle}</div>
-                                    <p className="text-xs text-neutral-700 leading-relaxed">“{item.takeaway}”</p>
+                                    <div className="text-[11px] text-neutral-500 break-words">{item.lessonTitle}</div>
+                                    <p className="text-xs text-neutral-700 leading-relaxed break-words">“{item.takeaway}”</p>
                                 </div>
                             ))
                         )}

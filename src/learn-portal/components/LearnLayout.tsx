@@ -59,7 +59,7 @@ export function LearnLayout() {
         }`;
 
     return (
-        <div className="min-h-screen bg-neutral-50/60 text-neutral-950 flex flex-col font-sans">
+        <div className="min-h-screen bg-neutral-50/60 text-neutral-950 flex flex-col font-sans overflow-x-hidden">
             <header className="sticky top-0 z-30 border-b border-neutral-200 bg-white/95 backdrop-blur-md">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
                     <div className="flex items-center gap-4 sm:gap-8 min-w-0">

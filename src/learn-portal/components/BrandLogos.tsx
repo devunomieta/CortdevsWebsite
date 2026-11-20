@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useConfig } from '../../app/context/ConfigContext';
 
 export function CortDevsLearnLogo({
@@ -8,8 +8,13 @@ export function CortDevsLearnLogo({
     size?: 'sm' | 'md' | 'lg';
     showBadge?: boolean;
 }) {
-    const { config } = useConfig();
+    const { config, isLoading } = useConfig();
     const [imgFailed, setImgFailed] = useState(false);
+
+    // Reset failure state whenever ConfigContext finishes loading the real Supabase logo URL
+    useEffect(() => {
+        setImgFailed(false);
+    }, [config.headerLogo]);
 
     const imgHeights = {
         sm: 'h-6',
@@ -23,15 +28,20 @@ export function CortDevsLearnLogo({
         lg: 'text-3xl',
     };
 
+    // Avoid attempting to load the nonexistent fallback '/logo-dark.svg' while Supabase config is still fetching
+    const hasRealLogoUrl = Boolean(config.headerLogo && config.headerLogo !== '/logo-dark.svg');
+
     return (
-        <div className="inline-flex items-center gap-3">
-            {config.headerLogo && !imgFailed ? (
+        <div className="inline-flex items-center gap-3 shrink-0">
+            {hasRealLogoUrl && !imgFailed ? (
                 <img
                     src={config.headerLogo}
                     alt="CortDevs"
                     onError={() => setImgFailed(true)}
                     className={`${imgHeights[size]} w-auto object-contain`}
                 />
+            ) : isLoading ? (
+                <div className={`${imgHeights[size]} w-24 bg-neutral-200/70 animate-pulse`} />
             ) : (
                 <span className={`${textSizes[size]} font-light tracking-tighter text-neutral-950 leading-none`}>
                     Cort<span className="font-semibold italic">Devs</span>
@@ -48,7 +58,7 @@ export function CortDevsLearnLogo({
 
 export function MicrosoftLogo({ className = 'h-4', dark = false }: { className?: string; dark?: boolean }) {
     return (
-        <span className="inline-flex items-center gap-1.5 select-none" aria-label="Microsoft">
+        <span className="inline-flex items-center gap-1.5 select-none shrink-0" aria-label="Microsoft">
             <svg viewBox="0 0 21 21" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
                 <rect x="0" y="0" width="9.8" height="9.8" fill="#F25022" />
                 <rect x="11.2" y="0" width="9.8" height="9.8" fill="#7FBA00" />
@@ -68,9 +78,9 @@ export function MicrosoftLogo({ className = 'h-4', dark = false }: { className?:
 
 export function CourseraLogo({ dark = false }: { dark?: boolean }) {
     return (
-        <span className="inline-flex items-center select-none" aria-label="Coursera">
+        <span className="inline-flex items-center select-none shrink-0" aria-label="Coursera">
             <svg
-                viewBox="0 0 112 20"
+                viewBox="0 0 82 20"
                 className="h-4 w-auto"
                 fill="none"
                 xmlns="http://www.w3.org/2000/svg"
@@ -100,22 +110,16 @@ export function CoursePartnerStrip({
 }) {
     return (
         <div
-            className={`inline-flex flex-wrap items-center gap-3 ${
-                compact
-                    ? 'px-3 py-1.5 text-xs'
-                    : 'px-3.5 py-2 text-xs'
+            className={`inline-flex items-center gap-2.5 flex-nowrap whitespace-nowrap ${
+                compact ? 'px-3 py-1.5' : 'px-3.5 py-2'
             } border ${
                 dark
                     ? 'border-white/15 bg-white/5 text-neutral-300'
                     : 'border-neutral-200 bg-white text-neutral-600'
             }`}
         >
-            <span className="text-[10px] font-bold uppercase tracking-[0.18em] opacity-70">
-                Curriculum
-            </span>
-            <span className={`h-3.5 w-px ${dark ? 'bg-white/20' : 'bg-neutral-200'}`} />
-            <MicrosoftLogo dark={dark} />
-            <span className="opacity-40 text-xs">×</span>
+            <MicrosoftLogo dark={dark} className="h-3.5" />
+            <span className="opacity-40 text-xs leading-none">×</span>
             <CourseraLogo dark={dark} />
         </div>
     );
