@@ -1,0 +1,2715 @@
+{
+  "c1-m1-product-management-foundations-l14-quiz-assessing-the-core-responsibilities-and-": {
+    "q1": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Conducting user research and market analysis enables a product manager to identify and validate real customer pain points alongside viable market opportunities before defining core features."
+    },
+    "q2": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Effective product management centers on clear cross-functional communication and rigorous feature prioritization rather than specialized coding, hardware engineering, or financial modeling."
+    },
+    "q3": {
+      "correct_indices": [
+        0,
+        1,
+        3
+      ],
+      "explanation": "Transitioning to enterprise healthcare software requires adapting to legacy system integrations and strict regulatory compliance while preserving the core product management principle of user-centricity."
+    },
+    "q4": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Enterprise software products must prioritize system scalability and long-term reliability to support mission-critical organizational operations over extended lifecycles."
+    },
+    "q5": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Power BI is Microsoft's business analytics tool designed to visualize performance metrics, monitor cloud migration KPIs, and surface operational bottlenecks."
+    },
+    "q6": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Sustained business impact in product management is demonstrated by continuously iterating on user feedback to drive higher customer retention and predictable revenue growth."
+    }
+  },
+  "c1-m1-product-management-foundations-l15-quiz-responsibilities-of-a-product-manager": {
+    "q1": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Product managers rely on hard skills like data analysis and prioritization paired with strong communication skills to align cross-functional teams and resolve conflicting viewpoints."
+    },
+    "q2": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Microsoft Project is primarily used to create structured project schedules, manage task dependencies, and allocate resources effectively across initiatives."
+    },
+    "q3": {
+      "correct_indices": [
+        0,
+        1,
+        2
+      ],
+      "explanation": "Core product management responsibilities include defining the vision and roadmap, conducting market and user research, and tracking KPIs, whereas writing application code belongs to engineering."
+    },
+    "q4": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Building an interactive Power BI dashboard allows product managers to dynamically compare adoption, satisfaction, and support metrics across features to spot issues rapidly."
+    },
+    "q5": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Microsoft Copilot accelerates product specification authoring by generating structured initial drafts that organize key features, technical requirements, and user experience considerations."
+    }
+  },
+  "c1-m2-market-research-and-analysis-l9-quiz-evaluating-market-research-techniques": {
+    "q1": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Launching without market research into customer preferences for genres, formats, and authors leads to poor product-market fit, weak engagement, and low repeat purchases."
+    },
+    "q2": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Online surveys with a diverse sample provide the fastest, most cost-effective way to collect broad quantitative consumer preference data under tight budget and time constraints."
+    },
+    "q3": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Using relevant secondary industry studies to shape targeted primary survey questions and then analyzing both datasets together produces a cohesive, evidence-backed market analysis."
+    },
+    "q4": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "In a SWOT analysis, Opportunities examine favorable external market trends and partnership possibilities\u2014such as growing specialty coffee demand and local vendor collaborations."
+    },
+    "q5": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Synthesizing user demand for privacy with competitors' weak data protection leads to prioritizing stronger encryption and user data controls as a seamless strategic differentiator."
+    }
+  },
+  "c1-m2-market-research-and-analysis-l10-quiz-methods-for-collecting-and-analyzing-mar": {
+    "q1": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Industry research firm reports synthesize market sizing, growth projections, competitive positioning, and regulatory factors into the most comprehensive secondary market overview."
+    },
+    "q2": {
+      "correct_indices": [
+        0,
+        1
+      ],
+      "explanation": "Focus groups excel at uncovering rich qualitative insights and diverse perspectives, but group dynamics can introduce bias when dominant voices sway participants."
+    },
+    "q3": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Microsoft Copilot streamlines secondary market research by rapidly summarizing lengthy industry reports and extracting key market players and trends."
+    },
+    "q4": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "A competitive feature matrix systematically compares capabilities across rival products to expose market gaps and highlight clear product differentiators."
+    },
+    "q5": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Enterprise software buyers evaluate solutions as long-term strategic investments, prioritizing organizational alignment, reliability, and scalability over short-term cost savings."
+    }
+  },
+  "c1-m3-product-development-lifecycle-l11-quiz-stages-and-challenges-of-the-product-dev": {
+    "q1": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "The Development phase is specifically defined by engineering and design teams translating validated product requirements into a working, functional product prior to launch."
+    },
+    "q2": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "After gathering prototype user testing insights, the product manager's critical decision point is revisiting and refining product requirements before committing further build effort."
+    },
+    "q3": {
+      "correct_indices": [
+        2,
+        3
+      ],
+      "explanation": "The Testing and Validation stage requires both comprehensive QA bug resolution and usability validation with diverse target users to confirm readiness for release."
+    },
+    "q4": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Bringing structure to early ideation starts by clearly articulating the core user problem to solve before systematically evaluating candidate solutions."
+    },
+    "q5": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Moving from concept into execution requires a product roadmap that establishes prioritized features, milestones, and timelines to keep teams aligned."
+    },
+    "q6": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "During early ideation for enterprise software, identifying applicable regulatory requirements and industry compliance standards ensures security and compliance are designed in from the start."
+    },
+    "q7": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Continuous expansion from text to rich multimedia illustrates the iterative nature of product development, where evolving user behavior and market demands drive ongoing enhancements."
+    },
+    "q8": {
+      "correct_indices": [
+        0,
+        2,
+        3
+      ],
+      "explanation": "Effective feature testing checklists validate real-world reliability across network conditions, core audio-video quality and synchronization, and privacy compliance such as user consent."
+    },
+    "q9": {
+      "correct_indices": [
+        0,
+        2
+      ],
+      "explanation": "In a mature, saturated market, product teams shift from early awareness building toward user retention, technical debt reduction, performance optimization, and streamlining underused features."
+    }
+  },
+  "c1-m3-product-development-lifecycle-l12-quiz-creating-key-product-documentation": {
+    "q1": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Asana's Timeline view provides a visual schedule that explicitly displays project phases and task dependency lines to help teams coordinate execution."
+    },
+    "q2": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Asana's shared project views give all stakeholders real-time, consistent visibility into task status, ownership, and upcoming deliverable deadlines."
+    },
+    "q3": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "A centralized template repository paired with a clear style guide and formal review process guarantees uniform structure and quality across MRDs and PRDs."
+    },
+    "q4": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Maintaining accessible user documentation requires structuring content modularly and updating it iteratively using continuous user feedback loops."
+    },
+    "q5": {
+      "correct_indices": [
+        0,
+        2,
+        3
+      ],
+      "explanation": "Effective PLM documentation governance relies on a centralized role-based repository, automated version control with change logs, and regular standardized reviews with cross-phase SMEs."
+    }
+  },
+  "c1-m4-product-vision-and-strategy-l12-quiz-defining-and-applying-product-vision": {
+    "q1": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "In large organizations with specialized PM tracks, vision ownership varies by scope, with feature-focused product managers having narrower influence over the overarching vision than strategic PMs."
+    },
+    "q2": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "A clear product vision acts as a guiding North Star framework that aligns teams and anchors strategic trade-offs and feature prioritization."
+    },
+    "q3": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "A compelling product vision articulates an inspiring long-term destination that unifies cross-functional teams around a shared direction such as sustainable innovation."
+    },
+    "q4": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "A structured product vision framework progresses from discovering user insights to crafting a vision statement, defining guiding principles, and establishing strategic themes."
+    },
+    "q5": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "In regulated industries like finance, product vision should embed security and compliance as foundational principles woven throughout architecture and the entire development lifecycle."
+    },
+    "q6": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "A robust product strategy provides a coherent, structured framework for long-term product evolution and competitive differentiation beyond reactive short-term iterations."
+    }
+  },
+  "c1-m4-product-vision-and-strategy-l13-quiz-creating-effective-value-propositions": {
+    "q1": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Strong value propositions articulate concrete customer outcomes\u2014such as saving time by streamlining tasks\u2014rather than generic claims or exhaustive technical feature lists."
+    },
+    "q2": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Highlighting specific differentiators like workflow streamlining, bottleneck prediction, and real-time collaborative insights tied to tangible time savings creates a compelling value proposition."
+    },
+    "q3": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Refining an ambiguous value proposition requires isolating recurring customer pain points from feedback and rewriting the message around clear, measurable solutions."
+    },
+    "q4": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Microsoft Loop enables dispersed teams to embed live, synchronized components across apps for seamless real-time co-editing and collaborative presentation building."
+    },
+    "q5": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Power BI communicates business value effectively to executives through interactive dashboards that visualize live KPIs and demonstrate measurable operational and cost impacts."
+    }
+  },
+  "c1-m5-roadmapping-and-prioritization-l5-quiz-building-and-utilizing-product-roadmaps-": {
+    "q1": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Organizing a roadmap around strategic themes, incorporating scenario planning for market changes, and running regular cross-functional reviews balances adaptability with stakeholder alignment."
+    },
+    "q2": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "A weighted scoring model balancing user value, strategic alignment, and effort\u2014grounded in validated research and expected user behavior\u2014creates objective priorities and testable outcome hypotheses."
+    },
+    "q3": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Structured requirements combining user stories, acceptance criteria, mockups, integration specs, and phase sign-offs establish shared precision and prevent scope creep in complex systems."
+    },
+    "q4": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Using a goal-aligned thematic roadmap, an objective weighted scoring matrix, and regular bi-weekly stakeholder reviews builds credibility and manages conflicting priorities transparently."
+    },
+    "q5": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Implicit assumptions and undocumented inter-module dependencies create conflicting engineering interpretations that frequently result in costly integration failures."
+    }
+  },
+  "c1-m5-roadmapping-and-prioritization-l7-quiz-feature-prioritization-frameworks": {
+    "q1": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "The MoSCoW method (Must, Should, Could, Won't have) provides the fastest and most direct triage framework for separating essential MVP features under a tight deadline."
+    },
+    "q2": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "A Value-Effort matrix visually plots features across strategic impact and required resource investment, making quick wins and major investments easy to compare in spreadsheets."
+    },
+    "q3": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Applying an objective scoring model incorporating customer impact and implementation effort balances stakeholder urgency with long-term product vision and value delivery."
+    },
+    "q4": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Evaluating whether a proposed feature directly advances the core vision\u2014here, streamlining workflows\u2014is essential to prevent vision drift and misaligned investments."
+    },
+    "q5": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Plotting candidate features on a quadrant matrix comparing strategic alignment and customer impact provides a clear, structured basis for release prioritization."
+    }
+  },
+  "c2-m1-market-research-fundamentals-l10-quiz-market-research-methods-and-selection": {
+    "q1": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Building a product without continuous target-audience discovery leads to generic features that miss real workflow pain points and fail to achieve product-market fit."
+    },
+    "q2": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Combining a broad survey of current and prospective local customers with public competitor analysis captures market trends, competitive positioning, and unmet needs in one comprehensive initial step."
+    },
+    "q3": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Pairing quantitative methods like surveys with qualitative research early in discovery uncovers both the scale of market trends and the underlying user pain points driving behavior."
+    },
+    "q4": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Asking 'how helpful' presupposes positive value, introducing leading language and confirmation bias that skews user feedback instead of neutrally measuring experience."
+    },
+    "q5": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Early-stage discovery for first-time smartphone users requires contextual, in-depth qualitative interviews to uncover latent behaviors, mental models, and adoption barriers before testing UI variations."
+    },
+    "q6": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Unprompted observational research reveals authentic first-time user behaviors, emotional friction, and hidden usability obstacles that participants often fail to articulate in focus groups or surveys."
+    },
+    "q7": {
+      "correct_indices": [
+        0,
+        1,
+        3
+      ],
+      "explanation": "Enterprise B2B buying centers require addressing all key stakeholders\u2014including compliance, procurement, and end-user leads alongside technical leaders\u2014rather than relying solely on the CTO."
+    },
+    "q8": {
+      "correct_indices": [
+        0,
+        1,
+        2
+      ],
+      "explanation": "Understanding complex enterprise requirements depends on cross-functional workshops, targeted interviews with IT and security stakeholders, and reviewing comparable enterprise implementations rather than general consumer interviews."
+    }
+  },
+  "c2-m1-market-research-fundamentals-l13-quiz-data-analysis-and-interpretation-for-pro": {
+    "q1": {
+      "correct_indices": [
+        0,
+        3
+      ],
+      "explanation": "Mitigating research bias and generating actionable insights requires auditing instruments for leading assumptions and triangulating segmented qualitative and quantitative data in Power BI rather than discarding outliers or ignoring interviews."
+    },
+    "q2": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "A defining challenge of B2B market research is reconciling competing priorities across multiple buying-center stakeholders to craft a cohesive, compelling value proposition."
+    },
+    "q3": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Moderator bias occurs when a facilitator's positive reinforcement or cues steer participants toward particular topics and artificially favorable feedback."
+    },
+    "q4": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "An interactive Power BI dashboard with dynamic exploration and drill-down capabilities turns diverse B2B datasets into clear, executive-ready strategic insights."
+    },
+    "q5": {
+      "correct_indices": [
+        0,
+        2,
+        3
+      ],
+      "explanation": "Effective B2B analysis in Power BI leverages tailored interactive visuals, relational data modeling across datasets, and dynamic filters and slicers rather than static raw-data dumps."
+    }
+  },
+  "c2-m2-consumer-behavior-and-segmentation-l7-quiz-consumer-behavior-and-decision-making": {
+    "q1": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Excessive feature options trigger choice overload and adoption paralysis, which product managers address by curating core capabilities and guiding users through simplified onboarding."
+    },
+    "q2": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Customers often cannot articulate latent needs in surveys, so early qualitative methods like in-context observation and empathy mapping are essential to uncover underlying motivations for successful innovation."
+    },
+    "q3": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "A funnel chart directly visualizes sequential progression and conversion drop-off rates across each stage of the user adoption journey from awareness to daily active usage."
+    },
+    "q4": {
+      "correct_indices": [
+        0,
+        1,
+        3
+      ],
+      "explanation": "Habit-forming product design combines clear behavioral triggers, variable rewards, and user investment through personalization and visible mastery rather than generic, unrewarding reminders."
+    },
+    "q5": {
+      "correct_indices": [
+        0,
+        1,
+        3
+      ],
+      "explanation": "An enterprise cybersecurity buying center centers on security (CISO), infrastructure integration (Head of IT), and commercial/contract governance (CPO) rather than marketing branding."
+    }
+  },
+  "c2-m2-consumer-behavior-and-segmentation-l11-quiz-market-segmentation-strategies": {
+    "q1": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Psychographic and behavioral segmentation groups users by motivations, attitudes, and usage patterns, enabling far more precise feature alignment than broad demographics or geography."
+    },
+    "q2": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Sequenced segmentation adapts target segments as a product matures, aligning value propositions with the evolving needs of innovators, early adopters, and mainstream audiences."
+    },
+    "q3": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Crossing from early adopters to the mainstream market requires reducing friction through simpler interfaces and messaging centered on practical, everyday benefits rather than technical specs or exclusivity."
+    },
+    "q4": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Effective B2B segmentation uses firmographics like industry vertical and company size to tailor solutions and messaging to distinct operational requirements."
+    },
+    "q5": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Initial product pilots perform best when targeting psychographic segments of tech enthusiasts who embrace novelty and provide constructive early feedback."
+    }
+  },
+  "c2-m3-competitive-intelligence-and-analysis-l5-quiz-competitive-research-and-intelligence-ga": {
+    "q1": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "In a saturated market, thorough competitive research primarily uncovers underserved gaps and opportunities for strategic differentiation rather than simply copying rival features or pricing."
+    },
+    "q2": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Aggregating and triangulating multiple competitive data sources validates signals and surfaces recurring strategic patterns that isolated metrics miss."
+    },
+    "q3": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Incumbents counter technological disruption by investing in agile innovation and exploring emerging customer segments rather than doubling down exclusively on legacy operations."
+    },
+    "q4": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Raw competitive data becomes strategic market intelligence when systematically triangulated across sources and contextualized within broader market and business dynamics."
+    },
+    "q5": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Calculated DAX measures paired with cross-filtered visuals enable dynamic, multidimensional comparisons of market share, pricing, and feature sets within a unified Power BI dashboard."
+    }
+  },
+  "c2-m3-competitive-intelligence-and-analysis-l9-quiz-swot-analysis-for-competitive-advantage": {
+    "q1": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "SWOT classifies internal capabilities and gaps as strengths (AI savings) and weaknesses (missing bank integrations), while mapping external market dynamics to opportunities (growing demand) and threats (competitor launches)."
+    },
+    "q2": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Porter's Five Forces evaluates industry structural pressures\u2014including buyer switching power, threat of new entrants, and threat of substitutes\u2014to guide defensible product strategy."
+    },
+    "q3": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Facilitating a collaborative group session to evaluate competitors' strengths, weaknesses, opportunities, and threats harnesses cross-functional perspectives and reduces individual bias."
+    },
+    "q4": {
+      "correct_indices": [
+        0,
+        2,
+        3
+      ],
+      "explanation": "Strategic SWOT execution starts by accurately cataloging all four quadrants, evaluating options like niche focus or partnerships, and prioritizing initiatives that pair strengths with opportunities while addressing weaknesses and threats."
+    },
+    "q5": {
+      "correct_indices": [
+        1,
+        2,
+        3
+      ],
+      "explanation": "Sound SWOT analysis distinguishes internal strengths and weaknesses from external opportunities and synthesizes all four dimensions rather than fixating on a single weakness in isolation."
+    }
+  },
+  "c2-m3-competitive-intelligence-and-analysis-l13-quiz-unlocking-customer-needs": {
+    "q1": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Under Jobs to be Done, customers often 'hire' simpler tools to organize and track core tasks effortlessly without setup overhead, rather than seeking maximum feature complexity."
+    },
+    "q2": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Focusing on customers' real-world routines reveals the core job of getting their regular coffee quickly and conveniently with minimal wait time and friction."
+    },
+    "q3": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "JTBD interviews uncover adjacent emotional and functional jobs\u2014such as unobtrusively ensuring an elderly parent's safety for peace of mind\u2014that open new market opportunities beyond standard break-in prevention."
+    },
+    "q4": {
+      "correct_indices": [
+        1,
+        2
+      ],
+      "explanation": "Journey mapping tools and collaborative JTBD Canvas templates directly visualize customer job steps, triggers, outcomes, and pain points to expose innovation opportunities beyond demographic personas or feature-usage counts."
+    },
+    "q5": {
+      "correct_indices": [
+        0,
+        2
+      ],
+      "explanation": "Practical JTBD adoption centers team ideation on customer jobs and shares situation-motivation-outcome job stories rather than pitching predetermined feature lists during discovery interviews."
+    }
+  },
+  "c2-m4-ai-product-market-analysis-l5-quiz-navigating-the-ai-product-market": {
+    "q1": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Immediately after launching an AI product, teams must monitor real-world interactions and performance feedback to establish a baseline and uncover model or UX gaps before iterating."
+    },
+    "q2": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "During Data Acquisition and Preparation, the primary challenge is sourcing, cleaning, and curating relevant, high-quality datasets aligned with the model's training objectives."
+    },
+    "q3": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "A major trend shaping the AI market is rising demand for personalized, context-aware systems that dynamically adapt responses to individual user needs."
+    },
+    "q4": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Responsible AI development for generative creative tools prioritizes ethical governance around content originality, intellectual property, and ownership of AI-generated outputs."
+    },
+    "q5": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Emerging AI regulations for high-risk systems like autonomous vehicles center on rigorous pre-launch safety verification, accountability, and clear liability frameworks."
+    }
+  },
+  "c2-m4-ai-product-market-analysis-l7-quiz-competitive-and-consumer-landscape": {
+    "q1": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Competitive analysis for AI products begins by mapping existing AI competitors and adjacent technologies in the market before diving into deeper evaluations or SWOT."
+    },
+    "q2": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "A competitor offering a complementary capability you lack while expressing interest in integrations signals a strong opportunity for a mutually beneficial strategic partnership."
+    },
+    "q3": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Using Microsoft Copilot for competitive SWOT analysis involves prompting it to synthesize a rival's core strengths, weaknesses, and relevant external market risks and opportunities."
+    },
+    "q4": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Opacity in how an AI model arrives at recommendations undermines explainability and is a primary barrier to building consumer trust in high-stakes domains like personal finance."
+    },
+    "q5": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "In clinical settings, a lack of transparency and explainability into how an AI diagnostic tool reaches its decisions is a leading barrier to physician trust and adoption."
+    }
+  },
+  "c3-m1-product-strategy-fundamentals-l8-quiz-identifying-market-gaps-and-opportunitie": {
+    "q1": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Effective product strategy starts with market research, competitor analysis, and identifying unmet user needs before jumping into ideation or project planning."
+    },
+    "q2": {
+      "correct_indices": [
+        0,
+        1,
+        3
+      ],
+      "explanation": "Building a strong strategy foundation requires combining market research, competitive analysis, and target audience definition to uncover unmet customer needs and market gaps rather than relying on internal brainstorming alone."
+    },
+    "q3": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "The Jobs to be Done (JTBD) framework focuses on the specific contexts, underlying motivations, and desired functional and emotional outcomes users seek so teams can uncover underserved opportunities."
+    },
+    "q4": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Design thinking minimizes risk and accelerates learning by building low-fidelity prototypes early and iteratively testing them with users to validate assumptions before investing in full development."
+    },
+    "q5": {
+      "correct_indices": [
+        1,
+        2,
+        3
+      ],
+      "explanation": "Analyzing AI and cloud opportunities involves evaluating machine learning advancements, cloud platform capabilities, and emerging AI-driven analytics trends rather than merely polling customers for specific feature requests."
+    }
+  },
+  "c3-m1-product-strategy-fundamentals-l11-quiz-brainstorming-and-creative-problem-solvi": {
+    "q1": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Using Microsoft Copilot effectively for product ideation begins by framing core user challenges, prompting for AI-driven solutions, and iteratively refining ideas through technical feasibility assessments."
+    },
+    "q2": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Beyond basic brainstorming, Copilot adds strategic value by helping product managers evaluate cloud integration complexities and explore AI model adaptations for scalability."
+    },
+    "q3": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Empathy is the foundational stage of design thinking, and conducting user empathy interviews directly uncovers the perspectives and unmet needs behind a feature-need mismatch."
+    },
+    "q4": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "The Six Thinking Hats method ensures balanced, comprehensive product decisions by systematically examining facts (White), feelings (Red), benefits (Yellow), risks (Black), creativity (Green), and process control (Blue)."
+    },
+    "q5": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Mind mapping visually branches outward from a central concept to reveal hierarchical structures and interconnections across diverse feature ideas."
+    }
+  },
+  "c3-m2-vision-and-objectives-l5-quiz-defining-your-product-vision": {
+    "q1": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "An impactful product vision is inspiring, customer-centric, and future-oriented, articulating the long-term value delivered to users without prescribing a feature checklist or internal process."
+    },
+    "q2": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Contrasting a focused personal task-management vision with a broader team project-management platform accurately reflects strategic product vision choices rather than pricing or tactical implementation decisions."
+    },
+    "q3": {
+      "correct_indices": [
+        1,
+        2,
+        3
+      ],
+      "explanation": "Integrating Microsoft's cloud and AI ecosystem into an ERP vision leverages Azure for scalable global infrastructure, Azure Machine Learning for predictive analytics, and Copilot for intelligent user assistance."
+    },
+    "q4": {
+      "correct_indices": [
+        0,
+        1,
+        2
+      ],
+      "explanation": "Microsoft's enterprise cloud and AI strategy centers on embedded AI assistants across productivity suites, cloud-based machine learning services, and flexible hybrid cloud architectures rather than siloed on-premises open-source builds."
+    },
+    "q5": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Microsoft's cloud and AI strategy focuses on democratizing advanced AI through integrated cloud services so enterprise developers can seamlessly embed capabilities like natural language understanding and predictive analytics."
+    }
+  },
+  "c3-m2-vision-and-objectives-l8-quiz-setting-smart-objectives": {
+    "q1": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "A strong SMART objective defines specific deliverables, measurable adoption and completion targets, achievable initial scope, alignment with engagement goals, and explicit deadlines."
+    },
+    "q2": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Targeting 5,000 active users who complete at least one booking within three months translates the broad vision and acquisition goal into a specific, measurable, and time-bound objective."
+    },
+    "q3": {
+      "correct_indices": [
+        0,
+        1,
+        3
+      ],
+      "explanation": "CLTV of repeat buyers, MRR from seller upgrades, and the CAC-to-CLTV ratio directly measure sustainable revenue growth and customer retention, whereas raw listing views only reflect top-of-funnel browsing."
+    },
+    "q4": {
+      "correct_indices": [
+        2,
+        3
+      ],
+      "explanation": "An annotated ARPU trend line chart and a CLTV cohort heatmap in Power BI directly visualize revenue-per-user growth and customer loyalty over time, offering far richer strategic insight than raw acquisition counts or tables."
+    },
+    "q5": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "A dual-axis line chart plotting ARPU alongside inverted churn rate over time lets product managers visually track trends and spot correlations between monetization and customer retention."
+    }
+  },
+  "c3-m3-roadmapping-and-planning-l4-quiz-constructing-a-visual-roadmap": {
+    "q1": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "A visual timeline roadmap showing strategic themes, major releases, and timeframes aligns diverse stakeholders around the product vision without overwhelming them with task-level details."
+    },
+    "q2": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Strategic roadmapping requires evaluating candidate features directly against both the overarching product vision and measurable business targets like ARPU growth rather than relying solely on request volume or team capacity."
+    },
+    "q3": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Sequenced timeline bars paired with explicit dependency connectors clearly communicate release durations and prerequisite relationships for cross-functional planning."
+    },
+    "q4": {
+      "correct_indices": [
+        0,
+        1,
+        3
+      ],
+      "explanation": "Using visual differentiation for feature versus infrastructure work, marking key milestones, and linking dependencies ensures cloud roadmap plans accurately reflect technical prerequisites and release targets."
+    },
+    "q5": {
+      "correct_indices": [
+        1,
+        2,
+        3
+      ],
+      "explanation": "Effective roadmaps remain audience-appropriate, visually clear, and explicitly tied to strategic goals, avoiding overly granular task assignments that belong in execution backlogs."
+    }
+  },
+  "c3-m3-roadmapping-and-planning-l9-quiz-what-s-your-priority": {
+    "q1": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Structured prioritization frameworks like RICE provide an objective, data-informed way to weigh reach, impact, confidence, and effort when deciding which features deliver the highest value."
+    },
+    "q2": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Product teams must weigh business-critical urgency and broad user impact first, prioritizing a core engagement decline threatening platform health while phasing narrower requests for later."
+    },
+    "q3": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Systematically analyzing the frequency and impact of multi-channel user feedback ensures recurring pain points and high-value requests quantitatively inform prioritization scoring."
+    },
+    "q4": {
+      "correct_indices": [
+        0,
+        2,
+        3
+      ],
+      "explanation": "Embedding security and compliance into prioritization requires elevating critical protections like encryption, running threat modeling early, and adding compliance review checkpoints rather than deferring regulatory work."
+    },
+    "q5": {
+      "correct_indices": [
+        0,
+        1,
+        3
+      ],
+      "explanation": "Effective prioritization combines structured frameworks like MoSCoW and RICE with transparent communication of trade-offs\u2014such as the juggling-act metaphor\u2014instead of catering to the loudest stakeholders."
+    }
+  },
+  "c3-m4-requirements-and-quality-assurance-l5-quiz-functional-or-nonfunctional": {
+    "q1": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Functional requirements define specific behaviors and actions a system must perform, such as editing and deleting customer records, whereas load time, design guidelines, and browser compatibility are non-functional qualities."
+    },
+    "q2": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Maintaining 99.9% uptime during business hours specifies a measurable system availability and reliability attribute, making it a classic non-functional requirement."
+    },
+    "q3": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Establishing traceability links across requirements, design elements, and test cases ensures every requirement is properly tracked, implemented, and verified throughout development."
+    },
+    "q4": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Proactively identifying and documenting in-progress roadmap items and external blockers during requirements gathering helps prevent downstream delays and scope misalignment."
+    },
+    "q5": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Vague, subjective statements like 'user-friendly' lack measurable acceptance criteria, making it difficult to objectively test and verify whether the requirement has been satisfied."
+    }
+  },
+  "c3-m4-requirements-and-quality-assurance-l9-quiz-creating-user-stories-and-use-cases": {
+    "q1": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "User stories concisely capture who the user is, what goal they want to achieve, and the value they gain from their perspective."
+    },
+    "q2": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "User stories excel at building shared empathy and understanding around user value, whereas use cases can become overly rigid or focused on detailed system mechanics."
+    },
+    "q3": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Adding clear, testable acceptance criteria to a user story defines the exact conditions required to verify that saving and resuming progress work as expected."
+    },
+    "q4": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "User stories center on user needs and motivations, encouraging lightweight collaboration and shared understanding of value rather than prescribing rigid step-by-step specifications."
+    },
+    "q5": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Automatically logging timestamped authentication events for comprehensive audit trails directly addresses core enterprise security monitoring and regulatory compliance requirements."
+    }
+  },
+  "c3-m4-requirements-and-quality-assurance-l12-quiz-collaborating-with-the-development-team": {
+    "q1": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Dedicated Agile project management tools like Jira centralize requirement sharing, collaborative feedback, and real-time progress tracking throughout the development lifecycle."
+    },
+    "q2": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Jira supports shared understanding by structuring user stories with clear acceptance criteria and enabling developers to ask questions and leave feedback directly on each issue."
+    },
+    "q3": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Open, two-way communication that actively welcomes developer input and offers constructive feedback builds psychological safety and productive cross-functional collaboration."
+    },
+    "q4": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Involving engineers early in discussions of product goals, challenges, and solution design leverages their technical expertise to produce stronger, more feasible outcomes."
+    },
+    "q5": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Agile's short sprint cycles and continuous stakeholder feedback loops allow teams to detect defects early and iteratively improve product quality."
+    }
+  },
+  "c3-m4-requirements-and-quality-assurance-l15-quiz-working-with-qa-teams": {
+    "q1": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Critical bugs disrupting live enterprise workflows indicate insufficient quality assurance and verification prior to release."
+    },
+    "q2": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Shifting left integrates testing early and continuously throughout the sprint so defects are caught before they accumulate into costly end-of-cycle rework and delays."
+    },
+    "q3": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Writing specific, measurable performance and accuracy benchmarks ensures requirements are testable and enables QA to objectively verify product quality."
+    },
+    "q4": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Actively inviting QA input and recognizing their essential contribution to user satisfaction empowers hesitant testers to surface risks early and strengthens team partnership."
+    },
+    "q5": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Agile testing embeds continuous verification and collaborative feedback throughout every iteration rather than isolating testing at the end of development."
+    },
+    "q6": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Test-Driven Development (TDD) requires writing automated tests before writing implementation code so that software is engineered directly to meet verified requirements."
+    },
+    "q7": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Excel's Data Validation enforces standardized dropdown options for test case statuses, ensuring consistent and audit-ready tracking across the test plan."
+    },
+    "q8": {
+      "correct_indices": [
+        0,
+        2
+      ],
+      "explanation": "Requirement/Regulation and Compliance Standard Reference columns establish explicit traceability between individual test cases and the regulatory standards they verify."
+    }
+  },
+  "c3-m5-ai-product-development-l4-quiz-the-ai-product-lifestyle": {
+    "q1": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "The AI product lifecycle is inherently iterative, progressing from data acquisition, model training, validation, and deployment through continuous monitoring, retraining, and redeployment."
+    },
+    "q2": {
+      "correct_indices": [
+        1,
+        2,
+        3
+      ],
+      "explanation": "Sustaining AI product effectiveness requires iterative model refinement, continuous real-world performance monitoring, and ongoing user feedback loops rather than a one-time data collection effort."
+    },
+    "q3": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Effective data preparation follows a logical pipeline of acquiring raw data, cleaning inaccuracies, engineering informative features, and splitting datasets for training and evaluation."
+    },
+    "q4": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Because model accuracy depends fundamentally on representative training data, securing a large, diverse dataset is the most logical first milestone before selecting architectures or deploying features."
+    },
+    "q5": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Upfront collaborative planning across technical and business teams establishes aligned milestones for data acquisition, training, validation, and deployment, directly mitigating coordination and data-fragmentation delays."
+    }
+  },
+  "c3-m5-ai-product-development-l7-quiz-risk-management-and-ethical-consideratio": {
+    "q1": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Microsoft's Responsible AI principles of fairness and inclusiveness call for evaluating bias disparities, retraining with diverse linguistic data, and continuously monitoring post-deployment performance."
+    },
+    "q2": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Disparate accuracy across demographic groups in facial recognition systems most commonly stems from underrepresentation of diverse skin tones in the training dataset."
+    },
+    "q3": {
+      "correct_indices": [
+        0,
+        1,
+        3
+      ],
+      "explanation": "Responsible public-sector AI governance addresses fairness, privacy, and workforce impact through regular bias audits, strong data anonymization and encryption, and worker upskilling programs."
+    },
+    "q4": {
+      "correct_indices": [
+        1,
+        2,
+        3
+      ],
+      "explanation": "Proactive AI risk management spans the entire lifecycle by conducting early impact assessments, engaging cross-functional legal and domain experts, and tracking key risk indicators post-launch."
+    },
+    "q5": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Delivering systematically lower-quality responses based on gender-associated names demonstrates algorithmic bias that reinforces and amplifies existing societal inequalities."
+    }
+  },
+  "c3-m6-stakeholder-management-l6-quiz-who-are-stakeholders-and-what-do-they-ne": {
+    "q1": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Categorizing stakeholders by their level of influence and interest enables product managers to prioritize engagement and tailor communication strategies effectively."
+    },
+    "q2": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Different stakeholder groups surface distinct insights because they interact with different stages of the customer journey and different aspects of the product."
+    },
+    "q3": {
+      "correct_indices": [
+        1,
+        2,
+        3
+      ],
+      "explanation": "Navigating diverse cross-functional viewpoints requires mapping stakeholder goals, practicing active listening, and checking in regularly as expectations evolve rather than suppressing non-metric perspectives."
+    },
+    "q4": {
+      "correct_indices": [
+        1,
+        2,
+        3
+      ],
+      "explanation": "Security and compliance planning specifically requires compliance officers, legal teams, and security teams to address regulatory standards, privacy obligations, and data protection controls."
+    },
+    "q5": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Exploring the underlying needs behind differing stakeholder reactions helps product managers uncover high-impact user value\u2014such as smoother onboarding\u2014that might appear minor from a purely technical view."
+    }
+  },
+  "c3-m6-stakeholder-management-l8-quiz-develop-a-communication-plan": {
+    "q1": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Even technically sound cloud migrations encounter confusion and organizational pushback when teams fail to engage stakeholders early and manage expectations throughout the transition."
+    },
+    "q2": {
+      "correct_indices": [
+        0,
+        1,
+        3
+      ],
+      "explanation": "Smooth large-scale migrations rely on phased rollouts, transparent ongoing stakeholder communication, and departmental change champions rather than restricting feedback to technical teams."
+    },
+    "q3": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Effective stakeholder communication requires tailoring language and framing to each audience's background so non-technical leaders clearly grasp business and campaign impacts."
+    },
+    "q4": {
+      "correct_indices": [
+        0,
+        1,
+        3
+      ],
+      "explanation": "Building stakeholder alignment depends on transparent updates even during setbacks, adapting tone and format to each department, and actively listening for unspoken concerns."
+    },
+    "q5": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Using Monday.com's item-level Updates section with team member tagging centralizes task-specific discussions and creates clear visibility into responses and accountability."
+    }
+  },
+  "c4-m1-design-fundamentals-l6-quiz-understanding-design-roles": {
+    "q1": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "UX and UI designers begin by conducting thorough user research to deeply understand user needs, workflows, and preferences so the resulting no-code interface is genuinely intuitive."
+    },
+    "q2": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "A UX Designer is a core member of a product design team whose primary focus is studying user behaviors and optimizing overall user satisfaction."
+    },
+    "q3": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "The UX Designer anchors the product design team by championing the end-to-end user journey and emotional experience across every touchpoint."
+    },
+    "q4": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "UX Designers routinely translate user insights into wireframes and interactive prototypes to visualize concepts early and gather actionable feedback."
+    },
+    "q5": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "The UI Designer owns the visual presentation of the interface, crafting cohesive aesthetic elements that reinforce both brand consistency and usability."
+    }
+  },
+  "c4-m1-design-fundamentals-l9-quiz-how-well-do-you-know-the-design-team": {
+    "q1": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Microsoft's Fluent Design System prioritizes creating seamless, inclusive, and intuitive experiences across devices rather than decorative complexity."
+    },
+    "q2": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Effective Product Managers build high-performing design teams by fostering psychological safety, open communication, and cross-functional collaboration rather than micromanaging."
+    },
+    "q3": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Graphic Designers specialize in visual branding, imagery, and enforcing brand guidelines to maintain a consistent visual identity across platforms."
+    },
+    "q4": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "UX Researchers uncover user needs and behaviors through empirical research, whereas UI Designers translate those insights into polished visual interfaces."
+    },
+    "q5": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "A UX Designer's primary contribution is shaping the holistic user experience\u2014spanning usability, accessibility, and satisfaction\u2014through continuous research and testing."
+    }
+  },
+  "c4-m1-design-fundamentals-l13-quiz-design-thinking": {
+    "q1": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Design thinking progresses from empathizing and defining user insights directly into ideating, prototyping, and testing solutions iteratively with real users."
+    },
+    "q2": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "A home-screen quick-reorder button satisfies the intersection of user desirability, business viability, and technical feasibility without adding costly backend complexity."
+    },
+    "q3": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Effective design thinking in product management connects user research and defined pain points directly to ideation, rapid prototyping, and iterative user validation."
+    },
+    "q4": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Enterprise software requires role-based access control so each department only sees relevant tools and authorized data, preserving both usability and security."
+    },
+    "q5": {
+      "correct_indices": [
+        0,
+        1,
+        2
+      ],
+      "explanation": "Well-designed enterprise platforms rely on consistent interaction patterns, role-tailored data visualizations, and role-based permissions without omitting critical KPIs."
+    },
+    "q6": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Rough hand-drawn or simple digital wireframes are ideal early artifacts because they communicate feature flows quickly and invite candid feedback before visual polish."
+    }
+  },
+  "c4-m2-user-centric-design-l8-quiz-ux-ui-fundamentals": {
+    "q1": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Unclear error messages, inconsistent terminology, and missing offline feedback directly violate core usability principles and erode user satisfaction and adoption."
+    },
+    "q2": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "True inclusive design embeds foundational accessibility practices\u2014keyboard navigation, descriptive alt text, and screen reader testing\u2014directly into the interface."
+    },
+    "q3": {
+      "correct_indices": [
+        1,
+        2,
+        3
+      ],
+      "explanation": "User-centered, consistent enterprise design combines usability testing, alignment with familiar workplace patterns, and standardized visual and navigation components."
+    },
+    "q4": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Superior UX/UI stems from applying core usability principles\u2014consistency, constructive error feedback, and resilient support for real-world contexts like offline use."
+    },
+    "q5": {
+      "correct_indices": [
+        0,
+        1,
+        2
+      ],
+      "explanation": "Wireframes, information architecture, and usability testing are foundational UX/UI terms that align product managers and designers, whereas Agile is a general development methodology."
+    },
+    "q6": {
+      "correct_indices": [
+        0,
+        1,
+        2
+      ],
+      "explanation": "Data tables, dashboards, and wizards each carry clear enterprise trade-offs, whereas modal windows intentionally interrupt the primary workflow rather than being non-disruptive."
+    }
+  },
+  "c4-m2-user-centric-design-l14-quiz-the-ux-ui-process": {
+    "q1": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "In the end-to-end UX/UI process, conducting user research to uncover real behaviors, pain points, and expectations must precede visual mockup creation."
+    },
+    "q2": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Pairing in-depth user interviews and usability sessions with low-fidelity testable prototypes ensures design decisions are grounded in observed user patterns early."
+    },
+    "q3": {
+      "correct_indices": [
+        1,
+        2,
+        3
+      ],
+      "explanation": "Paper sketches, clickable wireframes, and interactive Figma mockups validate concepts efficiently across design stages, whereas building a fully coded app upfront wastes engineering effort."
+    },
+    "q4": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Rigorous iterative design depends on structured usability tests with representative users, systematic pattern analysis, and multiple refinement cycles."
+    },
+    "q5": {
+      "correct_indices": [
+        0,
+        2,
+        3
+      ],
+      "explanation": "Strong PM-design partnerships thrive on regular check-ins, goal-oriented design critiques, and shared user research rather than unilateral file approvals."
+    },
+    "q6": {
+      "correct_indices": [
+        0,
+        1,
+        3
+      ],
+      "explanation": "Accessible enterprise software supports keyboard-only operation, avoids seizure-inducing flashes, and provides semantic labels and focus indicators, while never relying on color alone to convey errors."
+    }
+  },
+  "c4-m2-user-centric-design-l16-quiz-engaging-interfaces": {
+    "q1": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "The F-pattern describes how users scan text-heavy web pages starting at the top left, reading horizontally across upper sections and then scanning vertically down the left side."
+    },
+    "q2": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Visual hierarchy organizes elements by relative prominence so the user's eye naturally moves from the featured product image to key details and finally to the call to action."
+    },
+    "q3": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Size and scale make the most critical dashboard metrics immediately prominent so users can recognize high-priority data at a glance."
+    },
+    "q4": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Strong visual contrast distinguishes primary action buttons from secondary options, reducing cognitive load and guiding users toward the intended action."
+    },
+    "q5": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "The principle of proximity uses deliberate spacing to visually group related elements\u2014such as a title and its body text\u2014improving mobile scannability and flow."
+    }
+  },
+  "c4-m2-user-centric-design-l20-quiz-can-you-craft-an-engaging-interface": {
+    "q1": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Subtle motion, such as a playful confirmation bounce or celebratory animation, creates moments of emotional delight without interfering with task completion."
+    },
+    "q2": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Microinteractions act as gentle, immediate cues that confirm user inputs and guide behavior, making interfaces feel responsive and reducing uncertainty."
+    },
+    "q3": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Subtle transitions visually connect related views and data points, making complex multi-step workflows feel fluid, coherent, and less overwhelming."
+    },
+    "q4": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Presenting clear visual artifacts like simple user flows and rough mockups helps product managers align with designers on the user problem and spark collaborative ideation."
+    },
+    "q5": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Maintaining open, transparent dialogue and regular constructive feedback channels builds mutual respect and strong collaboration between PMs and design teams."
+    }
+  },
+  "c4-m2-user-centric-design-l22-quiz-heuristics-101": {
+    "q1": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "A synthesized visual report mapping navigation paths and friction points communicates usability findings clearly to stakeholders and drives aligned action."
+    },
+    "q2": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Heuristic evaluation acts like a structured medical checkup, systematically inspecting an interface against proven usability principles to diagnose underlying issues."
+    },
+    "q3": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "A cognitive walkthrough evaluates learnability by stepping through each discrete action a user must take to complete a goal and spotting points of confusion."
+    },
+    "q4": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Visibility of system status\u2014Nielsen's foundational heuristic\u2014is critical for overall usability in multi-step booking flows so users always receive timely feedback on searches, selections, and confirmations."
+    },
+    "q5": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "The core objective of a heuristic evaluation is to systematically uncover usability violations against established guidelines and recommend actionable fixes."
+    }
+  },
+  "c4-m3-visual-design-and-systems-l6-quiz-wireframe-or-mockup": {
+    "q1": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "A low-fidelity wireframe is the ideal first visual artifact because it maps the placement of menus, content areas, and controls without premature visual styling."
+    },
+    "q2": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Design fidelity progresses logically from quick low-fidelity sketches to structured wireframes with basic UI elements and finally to detailed high-fidelity mockups."
+    },
+    "q3": {
+      "correct_indices": [
+        1,
+        2
+      ],
+      "explanation": "Low-fidelity wireframes validate navigation early to prevent rework, while high-fidelity mockups communicate a compelling visual vision to stakeholders and investors."
+    },
+    "q4": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "In Agile workflows, collaboratively iterating on low-fidelity wireframes with developers during sprint ceremonies builds shared alignment quickly before coding."
+    },
+    "q5": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Starting with low-fidelity wireframes keeps early conversations focused on core functionality and layout while encouraging candid feedback from designers and stakeholders."
+    }
+  },
+  "c4-m3-visual-design-and-systems-l9-quiz-wireframing-basics": {
+    "q1": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Low-fidelity wireframes deliberately focus on layout, visual hierarchy, navigation, and content placement rather than final copy, colors, or animations."
+    },
+    "q2": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "An initial whiteboard wireframe should communicate core element arrangement, action prominence, navigation flow, and content zones to align the team quickly."
+    },
+    "q3": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Early sticky-note and whiteboard wireframes for a checkout flow prioritize screen sequence, essential inputs like address and payment, and relative hierarchy."
+    },
+    "q4": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Designing generously sized, well-spaced touch targets is essential for commuting users on moving public transport to prevent accidental taps."
+    },
+    "q5": {
+      "correct_indices": [
+        1,
+        2,
+        3
+      ],
+      "explanation": "Effective mobile navigation relies on consistent patterns across screens, immediate touch feedback, and thumb-friendly placement rather than deep nested menus."
+    }
+  },
+  "c4-m3-visual-design-and-systems-l12-quiz-low-fidelity-wireframes": {
+    "q1": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Pen-and-paper wireframing removes tooling friction, enabling rapid exploration and iteration of multiple layout concepts before investing in visual polish."
+    },
+    "q2": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Clear visual hierarchy in wireframes guides users' attention to the highest-priority content and primary actions, improving scannability and usability."
+    },
+    "q3": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Intentional content placement organizes headlines, body text, imagery, and controls into a logical, intuitive reading flow for the user."
+    },
+    "q4": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Wireframes serve as an objective structural blueprint that lets teams evaluate how different CTA placements impact user flow and usability."
+    },
+    "q5": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Involving representative target users to review and iterate on wireframes ensures the emerging design genuinely solves validated user needs."
+    }
+  },
+  "c4-m3-visual-design-and-systems-l15-quiz-mockup-fundamentals": {
+    "q1": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "A design system supplies reusable UI components and style guidelines that accelerate mockup creation while enforcing cross-screen visual consistency."
+    },
+    "q2": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "High-fidelity mockups give stakeholders a realistic preview of the final interface so they can provide precise feedback on visual and interaction details before development."
+    },
+    "q3": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Strategic use of color strengthens visual hierarchy by drawing attention to primary interactive elements and signaling logical relationships across the UI."
+    },
+    "q4": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Detailed mockups align cross-functional stakeholders by turning abstract product concepts into a tangible visual representation of the intended user experience and interface."
+    },
+    "q5": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Productive design critiques anchor feedback in user needs and product goals rather than subjective personal taste or micromanagement."
+    }
+  },
+  "c4-m3-visual-design-and-systems-l18-quiz-mockups-and-version-control": {
+    "q1": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Wireframing and mockup tools vary significantly in focus, with some optimized for rapid low-fidelity sketching and others built for high-fidelity interactive prototypes."
+    },
+    "q2": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "When sharing early layouts and user flows, a lightweight low-fidelity tool maximizes speed and keeps stakeholder feedback focused on structure."
+    },
+    "q3": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Using standardized navigation components from an enterprise design system ensures consistent, predictable movement across complex ERP modules."
+    },
+    "q4": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Saving design files directly into a version control repository like Azure DevOps integrates design artifacts seamlessly into engineering workflows."
+    },
+    "q5": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Version control maintains an auditable history of design iterations and allows teams to safely roll back to earlier versions whenever needed."
+    }
+  },
+  "c4-m4-user-testing-and-iteration-l6-quiz-crafting-effective-user-stories": {
+    "q1": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Researching target users' goals and pain points first and framing requirements as user stories keeps product development anchored in real user value from day one."
+    },
+    "q2": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Completing the user story format ('so that [benefit]') clarifies the underlying user motivation and value, helping the team design the right solution."
+    },
+    "q3": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "User story mapping arranges stories along the end-to-end user journey, giving teams a holistic view to spot experience gaps and prioritize releases."
+    },
+    "q4": {
+      "correct_indices": [
+        0,
+        2,
+        3
+      ],
+      "explanation": "Direct user observation, discovery sessions on workflows and pain points, and feature usage analytics ground user stories in real behavior rather than internal guesswork."
+    },
+    "q5": {
+      "correct_indices": [
+        0,
+        2
+      ],
+      "explanation": "User stories specifying descriptive screen-reader labels and full keyboard-only navigation directly address disability accessibility requirements."
+    }
+  },
+  "c4-m4-user-testing-and-iteration-l12-quiz-which-technique-to-use": {
+    "q1": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Usability testing directly observes representative users attempting real tasks to uncover interaction friction and usability issues."
+    },
+    "q2": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Open-ended, non-leading interview questions encourage users to share rich narratives, motivations, and unprompted pain points."
+    },
+    "q3": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Remote usability testing limits a researcher's visibility into subtle non-verbal cues, body language, and the participant's surrounding physical context."
+    },
+    "q4": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Video recordings capturing how and why users struggle are qualitative data that explain the context behind quantitative metrics like completion rates and error counts."
+    },
+    "q5": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Even on a tight budget, entry-level PMs can champion user-centricity by surfacing existing user feedback and advocating for lean, small-scale research."
+    },
+    "q6": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Manual testing with assistive technologies like screen readers evaluates real-world accessibility experiences that automated scanners alone cannot capture."
+    }
+  },
+  "c4-m4-user-testing-and-iteration-l14-quiz-analyzing-a-b-tests": {
+    "q1": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Analyzing A/B test interaction data is like sifting for gold\u2014filtering through large volumes of behavioral data to surface high-value actionable insights."
+    },
+    "q2": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Uncovering a recurring workflow abandonment trend is like finding a vein of gold, revealing a concentrated opportunity to dramatically improve the user experience."
+    },
+    "q3": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "When users struggle to locate a core control like a save button, the interface suffers from low findability."
+    },
+    "q4": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Pairing unfamiliar icons with clear text labels or tooltips immediately eliminates ambiguity and improves comprehension without forcing users to guess."
+    },
+    "q5": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Encouraging participants to think aloud during remote usability tests reveals their real-time mental models, expectations, and exact moments of confusion."
+    }
+  },
+  "c4-m4-user-testing-and-iteration-l17-quiz-user-testing-results": {
+    "q1": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Replacing confusing labels directly with clearer, user-informed language resolves the root usability issue rather than masking it with workarounds."
+    },
+    "q2": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Streamlining checkout by reducing steps and required form fields directly tackles friction that drives cart abandonment and improves conversion."
+    },
+    "q3": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Presenting objective usability evidence on readability and linking legible typography to stronger engagement persuades stakeholders more effectively than personal opinion."
+    },
+    "q4": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Itemizing the specific confusing icons alongside concrete user feedback gives developers and designers clear, actionable context to fix the issue."
+    },
+    "q5": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Structuring research readouts around testing objectives, prioritized key issues, and actionable recommendations helps both executives and engineers act quickly."
+    }
+  },
+  "c4-m5-ai-design-and-ethics-l4-quiz-transparency-in-ai": {
+    "q1": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Prioritizing user-centered design ensures AI recommendations are transparent, understandable, and tailored to build genuine user trust."
+    },
+    "q2": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Clearly explaining how the AI analyzes documents and arrives at suggestions builds user confidence without overwhelming users with algorithmic jargon."
+    },
+    "q3": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Concise explanations or visual cues highlighting the key factors behind an AI suggestion make the system's reasoning transparent at the moment of decision."
+    },
+    "q4": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Summarizing the data sources and steps behind an AI-generated report communicates trustworthiness clearly without exposing confusing raw data or technical jargon."
+    },
+    "q5": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Microsoft 365 Copilot builds transparency by pairing clear visual cues with contextual details that show how the AI interpreted the user's prompt."
+    }
+  },
+  "c4-m5-ai-design-and-ethics-l6-quiz-human-collaboration-with-ai": {
+    "q1": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Balancing AI automation with human-in-the-loop oversight preserves human agency, improves control, and supports responsible, informed enterprise decision-making."
+    },
+    "q2": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Direct manipulation enables users to seamlessly edit, override, and refine AI-generated lead suggestions using their domain and client expertise."
+    },
+    "q3": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Providing configurable AI settings empowers both novice and advanced analysts to tailor AI assistance to their expertise and workflow needs."
+    },
+    "q4": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Allowing users to directly edit and refine AI-generated Smart Narrative summaries fosters human-AI collaboration and incorporates domain context."
+    },
+    "q5": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "A clear, easily accessible escalation path to a human support agent ensures graceful handoff and maintains user trust whenever an AI chatbot reaches its limits."
+    }
+  },
+  "c5-m1-launch-preparation-l5-quiz-what-s-on-the-product-launch-checklist": {
+    "q1": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Completing thorough product testing well ahead of launch ensures stability, quality, and readiness before exposing an enterprise feature to customers."
+    },
+    "q2": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Proactively engaging target users and building awareness ahead of release drives early momentum and adoption at launch."
+    },
+    "q3": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Every structured product launch begins by defining clear objectives and key milestones to align cross-functional teams."
+    },
+    "q4": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Once launch objectives are set, mapping key activities and their sequence establishes the actionable timeline and dependencies needed for execution."
+    },
+    "q5": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "A comprehensive launch plan is anchored in clearly defined target user groups, core messaging, and validated market fit."
+    }
+  },
+  "c5-m1-launch-preparation-l7-quiz-key-components-of-a-successful-product-l": {
+    "q1": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "A Gantt Chart in Microsoft Project visually maps the launch schedule across key dates while showing task sequences and dependency links."
+    },
+    "q2": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Dependency Linking in Microsoft Project connects interdependent tasks so that delays automatically ripple and update downstream dates."
+    },
+    "q3": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "A product launch budget must account for go-to-market execution expenses such as marketing campaigns and customer support readiness."
+    },
+    "q4": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Operational launch costs for enterprise software include provisioning server infrastructure and training operational and support teams."
+    },
+    "q5": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "For complex enterprise solutions requiring client system integration, evaluating the technical support and onboarding resources needed is critical to choosing a launch strategy."
+    }
+  },
+  "c5-m1-launch-preparation-l11-quiz-effective-cross-functional-collaboration": {
+    "q1": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Executing thorough User Acceptance Testing (UAT) with representative end-users validates real-world workflows and minimizes deployment disruptions."
+    },
+    "q2": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Engaging security teams early ensures regulatory compliance and security controls are built in proactively rather than becoming late-stage blockers."
+    },
+    "q3": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Shared goals and open cross-functional communication channels align diverse teams around common launch outcomes."
+    },
+    "q4": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Facilitating open discussions surfaces each team's constraints and perspectives so they can reach a mutually agreeable, goal-aligned resolution."
+    },
+    "q5": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Dedicated Microsoft Teams channels for each launch workstream centralize topic-specific discussions and shared files for cross-functional visibility."
+    }
+  },
+  "c5-m1-launch-preparation-l15-quiz-case-study-follow-up": {
+    "q1": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Tailoring interactive content like contests, polls, and behind-the-scenes previews to each platform's audience maximizes organic engagement and sharing."
+    },
+    "q2": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "An impactful value proposition starts by identifying the target audience's specific pain points and explaining how the offering uniquely solves them."
+    },
+    "q3": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "During pre-launch and launch, marketing and communications strategically share compelling narratives and value-driven information to build excitement and purchase intent."
+    },
+    "q4": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Effective channel selection prioritizes where the target demographic spends time and how they prefer to engage."
+    },
+    "q5": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "ConnectPro's successful launch was driven by disciplined pre-launch planning, clear value communication, and strong cross-functional collaboration."
+    }
+  },
+  "c5-m2-marketing-and-sales-execution-l4-quiz-how-to-make-an-impact-online-and-offline": {
+    "q1": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "A strong product marketing strategy integrates market research, value proposition development, clear messaging, and well-chosen distribution channels."
+    },
+    "q2": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Combining high-quality, keyword-optimized content that addresses user pain points with targeted PPC amplification unites SEO, content marketing, and paid reach."
+    },
+    "q3": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "B2B marketing focuses on building long-term partnerships and demonstrating domain expertise and ROI to organizational buyers."
+    },
+    "q4": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Traditional broadcast channels like television excel at achieving broad reach and generating strong initial brand visibility."
+    },
+    "q5": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Broad-reach traditional print publications make it difficult to target narrow niche segments efficiently without wasted impressions."
+    }
+  },
+  "c5-m2-marketing-and-sales-execution-l5-quiz-marketing-channels-and-tactics-for-produ": {
+    "q1": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Marketing list and segmentation capabilities in Microsoft Dynamics 365 allow marketers to group B2B accounts using firmographic criteria such as industry."
+    },
+    "q2": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "National newspapers and business television provide broad executive exposure and help establish brand authority and credibility in B2B markets."
+    },
+    "q3": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "In Microsoft Dynamics 365 Marketing, executing a targeted campaign follows defining target demographics, segmenting contacts by key attributes like asset value and location, building customer journeys, and monitoring engagement metrics such as email open rates."
+    },
+    "q4": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "B2B purchases typically involve multiple stakeholders and complex decision cycles, making industry events effective for direct relationship-building."
+    },
+    "q5": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Product marketing elements work as an integrated chain where market research shapes positioning and messaging, which in turn guide communications and sales enablement to drive revenue."
+    }
+  },
+  "c5-m2-marketing-and-sales-execution-l9-quiz-sales-techniques-and-strategies-for-driv": {
+    "q1": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Product managers partner with sales during enablement by leading joint training on product capabilities, positioning, and ideal customer profiles."
+    },
+    "q2": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "A compelling value proposition that clearly communicates customer benefits and business impact is the most effective hook in a sales pitch deck."
+    },
+    "q3": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Acknowledging a prospect's cost concern and asking clarifying questions about their budget and perceived value builds trust and uncovers the real objection."
+    },
+    "q4": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Sales enablement exists to equip sales representatives with the training, playbooks, content, and tools needed to engage prospects and close deals effectively."
+    },
+    "q5": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Sustainable sales success relies on building trusted customer relationships, deeply understanding buyer needs, and consistently delivering demonstrable value."
+    }
+  },
+  "c5-m2-marketing-and-sales-execution-l13-quiz-user-and-market-trends": {
+    "q1": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Feature Adoption Rate specifically measures the percentage of existing users who actively engage with a newly launched feature over a given timeframe."
+    },
+    "q2": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "A pie chart in Power BI displays distinct categories as slices of a whole, directly showing the relative proportions of usage frequency across product features."
+    },
+    "q3": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Power BI's data visualization capabilities transform user engagement telemetry into clear charts and dashboards for product decision-making."
+    },
+    "q4": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Balanced feedback prioritization evaluates both reach and depth, weighting recurring issues corroborated across multiple channels and larger user segments."
+    },
+    "q5": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Sentiment analysis processes qualitative text across channels to uncover recurring themes and the overall emotional tone of customer reactions."
+    }
+  },
+  "c5-m3-quality-control-and-risk-management-l6-quiz-testing-and-evaluation-techniques": {
+    "q1": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Penetration testing uses ethical hackers to simulate real-world cyberattacks and uncover exploitable security weaknesses prior to launch."
+    },
+    "q2": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Clear reproduction steps and environment details enable engineers to reliably replicate, diagnose, and resolve defects quickly."
+    },
+    "q3": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "A pivot table in Excel rapidly aggregates UAT outcomes by pass/fail status and severity level, highlighting high-priority defect trends."
+    },
+    "q4": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Well-defined user acceptance criteria specify concrete, observable, and testable system behaviors from the end-user's perspective."
+    },
+    "q5": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Involving real users in pre-release testing validates usability and confirms that the product aligns with actual customer workflows and expectations."
+    }
+  },
+  "c5-m3-quality-control-and-risk-management-l10-quiz-risk-mitigation-techniques": {
+    "q1": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Post-launch security requires continuous vulnerability monitoring and regularly updated incident response plans to address evolving threats."
+    },
+    "q2": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Feature flags reduce release risk by supporting gradual rollouts and allowing teams to instantly disable a problematic feature without a full rollback."
+    },
+    "q3": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Jira supports systematic risk management by providing a centralized workflow to log, categorize, rate severity, assign owners, and track mitigation progress."
+    },
+    "q4": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "A competitor launching a similar product with aggressive pricing represents an external market risk affecting demand and positioning."
+    },
+    "q5": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Effective risk management proactively identifies and mitigates threats before they escalate, safeguarding both product quality and delivery schedules."
+    }
+  },
+  "c5-m3-quality-control-and-risk-management-l13-quiz-analyzing-and-managing-customer-feedback": {
+    "q1": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Productboard is purpose-built to centralize, organize, prioritize, and track customer feedback directly alongside product roadmap decisions."
+    },
+    "q2": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "User surveys and in-depth customer interviews directly solicit structured and qualitative customer feedback about their product experiences."
+    },
+    "q3": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Continuously gathering and acting on post-launch feedback sustains high product quality, boosts user satisfaction, and supports long-term growth."
+    },
+    "q4": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Categorizing, analyzing, and prioritizing feedback turns raw customer input into actionable insights for high-impact product improvements."
+    },
+    "q5": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Actively soliciting and responding to post-launch customer feedback preserves software quality and strengthens overall user satisfaction."
+    }
+  },
+  "c5-m4-post-launch-monitoring-l3-quiz-can-you-tell-a-story-with-data": {
+    "q1": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "When early cancellations spike, the critical first step is analyzing churn data and investigating root causes before spending more on acquisition."
+    },
+    "q2": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Customer Acquisition Cost (CAC) directly measures the total marketing and sales expenditure required to acquire a new paying customer."
+    },
+    "q3": {
+      "correct_indices": [
+        1,
+        2,
+        3
+      ],
+      "explanation": "Tracking ARPU, Churn Rate, and CAC together reveals unit economics, revenue generation, and retention health for a subscription service."
+    },
+    "q4": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "A line chart is the standard visualization for displaying time-series metrics like DAU to clearly reveal trends and anomalies over time."
+    },
+    "q5": {
+      "correct_indices": [
+        1,
+        3
+      ],
+      "explanation": "Actionable Power BI dashboards pair clear visualizations of core KPIs with interactive filters so stakeholders can slice performance by segment or time period."
+    }
+  },
+  "c5-m4-post-launch-monitoring-l5-quiz-key-performance-indicators-kpis-for-meas": {
+    "q1": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Moving beyond surface-level DAU to analyze feature adoption, task completion, and adopter retention reveals whether the new feature delivers genuine value."
+    },
+    "q2": {
+      "correct_indices": [
+        0,
+        1,
+        3
+      ],
+      "explanation": "Combining trial support tickets, in-feature usage behavior, and demographic comparisons between churned and converted users pinpoints why trial users fail to convert."
+    },
+    "q3": {
+      "correct_indices": [
+        0,
+        3
+      ],
+      "explanation": "Correlating complementary KPIs and regularly reviewing insights across the team and stakeholders turns raw metrics into strategic product improvements."
+    },
+    "q4": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Synthetic monitoring proactively runs simulated user transactions against cloud applications to detect availability and performance bottlenecks before real users are affected."
+    },
+    "q5": {
+      "correct_indices": [
+        0,
+        2,
+        3
+      ],
+      "explanation": "Synthetic monitoring, APM, and log management work together for proactive early detection and diagnosis of cloud performance issues before customer complaints arise."
+    }
+  },
+  "c5-m4-post-launch-monitoring-l8-quiz-voice-of-the-customer": {
+    "q1": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Focused one-on-one interviews with diverse users uncover deep, nuanced explanations behind decreased engagement that quantitative metrics alone cannot reveal."
+    },
+    "q2": {
+      "correct_indices": [
+        0,
+        1,
+        3
+      ],
+      "explanation": "Combining in-app contextual feedback forms, targeted discussions with new and tenured users, and task-abandonment analytics delivers comprehensive insight into navigation usability."
+    },
+    "q3": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Open-ended probing questions invite users to elaborate on vague frustrations without leading them, surfacing actionable root causes."
+    },
+    "q4": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Carefully reading open-ended responses for tone, context, and underlying needs ensures nuanced qualitative insights are not lost."
+    },
+    "q5": {
+      "correct_indices": [
+        0,
+        1,
+        3
+      ],
+      "explanation": "Active listening in virtual sessions combines paraphrasing to confirm understanding, attentive nonverbal cues via webcam, and thoughtful clarifying questions."
+    }
+  },
+  "c5-m4-post-launch-monitoring-l9-quiz-strategies-for-gathering-and-analyzing-c": {
+    "q1": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Tagging, grouping, and prioritizing feedback by user impact, issue severity, and alignment with project goals focuses engineering effort on the highest-value improvements."
+    },
+    "q2": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Categorizing multi-channel feedback into recurring themes and evaluating them by frequency, satisfaction impact, and strategic alignment establishes a structured improvement process."
+    },
+    "q3": {
+      "correct_indices": [
+        0,
+        2,
+        3
+      ],
+      "explanation": "Accessible in-platform submission tools, interactive community forums, and transparent public updates on acted-upon feedback both capture rich input and build customer loyalty."
+    },
+    "q4": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Publicly acknowledging recurring requests, sharing feasibility status, and inviting further user input closes the feedback loop and deepens community engagement."
+    },
+    "q5": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Analyzing post-launch feedback for recurring themes, frequency, and severity enables the team to prioritize the most impactful responses and iterations."
+    }
+  },
+  "c5-m4-post-launch-monitoring-l11-quiz-strategic-vision-and-iteration": {
+    "q1": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Sustaining competitiveness during product maturity requires market and customer research to identify emerging needs and strategically evolve the product roadmap."
+    },
+    "q2": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "In Agile, completing an iteration with a working increment is followed by reviewing it with stakeholders to collect feedback for the next iteration."
+    },
+    "q3": {
+      "correct_indices": [
+        2,
+        3
+      ],
+      "explanation": "Agile adaptability relies on collaborative cross-functional teams communicating frequently with customers and delivering short, time-boxed increments for rapid feedback."
+    },
+    "q4": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Adding stakeholders as collaborators and posting progress in task comments keeps them asynchronously informed in Asana without extra meetings."
+    },
+    "q5": {
+      "correct_indices": [
+        1,
+        2,
+        3
+      ],
+      "explanation": "Project status updates, stakeholder @-mentions in task comments, and custom status fields streamline tracking and stakeholder communication in Asana."
+    }
+  },
+  "c5-m5-analytics-and-optimization-l3-quiz-post-launch": {
+    "q1": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Analyzing core KPIs\u2014including DAU/MAU, retention, feature usage, and conversion\u2014pinpoints exact drop-off patterns and user journey pain points before choosing interventions."
+    },
+    "q2": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Widespread use of promotional discounts or introductory offers among premium subscribers directly lowers realized monthly revenue per user for that tier."
+    },
+    "q3": {
+      "correct_indices": [
+        1,
+        3
+      ],
+      "explanation": "Regularly tracking NPS and churn rate together measures customer sentiment, loyalty, and subscription retention to assess sustainable SaaS health."
+    },
+    "q4": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Customer retention rate among loyalty program members directly measures whether the program keeps customers purchasing repeatedly over time."
+    },
+    "q5": {
+      "correct_indices": [
+        0,
+        1,
+        2
+      ],
+      "explanation": "Tracking multi-interval retention cohorts, measuring ARPPU, and segmenting players by channel and behavior provide actionable engagement and monetization insights."
+    }
+  },
+  "c5-m5-analytics-and-optimization-l7-quiz-evaluating-product-performance-using-key": {
+    "q1": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "In a BI platform, product managers leverage existing data models to join activity and feature data, define KPI measures, and publish scheduled dashboards."
+    },
+    "q2": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Triangulating reviews, in-app surveys, support tickets, and behavioral analytics yields a holistic, unbiased view of recurring user pain points."
+    },
+    "q3": {
+      "correct_indices": [
+        0,
+        2,
+        3
+      ],
+      "explanation": "Effective enterprise evaluation combines behavioral segmentation, core KPI tracking, and clear data visualization while safeguarding sensitive customer data from unrestricted access."
+    },
+    "q4": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Agile drives iterative responsiveness and collaboration, Lean eliminates workflow waste across delivery pipelines, and Six Sigma uses statistical analysis to reduce defects and process variability."
+    },
+    "q5": {
+      "correct_indices": [
+        0,
+        1,
+        2
+      ],
+      "explanation": "Lean removes non-value-adding waste, Agile adapts iteratively through feedback loops, and Six Sigma minimizes defects and variability through data-driven quality control."
+    }
+  },
+  "c5-m5-analytics-and-optimization-l10-quiz-applying-data-analysis-techniques-to-gai": {
+    "q1": {
+      "correct_indices": [
+        2,
+        3
+      ],
+      "explanation": "Regression analysis quantifies which features correlate most strongly with retention, while clustering analysis uncovers distinct behavioral segments at high risk of churn."
+    },
+    "q2": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Executive-ready Looker dashboards use focused, annotated visualizations structured to directly answer how the feature impacted target KPIs."
+    },
+    "q3": {
+      "correct_indices": [
+        0,
+        2,
+        3
+      ],
+      "explanation": "Combining A/B testing of onboarding flows, clustering of drop-off behaviors, and regression analysis of completion drivers provides a rigorous diagnosis and optimization path."
+    },
+    "q4": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Identifying users with declining session frequency and reduced key feature interaction surfaces early behavioral churn signals before customers cancel."
+    },
+    "q5": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Pairing root cause analysis with Power BI trend analytics connects internal development pipeline bottlenecks directly to downstream user adoption patterns."
+    }
+  },
+  "c5-m5-analytics-and-optimization-l13-quiz-product-feedback-loop": {
+    "q1": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Post-launch Agile management relies on short feedback loops, continuous telemetry review, and rapid sprint-based incremental releases to adapt to user needs."
+    },
+    "q2": {
+      "correct_indices": [
+        1,
+        2,
+        3
+      ],
+      "explanation": "Feeding support trends, direct user forum input, and competitive market signals continuously into sprint backlogs exemplifies Agile post-launch iteration."
+    },
+    "q3": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "An effective feedback loop collects qualitative and quantitative input across multiple channels, analyzes and prioritizes themes by impact and frequency, and integrates them into the roadmap."
+    },
+    "q4": {
+      "correct_indices": [
+        0,
+        2
+      ],
+      "explanation": "Robust feedback loops rely on diverse collection mechanisms paired with a consistent cadence for categorizing, analyzing sentiment, and extracting actionable themes."
+    },
+    "q5": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Enterprise release notes should explain changes in clear business terms, highlight workflow impacts, and link to guides, FAQs, and training resources before and after rollout."
+    }
+  },
+  "c5-m6-ai-powered-product-management-l3-quiz-ai-fundamentals": {
+    "q1": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Generative AI adds maximum value when embedded across the entire product lifecycle\u2014from persona creation and ideation to prototyping and feedback simulation\u2014rather than isolated tasks."
+    },
+    "q2": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Generative AI models learn patterns from existing data to produce original text, images, and code, accelerating workflows, innovation, and personalization throughout the lifecycle."
+    },
+    "q3": {
+      "correct_indices": [
+        0,
+        1,
+        2
+      ],
+      "explanation": "Effective AI brainstorming uses detailed personas, explores segment adaptations, and maps adjacent market ideas while keeping human review and team judgment in the loop."
+    },
+    "q4": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "AI analytics tools excel at processing large volumes of behavioral and qualitative data to detect trends, cluster users, and surface unmet needs."
+    },
+    "q5": {
+      "correct_indices": [
+        1,
+        2
+      ],
+      "explanation": "Combining predictive AI modeling on historical usage with natural language processing of unstructured text uncovers both behavioral and sentiment-driven feature priorities."
+    }
+  },
+  "c5-m6-ai-powered-product-management-l4-quiz-understanding-the-role-of-generative-ai-": {
+    "q1": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Generative AI directly improves lead nurturing conversion by dynamically creating tailored emails, case studies, and solution briefs matched to each prospect's profile."
+    },
+    "q2": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Generative AI enhances creative product ideation by producing diverse interactive exercise formats, story-based scenarios, and personalized learning paths."
+    },
+    "q3": {
+      "correct_indices": [
+        0,
+        2,
+        3
+      ],
+      "explanation": "AI strengthens dispatch and routing operations by automating real-time route assignments, generating tailored dispatcher training materials, and automating bottleneck and performance reports."
+    },
+    "q4": {
+      "correct_indices": [
+        0,
+        1,
+        2
+      ],
+      "explanation": "Generative AI reduces streaming churn by automating rich content tagging for better recommendations, tailoring subscriber promotions, and creating personalized trailers and summaries."
+    },
+    "q5": {
+      "correct_indices": [
+        0,
+        1
+      ],
+      "explanation": "In materials science R&D, generative AI accelerates ideation by proposing novel molecular structures meeting target parameters and automating research documentation."
+    }
+  },
+  "c5-m7-ai-lifecycle-and-career-development-l4-quiz-ai-performance-monitoring": {
+    "q1": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Recall measures the proportion of actual urgent issues correctly flagged, directly capturing false negatives where urgent tickets are missed."
+    },
+    "q2": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Algorithm drift occurs as evolving user preferences and catalog changes cause an initially strong recommendation model to degrade in relevance over time."
+    },
+    "q3": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Concept drift happens when an external shift like an economic downturn alters the underlying statistical relationship between input features and target prices."
+    },
+    "q4": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Comparing AI transaction categorizations against a manually reviewed ground-truth sample directly measures real-world classification accuracy."
+    },
+    "q5": {
+      "correct_indices": [
+        0,
+        1,
+        2
+      ],
+      "explanation": "Tracking manual edit rates, summary length ratios, and user quality ratings directly evaluates summarization usefulness and guides iterative AI improvements."
+    }
+  },
+  "c5-m7-ai-lifecycle-and-career-development-l7-quiz-ai-iteration-and-a-b-testing": {
+    "q1": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Gradual degradation in an AI model's categorization performance indicates drift caused by changes in incoming real-world data."
+    },
+    "q2": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Shifts in customer language, new slang, and emerging abbreviations change the input distribution and drive algorithm drift in NLP chatbots."
+    },
+    "q3": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Prompting users to specify the exact context of their feedback\u2014such as a particular analysis or prediction\u2014makes real-time AI feedback actionable."
+    },
+    "q4": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Iterative AI model management relies on continuous, incremental refinements informed by ongoing performance telemetry and user feedback."
+    },
+    "q5": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "When an A/B test demonstrates a statistically significant win, the next step is deploying the winning variant broadly while monitoring post-rollout performance."
+    },
+    "q6": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Providing understandable explanations for automated loan decisions alongside human review pathways upholds Responsible AI transparency and accountability."
+    },
+    "q7": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Disproportionately flagging a specific demographic group signals bias embedded in the training data or feature design that must be mitigated."
+    },
+    "q8": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Managing AI hiring compliance requires aligning model rules and decision criteria with applicable employment laws and regulatory policies."
+    },
+    "q9": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Generative AI effectively simulates mock interviews by interactively asking role-relevant questions and giving constructive feedback on your answers."
+    },
+    "q10": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Generative AI helps candidates prepare for strategy interviews by offering strategic frameworks and guidance on articulating a clear product vision."
+    }
+  },
+  "c5-m7-ai-lifecycle-and-career-development-l12-quiz-generative-ai-for-the-job-hunt": {
+    "q1": {
+      "correct_indices": [
+        1
+      ],
+      "explanation": "Sharing a draft behavioral response with generative AI for critique on clarity, structure, and impact helps refine your authentic story for interviews."
+    },
+    "q2": {
+      "correct_indices": [
+        0
+      ],
+      "explanation": "Providing both your resume and the job description allows generative AI to map your genuine agile and user-centric achievements directly to role requirements."
+    },
+    "q3": {
+      "correct_indices": [
+        3
+      ],
+      "explanation": "Recording simulated responses and receiving AI feedback on clarity, pacing, and storytelling directly builds confidence and conciseness for behavioral interviews."
+    },
+    "q4": {
+      "correct_indices": [
+        2
+      ],
+      "explanation": "Using the job description to refine existing resume bullets around quantified SaaS growth and cross-functional leadership authentically aligns the resume to the role."
+    },
+    "q5": {
+      "correct_indices": [
+        0,
+        3
+      ],
+      "explanation": "Using generative AI to tailor cover letter examples to the job description and practice role-specific data and agile mock interviews maximizes job-search alignment."
+    }
+  }
+}

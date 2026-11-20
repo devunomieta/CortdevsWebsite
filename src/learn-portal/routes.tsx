@@ -6,6 +6,8 @@ import { LearnLogin } from './pages/Login';
 import { RoadmapDashboard } from './pages/RoadmapDashboard';
 import { LessonPlayer } from './pages/LessonPlayer';
 import { LearnSettings } from './pages/Settings';
+import { LearnCertificate } from './pages/Certificate';
+import { VerifyCertificate } from './pages/VerifyCertificate';
 
 export const learnRouter = createBrowserRouter([
     {
@@ -13,6 +15,8 @@ export const learnRouter = createBrowserRouter([
         children: [
             { path: '/login', element: <LearnLogin /> },
             { path: '/signup', element: <Navigate to="/login" replace /> },
+            // Public credential verification page (no login required)
+            { path: '/verify/:code', element: <VerifyCertificate /> },
             {
                 path: '/',
                 element: <LearnLayout />,
@@ -20,6 +24,7 @@ export const learnRouter = createBrowserRouter([
                     { index: true, element: <Navigate to="/dashboard" replace /> },
                     { path: 'dashboard', element: <RoadmapDashboard /> },
                     { path: 'lesson/:lessonId', element: <LessonPlayer /> },
+                    { path: 'certificate', element: <LearnCertificate /> },
                     { path: 'settings', element: <LearnSettings /> },
                     { path: 'admin', element: <LazyAdminRoute /> },
                 ],

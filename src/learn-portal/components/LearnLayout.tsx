@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, NavLink, Outlet, Navigate, useLocation } from 'react-router';
-import { BookOpen, Flame, LogOut, Settings, ShieldCheck, Loader2 } from 'lucide-react';
+import { Award, BookOpen, Flame, LogOut, Settings, ShieldCheck, Loader2 } from 'lucide-react';
 import { useLearnAuth } from '../context/LearnAuthContext';
 import { CortDevsLearnLogo } from './BrandLogos';
 
@@ -72,6 +72,10 @@ export function LearnLayout() {
                                 <BookOpen className="w-3.5 h-3.5" />
                                 Course
                             </NavLink>
+                            <NavLink to="/certificate" className={navItemClass}>
+                                <Award className="w-3.5 h-3.5" />
+                                Certificate
+                            </NavLink>
                             <NavLink to="/settings" className={navItemClass}>
                                 <Settings className="w-3.5 h-3.5" />
                                 Reminders
@@ -114,12 +118,15 @@ export function LearnLayout() {
                 </div>
 
                 {/* Mobile quick nav */}
-                <div className="md:hidden border-t border-neutral-200 px-3 py-2 flex items-center justify-around gap-2 bg-white">
+                <div className="md:hidden border-t border-neutral-200 px-3 py-2 flex items-center justify-around gap-2 bg-white overflow-x-auto">
                     <NavLink to="/dashboard" className={navItemClass}>
                         <BookOpen className="w-3.5 h-3.5" /> Course
                     </NavLink>
+                    <NavLink to="/certificate" className={navItemClass}>
+                        <Award className="w-3.5 h-3.5" /> Cert
+                    </NavLink>
                     <NavLink to="/settings" className={navItemClass}>
-                        <Settings className="w-3.5 h-3.5" /> Reminders
+                        <Settings className="w-3.5 h-3.5" /> Alerts
                     </NavLink>
                     {isAdmin && (
                         <NavLink to="/admin" className={navItemClass}>

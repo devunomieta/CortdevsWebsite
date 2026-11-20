@@ -24,6 +24,7 @@ import { S3Client, PutObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s
 const ROOT_DIR = path.resolve(process.cwd(), 'Microsoft AI Product Manager-All Assignments, Reading and Resources');
 const SLICED_DIR = path.resolve(process.cwd(), 'tmp/lms-videos');
 const PREVIEW_FILE = path.resolve(process.cwd(), 'tmp/lms-manifest-preview.json');
+const QUIZ_KEYS_FILE = path.resolve(process.cwd(), 'scripts/quiz-answer-keys.json');
 
 const args = new Set(process.argv.slice(2));
 const RUN_ALL = args.has('--all');
@@ -289,7 +290,7 @@ interface ManifestLesson {
     quizQuestions?: ParsedQuizQuestion[];
     // project
     projectBrief?: string;
-    projectAssets?: Array<{ name: string; localPath: string; storagePath: string; type: string }>;
+    projectAssets?: Array<{ name: string; localPath: string; storagePath: string; type: string; isExemplar: boolean }>;
 }
 
 interface ManifestModule {
@@ -446,18 +447,21 @@ async function buildManifest(): Promise<ManifestCourse[]> {
                 .filter((e) => fs.statSync(path.join(mAbs, e)).isDirectory())
                 .sort();
 
+            // Collect any project-activity instruction briefs so we can merge them into matching project deliverables
+            const pendingActivityBriefs: Array<{ title: string; briefText: string; relPath: string }> = [];
+
             for (const docFile of docFiles) {
                 const docAbs = path.join(mAbs, docFile);
                 const relPath = path.relative(ROOT_DIR, docAbs);
                 const rawTextRes = await mammoth.extractRawText({ path: docAbs });
                 const rawText = rawTextRes.value || '';
 
-                const isQuiz =
+                const looksLikePracticeFile =
                     /practice\s*ass?ig/i.test(docFile) ||
                     /Practice Assignment\s*[•·-]\s*\d+\s*min/i.test(rawText);
 
                 const isStandaloneTemplate =
-                    !isQuiz && /(^Product Strategy Template|^Project file\s)/i.test(docFile);
+                    !looksLikePracticeFile && /(^Product Strategy Template|^Project file\s)/i.test(docFile);
 
                 if (isStandaloneTemplate) {
                     modLessonOrder += 1;
@@ -469,39 +473,77 @@ async function buildManifest(): Promise<ManifestCourse[]> {
                         orderIndex: modLessonOrder,
                         globalOrder: globalLessonOrder,
                         lessonType: 'project',
-                        title: `Hands-On Deliverable: ${cleanTitle}`,
+                        title: `Project: ${cleanTitle}`,
                         sourcePath: relPath,
-                        estimatedMinutes: 45,
-                        projectBrief: rawText.slice(0, 1200),
+                        estimatedMinutes: 60,
+                        projectBrief: rawText.slice(0, 2800),
                         projectAssets: [
                             {
                                 name: docFile,
                                 localPath: docAbs,
                                 storagePath,
                                 type: path.extname(docFile).replace('.', ''),
+                                isExemplar: /exemplar/i.test(docFile),
                             },
                         ],
                     });
-                } else if (isQuiz) {
+                } else if (looksLikePracticeFile) {
                     const parsed = parseQuizFromText(rawText);
-                    modLessonOrder += 1;
-                    globalLessonOrder += 1;
-                    const qTitle = parsed.title && parsed.title.length > 4 ? parsed.title : cleanFileTitle(docFile);
-                    lessons.push({
-                        slug: `${modSlug}-l${modLessonOrder}-quiz-${slugify(qTitle).slice(0, 40)}`,
-                        orderIndex: modLessonOrder,
-                        globalOrder: globalLessonOrder,
-                        lessonType: 'quiz',
-                        title: `Practice Quiz: ${qTitle}`,
-                        sourcePath: relPath,
-                        estimatedMinutes: 15,
-                        quizQuestions: parsed.questions,
-                    });
+                    const maxOpts = parsed.questions.reduce((mx, q) => Math.max(mx, q.options.length), 0);
+                    const isProjectActivity =
+                        /^Activity:/i.test(parsed.title) ||
+                        /Project Scenario|Download the zip/i.test(rawText.slice(0, 800)) ||
+                        maxOpts > 6;
+
+                    if (parsed.questions.length === 0) {
+                        // Misnamed pure reading (e.g., C2 M3 "SWOT analysis in action")
+                        const htmlRes = await mammoth.convertToHtml({ path: docAbs });
+                        const words = rawText.split(/\s+/).filter(Boolean).length;
+                        const estMins = Math.max(3, Math.round(words / 200));
+                        const minDwell = Math.max(30, Math.min(360, Math.round((words / 250) * 60 * 0.4)));
+                        const readingTitle = parsed.title && parsed.title.length > 4 ? parsed.title : cleanFileTitle(docFile);
+                        modLessonOrder += 1;
+                        globalLessonOrder += 1;
+                        lessons.push({
+                            slug: `${modSlug}-l${modLessonOrder}-${slugify(readingTitle).slice(0, 45)}`,
+                            orderIndex: modLessonOrder,
+                            globalOrder: globalLessonOrder,
+                            lessonType: 'reading',
+                            title: readingTitle,
+                            sourcePath: relPath,
+                            estimatedMinutes: estMins,
+                            contentHtml: htmlRes.value || `<p>${rawText}</p>`,
+                            wordCount: words,
+                            minDwellSeconds: minDwell,
+                        });
+                    } else if (isProjectActivity) {
+                        // Extract Scenario + Objective + Step-by-Step Instructions (before Question 1)
+                        const beforeQ1 = rawText.split(/\n\s*1\.\s*\n\s*Question\s+1\b|\n\s*Question\s+1\b/i)[0] || rawText;
+                        pendingActivityBriefs.push({
+                            title: parsed.title.replace(/^Activity:\s*/i, '').trim() || cleanFileTitle(docFile),
+                            briefText: beforeQ1.trim().slice(0, 3500),
+                            relPath,
+                        });
+                    } else {
+                        // Clean pure MCQ / multi-select Coursera quiz!
+                        modLessonOrder += 1;
+                        globalLessonOrder += 1;
+                        const qTitle = parsed.title && parsed.title.length > 4 ? parsed.title : cleanFileTitle(docFile);
+                        lessons.push({
+                            slug: `${modSlug}-l${modLessonOrder}-quiz-${slugify(qTitle).slice(0, 40)}`,
+                            orderIndex: modLessonOrder,
+                            globalOrder: globalLessonOrder,
+                            lessonType: 'quiz',
+                            title: `Practice Quiz: ${qTitle}`,
+                            sourcePath: relPath,
+                            estimatedMinutes: 15,
+                            quizQuestions: parsed.questions,
+                        });
+                    }
                 } else {
                     const htmlRes = await mammoth.convertToHtml({ path: docAbs });
                     const words = rawText.split(/\s+/).filter(Boolean).length;
                     const estMins = Math.max(3, Math.round(words / 200));
-                    // Require 40% active dwell at 250 wpm (clamped between 30s and 360s)
                     const minDwell = Math.max(30, Math.min(360, Math.round((words / 250) * 60 * 0.4)));
                     const cleanTitle = cleanFileTitle(docFile);
                     modLessonOrder += 1;
@@ -535,15 +577,15 @@ async function buildManifest(): Promise<ManifestCourse[]> {
                     localPath: path.join(sdAbs, af),
                     storagePath: `projects/${modSlug}/${slugify(sd)}/${af.replace(/\s+/g, '_')}`,
                     type: path.extname(af).replace('.', '').toLowerCase(),
+                    isExemplar: /exemplar/i.test(af),
                 }));
 
-                // Extract brief summary if a scenario brief or project file exists
-                let briefText = `Download the project assets below, complete the deliverable template, and upload your completed work (or share a link) along with your implementation reflection.`;
+                let briefText = `Download the project templates below, complete your deliverable, and upload your work (or share a Google Docs/Sheets/Figma link) along with your short reflection.`;
                 const briefDoc = assetFiles.find((f) => /scenario|project file/i.test(f) && f.endsWith('.docx'));
                 if (briefDoc) {
                     const extracted = await mammoth.extractRawText({ path: path.join(sdAbs, briefDoc) });
                     if (extracted.value) {
-                        briefText = extracted.value.slice(0, 2000);
+                        briefText = extracted.value.slice(0, 2600);
                     }
                 }
 
@@ -554,12 +596,47 @@ async function buildManifest(): Promise<ManifestCourse[]> {
                     orderIndex: modLessonOrder,
                     globalOrder: globalLessonOrder,
                     lessonType: 'project',
-                    title: `Project Deliverable: ${prettyName}`,
+                    title: `Project: ${prettyName}`,
                     sourcePath: path.relative(ROOT_DIR, sdAbs),
                     estimatedMinutes: 90,
                     projectBrief: briefText,
                     projectAssets: assets,
                 });
+            }
+
+            // Merge Activity briefs into matching module Project(s), or create standalone applied Project lessons
+            const existingProjects = lessons.filter((l) => l.lessonType === 'project');
+            for (const act of pendingActivityBriefs) {
+                // Find best matching project in this module (handles C5 M7 with both Dashboard & Interview)
+                const match = existingProjects.find((p) => {
+                    const pLow = p.title.toLowerCase();
+                    const aLow = act.title.toLowerCase();
+                    return (
+                        (aLow.includes('interview') && pLow.includes('interview')) ||
+                        (aLow.includes('dashboard') && pLow.includes('dashboard')) ||
+                        (existingProjects.length === 1 && !aLow.includes('transparency audit'))
+                    );
+                });
+
+                if (match) {
+                    // Prepend the rich step-by-step Activity Scenario & Instructions to the Project brief!
+                    match.projectBrief = `${act.briefText}\n\n---\n${match.projectBrief || ''}`.slice(0, 4500);
+                } else {
+                    // Standalone hands-on applied activity (e.g., C2 M4 AI Product Market Analysis, C4 M5 AI Transparency Audit)
+                    modLessonOrder += 1;
+                    globalLessonOrder += 1;
+                    lessons.push({
+                        slug: `${modSlug}-activity-${slugify(act.title).slice(0, 40)}`,
+                        orderIndex: modLessonOrder,
+                        globalOrder: globalLessonOrder,
+                        lessonType: 'project',
+                        title: `Applied Activity: ${act.title}`,
+                        sourcePath: act.relPath,
+                        estimatedMinutes: 45,
+                        projectBrief: act.briefText,
+                        projectAssets: [],
+                    });
+                }
             }
 
             const totalModMins = lessons.reduce((acc, l) => acc + l.estimatedMinutes, 0);
@@ -725,6 +802,36 @@ async function seedDatabaseAndAssets(courses: ManifestCourse[]) {
         await supabase.storage.createBucket('lms-assets', { public: false });
     }
 
+    // Load preset verified quiz answer keys if scripts/quiz-answer-keys.json exists
+    const presetQuizKeys: Record<string, Record<string, { correct_indices: number[]; explanation?: string }>> =
+        fs.existsSync(QUIZ_KEYS_FILE) ? JSON.parse(fs.readFileSync(QUIZ_KEYS_FILE, 'utf8')) : {};
+
+    // Collect valid lesson slugs up front, delete obsolete merged slugs FIRST, and
+    // temporarily offset shifted global_order/order_index to prevent UNIQUE collisions
+    // while preserving all existing lesson UUIDs (zero learner progress lost!).
+    const validLessonSlugs = new Set<string>();
+    for (const c of courses) {
+        for (const m of c.modules) {
+            for (const l of m.lessons) validLessonSlugs.add(l.slug);
+        }
+    }
+
+    const { data: existingLessons } = await supabase.from('lms_lessons').select('id, slug, global_order, order_index');
+    const staleIds = (existingLessons || []).filter((r) => !validLessonSlugs.has(r.slug)).map((r) => r.id);
+    if (staleIds.length > 0) {
+        await supabase.from('lms_lessons').delete().in('id', staleIds);
+        console.log(`Removed ${staleIds.length} obsolete/merged lesson rows before re-seeding.`);
+    }
+    if ((existingLessons || []).length > 0) {
+        const remaining = (existingLessons || []).filter((r) => validLessonSlugs.has(r.slug));
+        for (let idx = 0; idx < remaining.length; idx++) {
+            await supabase
+                .from('lms_lessons')
+                .update({ global_order: 100000 + idx, order_index: 10000 + idx })
+                .eq('id', remaining[idx].id);
+        }
+    }
+
     let lessonsSeeded = 0;
     let assetsUploaded = 0;
 
@@ -769,7 +876,8 @@ async function seedDatabaseAndAssets(courses: ManifestCourse[]) {
             if (mErr || !modRow) throw new Error(`Failed to upsert module ${m.slug}: ${mErr?.message}`);
 
             for (const l of m.lessons) {
-                const storedAssets: Array<{ name: string; storage_path: string; type: string }> = [];
+                validLessonSlugs.add(l.slug);
+                const storedAssets: Array<{ name: string; storage_path: string; type: string; is_exemplar: boolean }> = [];
                 if (l.projectAssets?.length) {
                     for (const asset of l.projectAssets) {
                         const fileBuf = fs.readFileSync(asset.localPath);
@@ -785,22 +893,45 @@ async function seedDatabaseAndAssets(courses: ManifestCourse[]) {
                         } else {
                             assetsUploaded += 1;
                         }
-                        storedAssets.push({ name: asset.name, storage_path: asset.storagePath, type: asset.type });
+                        storedAssets.push({
+                            name: asset.name,
+                            storage_path: asset.storagePath,
+                            type: asset.type,
+                            is_exemplar: asset.isExemplar,
+                        });
                     }
                 }
 
-                // Preserve already-verified quiz answer keys if re-running seed
+                // Apply preset verified quiz keys OR preserve existing admin-verified keys
                 let quizPayload = l.quizQuestions || [];
                 let quizKeysVerified = false;
                 if (l.lessonType === 'quiz') {
-                    const { data: existingLesson } = await supabase
-                        .from('lms_lessons')
-                        .select('quiz_questions_json, quiz_keys_verified')
-                        .eq('slug', l.slug)
-                        .maybeSingle();
-                    if (existingLesson?.quiz_keys_verified) {
-                        quizPayload = existingLesson.quiz_questions_json;
-                        quizKeysVerified = true;
+                    const preset = presetQuizKeys[l.slug];
+                    if (preset && quizPayload.length > 0) {
+                        let allMapped = true;
+                        quizPayload = quizPayload.map((q) => {
+                            const ans = preset[q.id];
+                            if (!ans || !Array.isArray(ans.correct_indices) || ans.correct_indices.length === 0) {
+                                allMapped = false;
+                                return q;
+                            }
+                            return {
+                                ...q,
+                                correct_indices: ans.correct_indices,
+                                explanation: ans.explanation || q.explanation || '',
+                            };
+                        });
+                        quizKeysVerified = allMapped;
+                    } else {
+                        const { data: existingLesson } = await supabase
+                            .from('lms_lessons')
+                            .select('quiz_questions_json, quiz_keys_verified')
+                            .eq('slug', l.slug)
+                            .maybeSingle();
+                        if (existingLesson?.quiz_keys_verified) {
+                            quizPayload = existingLesson.quiz_questions_json;
+                            quizKeysVerified = true;
+                        }
                     }
                 }
 

@@ -107,15 +107,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         let projectAssetsWithUrls: any[] = [];
+        const canViewExemplar = Boolean(submission) || member.enrollment.role === 'admin';
         if (lesson.lesson_type === 'project' && Array.isArray(lesson.project_assets_json)) {
             projectAssetsWithUrls = await Promise.all(
                 lesson.project_assets_json.map(async (asset: any) => {
+                    const isExemplar = Boolean(asset.is_exemplar || /exemplar/i.test(asset.name || ''));
+                    if (isExemplar && !canViewExemplar) {
+                        return {
+                            name: asset.name,
+                            type: asset.type,
+                            isExemplar: true,
+                            lockedUntilSubmit: true,
+                            downloadUrl: null,
+                        };
+                    }
                     const { data: signed } = await supabase.storage
                         .from('lms-assets')
                         .createSignedUrl(asset.storage_path, 1800, { download: asset.name });
                     return {
                         name: asset.name,
                         type: asset.type,
+                        isExemplar,
+                        lockedUntilSubmit: false,
                         downloadUrl: signed?.signedUrl || null,
                     };
                 }),

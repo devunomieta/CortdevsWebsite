@@ -853,21 +853,41 @@ export function LessonPlayer() {
                                 {lesson.project_assets?.length > 0 && (
                                     <div className="space-y-2">
                                         <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-neutral-500">
-                                            Download Project Templates & Scenario Files
+                                            Project Templates &amp; Files
                                         </div>
                                         <div className="grid sm:grid-cols-2 gap-2">
-                                            {lesson.project_assets.map((asset: any, idx: number) => (
-                                                <a
-                                                    key={idx}
-                                                    href={asset.downloadUrl || '#'}
-                                                    target="_blank"
-                                                    rel="noreferrer"
-                                                    className="flex items-center justify-between gap-2 px-3.5 py-2.5 bg-neutral-50 border border-neutral-200 hover:border-neutral-950 text-xs text-neutral-900 font-medium transition"
-                                                >
-                                                    <span className="truncate">{asset.name}</span>
-                                                    <Download className="w-4 h-4 text-neutral-700 shrink-0" />
-                                                </a>
-                                            ))}
+                                            {lesson.project_assets.map((asset: any, idx: number) =>
+                                                asset.lockedUntilSubmit ? (
+                                                    <div
+                                                        key={idx}
+                                                        className="flex items-center justify-between gap-2 px-3.5 py-2.5 bg-neutral-100 border border-neutral-200 text-xs text-neutral-500"
+                                                    >
+                                                        <span className="truncate">
+                                                            {asset.name}{' '}
+                                                            <em className="text-[10px] text-neutral-400">(Unlocks after you submit)</em>
+                                                        </span>
+                                                        <Lock className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
+                                                    </div>
+                                                ) : (
+                                                    <a
+                                                        key={idx}
+                                                        href={asset.downloadUrl || '#'}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="flex items-center justify-between gap-2 px-3.5 py-2.5 bg-neutral-50 border border-neutral-200 hover:border-neutral-950 text-xs text-neutral-900 font-medium transition"
+                                                    >
+                                                        <span className="truncate">
+                                                            {asset.name}
+                                                            {asset.isExemplar && (
+                                                                <span className="ml-1.5 text-[10px] px-1.5 py-0.5 bg-emerald-100 text-emerald-800 font-bold uppercase">
+                                                                    Reference Example
+                                                                </span>
+                                                            )}
+                                                        </span>
+                                                        <Download className="w-4 h-4 text-neutral-700 shrink-0" />
+                                                    </a>
+                                                ),
+                                            )}
                                         </div>
                                     </div>
                                 )}
