@@ -15,9 +15,10 @@ import {
     Play,
     PlayCircle,
     Target,
+    Users,
 } from 'lucide-react';
 import { learnApi } from '../lib/api';
-import { CoursePartnerStrip, CourseraLogo, MicrosoftLogo } from '../components/BrandLogos';
+import { CourseraLogo, MicrosoftLogo } from '../components/BrandLogos';
 
 function LessonTypeIcon({ type }: { type: string }) {
     switch (type) {
@@ -77,34 +78,25 @@ export function RoadmapDashboard() {
         );
     }
 
-    const { stats, nextUpLesson, courses, teamFeed, cohort } = data;
+    const { stats, nextUpLesson, courses, teamFeed, cohort, studyPartner } = data;
     const paceDelta = stats.progressPct - stats.targetPct;
 
     return (
-        <div className="space-y-8">
-            {/* CortDevs Editorial Dark Hero + Microsoft & Coursera Co-Branding */}
-            <div className="bg-[#030213] text-white p-5 sm:p-8 border border-neutral-900">
+        <div className="space-y-6 sm:space-y-8">
+            {/* Clean Editorial Hero Card */}
+            <div className="bg-[#030213] text-white p-6 sm:p-8 border border-neutral-900">
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-                    <div className="space-y-3 max-w-2xl">
-                        <div className="flex flex-wrap items-center gap-3">
-                            <CoursePartnerStrip dark compact />
-                            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-400">
-                                Week {stats.currentWeek} of 12 · Step-by-Step
-                            </span>
+                    <div className="space-y-2.5 max-w-2xl">
+                        <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-400">
+                            {nextUpLesson ? `Up Next · Week ${stats.currentWeek} of 12` : `Week ${stats.currentWeek} of 12`}
                         </div>
-                        <h1 className="text-xl sm:text-3xl font-light tracking-tight text-white">
-                            {nextUpLesson ? (
-                                <>
-                                    Up Next: <span className="font-semibold">{nextUpLesson.title}</span>
-                                </>
-                            ) : (
-                                <span className="font-semibold">You're Caught Up for This Week!</span>
-                            )}
+                        <h1 className="text-xl sm:text-3xl font-semibold tracking-tight text-white leading-snug">
+                            {nextUpLesson ? nextUpLesson.title : "You're Caught Up for This Week!"}
                         </h1>
-                        <p className="text-sm text-neutral-300">
+                        <p className="text-sm text-neutral-400">
                             {nextUpLesson
-                                ? `${nextUpLesson.module_title} · About ${nextUpLesson.estimated_minutes} min · Finish this lesson to unlock the next one.`
-                                : 'Great work! New lessons unlock every Monday at 7:00 AM WAT so the team stays together.'}
+                                ? `${nextUpLesson.module_title} · ${nextUpLesson.estimated_minutes} min`
+                                : 'New lessons unlock every Monday at 7:00 AM WAT.'}
                         </p>
                     </div>
 
@@ -119,17 +111,20 @@ export function RoadmapDashboard() {
                     )}
                 </div>
 
-                {/* Progress Bar */}
-                <div className="mt-6 pt-5 border-t border-white/10 space-y-2">
-                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                {/* Minimal Progress Footer */}
+                <div className="mt-6 pt-5 border-t border-white/10 space-y-2.5">
+                    <div className="flex items-center justify-between gap-3 text-xs">
                         <span className="text-neutral-300">
-                            Overall Progress: <strong className="text-white">{stats.progressPct}%</strong> ({stats.completedLessons}/{stats.totalLessons} lessons)
+                            <strong className="text-white">{stats.progressPct}%</strong> complete
+                            <span className="text-neutral-500 ml-1.5">
+                                ({stats.completedLessons}/{stats.totalLessons})
+                            </span>
                         </span>
                         <span className={paceDelta >= 0 ? 'text-emerald-400 font-medium' : 'text-amber-300 font-medium'}>
-                            This Week's Goal: {stats.targetPct}% ({paceDelta >= 0 ? 'On Track' : `${Math.abs(paceDelta)}% to go`})
+                            {paceDelta >= 0 ? 'On Track' : `Goal: ${stats.targetPct}%`}
                         </span>
                     </div>
-                    <div className="h-2 w-full bg-white/15 overflow-hidden relative">
+                    <div className="h-1.5 w-full bg-white/15 overflow-hidden relative">
                         <div
                             className="h-full bg-white transition-all duration-500"
                             style={{ width: `${stats.progressPct}%` }}
@@ -163,8 +158,9 @@ export function RoadmapDashboard() {
                         <Flame className="w-4 h-4 text-amber-600 shrink-0" />
                     </div>
                     <div className="mt-2 text-xl sm:text-2xl font-semibold text-neutral-950">
-                        {stats.streak} <span className="text-xs sm:text-sm font-normal text-neutral-400">days (best {stats.longestStreak}d)</span>
+                        {stats.streak} <span className="text-xs sm:text-sm font-normal text-neutral-400">days</span>
                     </div>
+                    <div className="text-[11px] text-neutral-500 mt-0.5">Best: {stats.longestStreak}d</div>
                 </div>
 
                 <div className="bg-white border border-neutral-200 p-3.5 sm:p-4">
@@ -358,34 +354,95 @@ export function RoadmapDashboard() {
                     )}
                 </div>
 
-                {/* Right Column: Team Notes Feed */}
-                <div className="min-w-0 w-full space-y-4">
-                    <div className="flex items-center gap-2">
-                        <MessageSquareQuote className="w-4 h-4 text-neutral-900" />
-                        <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-neutral-900">
-                            Team Notes
-                        </h2>
-                    </div>
+                {/* Right Column: Study Partner + Team Notes Feed */}
+                <div className="min-w-0 w-full space-y-6">
+                    {studyPartner && (
+                        <div className="space-y-3">
+                            <div className="flex items-center gap-2">
+                                <Users className="w-4 h-4 text-neutral-900" />
+                                <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-neutral-900">
+                                    Study Partner
+                                </h2>
+                            </div>
 
-                    <div className="bg-white border border-neutral-200 p-4 space-y-3">
-                        {teamFeed.length === 0 ? (
-                            <p className="text-xs text-neutral-500 py-2 text-left leading-relaxed">
-                                Short notes teammates write after finishing a reading or project show up here.
-                            </p>
-                        ) : (
-                            teamFeed.map((item: any, idx: number) => (
-                                <div key={idx} className="p-3 bg-neutral-50 border border-neutral-200 space-y-1.5 text-left">
-                                    <div className="flex items-center justify-between gap-2 text-[11px]">
-                                        <span className="font-semibold text-neutral-950 truncate">{item.learnerName}</span>
-                                        <span className="text-neutral-400 shrink-0">
-                                            {item.completedAt ? new Date(item.completedAt).toLocaleDateString() : ''}
+                            <div className="bg-white border border-neutral-200 p-4 space-y-3 text-left">
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                        <div className="text-sm font-semibold text-neutral-950 truncate">
+                                            {studyPartner.fullName}
+                                        </div>
+                                        {studyPartner.jobRole && (
+                                            <div className="text-[11px] text-neutral-500 truncate">
+                                                {studyPartner.jobRole}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <span
+                                        title="Partner's daily study streak"
+                                        className="inline-flex items-center gap-1 px-2 py-0.5 bg-neutral-100 border border-neutral-200 text-neutral-900 text-xs font-semibold shrink-0"
+                                    >
+                                        <Flame className="w-3 h-3 text-amber-600" />
+                                        {studyPartner.streak}d
+                                    </span>
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <div className="flex items-center justify-between text-xs">
+                                        <span className="font-semibold text-neutral-950">
+                                            {studyPartner.progressPct}% complete
+                                        </span>
+                                        <span className="text-neutral-500">
+                                            {studyPartner.completedLessons}/{studyPartner.totalLessons} lessons
                                         </span>
                                     </div>
-                                    <div className="text-[11px] text-neutral-500 break-words">{item.lessonTitle}</div>
-                                    <p className="text-xs text-neutral-700 leading-relaxed break-words">“{item.takeaway}”</p>
+                                    <div className="h-1.5 w-full bg-neutral-200 overflow-hidden">
+                                        <div
+                                            className="h-full bg-[#030213] transition-all duration-500"
+                                            style={{ width: `${studyPartner.progressPct}%` }}
+                                        />
+                                    </div>
                                 </div>
-                            ))
-                        )}
+
+                                <div className="flex items-center justify-between text-[11px] text-neutral-500 pt-1 border-t border-neutral-100">
+                                    <span>Currently on Week {studyPartner.currentWeek}</span>
+                                    <span>
+                                        {studyPartner.lastActiveAt
+                                            ? `Active ${new Date(studyPartner.lastActiveAt).toLocaleDateString()}`
+                                            : 'Not started yet'}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="space-y-4">
+                        <div className="flex items-center gap-2">
+                            <MessageSquareQuote className="w-4 h-4 text-neutral-900" />
+                            <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-neutral-900">
+                                Team Notes
+                            </h2>
+                        </div>
+
+                        <div className="bg-white border border-neutral-200 p-4 space-y-3">
+                            {teamFeed.length === 0 ? (
+                                <p className="text-xs text-neutral-500 py-2 text-left leading-relaxed">
+                                    Short notes teammates write after finishing a reading or project show up here.
+                                </p>
+                            ) : (
+                                teamFeed.map((item: any, idx: number) => (
+                                    <div key={idx} className="p-3 bg-neutral-50 border border-neutral-200 space-y-1.5 text-left">
+                                        <div className="flex items-center justify-between gap-2 text-[11px]">
+                                            <span className="font-semibold text-neutral-950 truncate">{item.learnerName}</span>
+                                            <span className="text-neutral-400 shrink-0">
+                                                {item.completedAt ? new Date(item.completedAt).toLocaleDateString() : ''}
+                                            </span>
+                                        </div>
+                                        <div className="text-[11px] text-neutral-500 break-words">{item.lessonTitle}</div>
+                                        <p className="text-xs text-neutral-700 leading-relaxed break-words">“{item.takeaway}”</p>
+                                    </div>
+                                ))
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>

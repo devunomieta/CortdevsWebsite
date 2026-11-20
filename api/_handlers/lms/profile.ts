@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabase } from '../../_lib/supabase.js';
-import { requireLmsMember } from '../../_lib/lmsGate.js';
+import { getEffectiveStreak, requireLmsMember } from '../../_lib/lmsGate.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     const member = await requireLmsMember(req, res);
@@ -8,7 +8,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (req.method === 'GET') {
         return res.status(200).json({
-            enrollment: member.enrollment,
+            enrollment: {
+                ...member.enrollment,
+                current_streak: getEffectiveStreak(member.enrollment),
+            },
             cohort: member.cohort,
         });
     }

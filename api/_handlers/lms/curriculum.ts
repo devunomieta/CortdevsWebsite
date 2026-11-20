@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabase } from '../../_lib/supabase.js';
-import { isModuleDripUnlocked, requireLmsMember } from '../../_lib/lmsGate.js';
+import { getEffectiveStreak, isModuleDripUnlocked, requireLmsMember } from '../../_lib/lmsGate.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'GET') {
@@ -13,6 +13,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
         const { cohort, enrollment } = member;
 
+        const partnerUserId = enrollment.peer_buddy_user_id || null;
+
         const [
             { data: courses },
             { data: modules },
@@ -21,6 +23,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             { data: submissions },
             { data: overrides },
             { data: recentTakeaways },
+            partnerEnrollmentRes,
+            partnerCompletedCountRes,
+            partnerLatestProgressRes,
         ] = await Promise.all([
             supabase.from('lms_courses').select('*').order('order_index', { ascending: true }),
             supabase.from('lms_modules').select('*').order('global_order', { ascending: true }),
@@ -50,6 +55,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 .not('key_takeaway', 'is', null)
                 .order('completed_at', { ascending: false })
                 .limit(12),
+            // Ultra-lightweight Study Partner queries (only run when paired; 0 rows transferred for count!)
+            partnerUserId
+                ? supabase
+                      .from('lms_enrollments')
+                      .select('user_id, full_name, job_role, current_streak, longest_streak, last_streak_date, last_active_at')
+                      .eq('cohort_id', cohort.id)
+                      .eq('user_id', partnerUserId)
+                      .eq('status', 'active')
+                      .maybeSingle()
+                : Promise.resolve({ data: null }),
+            partnerUserId
+                ? supabase
+                      .from('lms_lesson_progress')
+                      .select('lesson_id', { count: 'exact', head: true })
+                      .eq('cohort_id', cohort.id)
+                      .eq('user_id', partnerUserId)
+                      .eq('status', 'completed')
+                : Promise.resolve({ count: 0 }),
+            partnerUserId
+                ? supabase
+                      .from('lms_lesson_progress')
+                      .select('lesson_id, completed_at')
+                      .eq('cohort_id', cohort.id)
+                      .eq('user_id', partnerUserId)
+                      .eq('status', 'completed')
+                      .order('completed_at', { ascending: false })
+                      .limit(1)
+                      .maybeSingle()
+                : Promise.resolve({ data: null }),
         ]);
 
         const progressMap = new Map<string, any>();
@@ -194,9 +228,52 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const startMs = new Date(`${cohort.start_date}T00:00:00Z`).getTime();
         const currentWeek = Math.max(1, Math.min(12, Math.floor((Date.now() - startMs) / (7 * 86400 * 1000)) + 1));
 
+        const liveStreak = getEffectiveStreak(enrollment);
+
+        // Assemble compact Study Partner summary from in-memory lesson/module maps (0 extra queries)
+        let studyPartner: {
+            fullName: string;
+            jobRole: string | null;
+            completedLessons: number;
+            totalLessons: number;
+            progressPct: number;
+            currentWeek: number;
+            streak: number;
+            longestStreak: number;
+            lastActiveAt: string | null;
+        } | null = null;
+
+        const partnerRow = partnerEnrollmentRes?.data as any;
+        if (partnerRow) {
+            const pCompleted = (partnerCompletedCountRes as any)?.count || 0;
+            const latestRow = (partnerLatestProgressRes as any)?.data as { lesson_id?: string } | null;
+            let partnerWeek = 1;
+            if (latestRow?.lesson_id) {
+                const matchedLesson = allLessons.find((l: any) => l.id === latestRow.lesson_id);
+                if (matchedLesson) {
+                    const matchedMod = moduleMap.get(matchedLesson.module_id);
+                    if (matchedMod?.target_week) partnerWeek = matchedMod.target_week;
+                }
+            }
+            studyPartner = {
+                fullName: partnerRow.full_name,
+                jobRole: partnerRow.job_role || null,
+                completedLessons: pCompleted,
+                totalLessons,
+                progressPct: totalLessons > 0 ? Math.round((pCompleted / totalLessons) * 100) : 0,
+                currentWeek: partnerWeek,
+                streak: getEffectiveStreak(partnerRow),
+                longestStreak: partnerRow.longest_streak || 0,
+                lastActiveAt: partnerRow.last_active_at || null,
+            };
+        }
+
         return res.status(200).json({
             cohort,
-            enrollment,
+            enrollment: {
+                ...enrollment,
+                current_streak: liveStreak,
+            },
             stats: {
                 currentWeek,
                 totalCourses: (courses || []).length,
@@ -207,9 +284,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 eligibleLessons: eligibleLessonsCount,
                 progressPct,
                 targetPct,
-                streak: enrollment.current_streak || 0,
+                streak: liveStreak,
                 longestStreak: enrollment.longest_streak || 0,
             },
+            studyPartner,
             nextUpLesson,
             courses: tree,
             teamFeed,

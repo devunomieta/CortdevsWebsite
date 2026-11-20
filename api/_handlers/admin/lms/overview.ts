@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabase } from '../../../_lib/supabase.js';
-import { isModuleDripUnlocked, requireLmsAdmin } from '../../../_lib/lmsGate.js';
+import { getEffectiveStreak, isModuleDripUnlocked, requireLmsAdmin } from '../../../_lib/lmsGate.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
@@ -21,7 +21,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ] = await Promise.all([
             supabase
                 .from('lms_enrollments')
-                .select('id, user_id, full_name, email, job_role, role, peer_buddy_user_id, current_streak, longest_streak, last_active_at, created_at, status')
+                .select('id, user_id, full_name, email, job_role, role, peer_buddy_user_id, current_streak, longest_streak, last_streak_date, last_active_at, created_at, status')
                 .eq('cohort_id', cohort.id)
                 .eq('status', 'active')
                 .order('created_at', { ascending: true }),
@@ -123,7 +123,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 jobRole: enr.job_role,
                 role: enr.role,
                 peerBuddyUserId: enr.peer_buddy_user_id,
-                streak: enr.current_streak || 0,
+                streak: getEffectiveStreak(enr),
                 longestStreak: enr.longest_streak || 0,
                 lastActiveAt: enr.last_active_at,
                 daysInactive,

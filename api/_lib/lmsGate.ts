@@ -328,11 +328,32 @@ export async function evaluateLessonAccess(params: {
     return { allowed: true, lesson, module: mod, unlocksAt: drip.unlocksAt };
 }
 
+export function getTodayWatIso(now = new Date()): string {
+    // West Africa Time (UTC+1, no DST) so Nigerian learners roll over at local midnight
+    return new Date(now.getTime() + 3600 * 1000).toISOString().slice(0, 10);
+}
+
 /**
- * Updates learner's daily streak & last_active_at whenever they complete a lesson or log study activity.
+ * Computes the learner's live streak without showing stale numbers after missed days.
+ * A streak stays active if the learner completed something today or yesterday (WAT);
+ * if more than 1 calendar day has passed without completion, the live streak is 0.
+ */
+export function getEffectiveStreak(enrollment: Pick<LmsEnrollment, 'current_streak' | 'last_streak_date'>): number {
+    const raw = enrollment.current_streak || 0;
+    if (raw <= 0 || !enrollment.last_streak_date) return 0;
+    const todayIso = getTodayWatIso();
+    const diffDays = Math.round(
+        (new Date(`${todayIso}T00:00:00Z`).getTime() - new Date(`${enrollment.last_streak_date}T00:00:00Z`).getTime()) /
+            86400000,
+    );
+    return diffDays <= 1 ? raw : 0;
+}
+
+/**
+ * Updates learner's daily streak & last_active_at whenever they complete a lesson, pass a quiz, or submit a project.
  */
 export async function touchLearnerStreak(enrollment: LmsEnrollment): Promise<{ currentStreak: number; longestStreak: number }> {
-    const todayIso = new Date().toISOString().slice(0, 10);
+    const todayIso = getTodayWatIso();
     const lastDate = enrollment.last_streak_date;
 
     let currentStreak = enrollment.current_streak || 0;
