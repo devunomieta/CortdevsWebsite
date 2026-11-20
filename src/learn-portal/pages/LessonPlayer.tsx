@@ -21,7 +21,8 @@ import {
 } from 'lucide-react';
 import { formatDuration, learnApi } from '../lib/api';
 import { useLearnAuth } from '../context/LearnAuthContext';
-import { CoursePartnerStrip, CourseraLogo, MicrosoftLogo } from '../components/BrandLogos';
+import { CoursePartnerStrip } from '../components/BrandLogos';
+import { LearnVideoPlayer, type VideoNote } from '../components/LearnVideoPlayer';
 import { sanitizeReadingHtml } from '../lib/sessionTimer';
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10 MB cap to protect Supabase Free 1 GB storage
@@ -44,6 +45,7 @@ export function LessonPlayer() {
     const [maxWatchedSec, setMaxWatchedSec] = useState(0);
     const [uniqueWatchedSec, setUniqueWatchedSec] = useState(0);
     const [seekWarning, setSeekWarning] = useState(false);
+    const [videoNotes, setVideoNotes] = useState<VideoNote[]>([]);
 
     // Reading state
     const readingContainerRef = useRef<HTMLDivElement | null>(null);
@@ -93,6 +95,7 @@ export function LessonPlayer() {
             setScrollPct(res.progress?.scroll_depth_pct || 0);
             setDwellSec(res.progress?.active_dwell_seconds || 0);
             setTakeaway(res.progress?.key_takeaway || '');
+            setVideoNotes(Array.isArray(res.progress?.notes_json) ? res.progress.notes_json : []);
             setExternalUrl(res.projectSubmission?.external_url || '');
             setReflection(res.projectSubmission?.reflection_notes || '');
 
@@ -217,6 +220,25 @@ export function LessonPlayer() {
     const safeReadingHtml = useMemo(
         () => sanitizeReadingHtml(data?.lesson?.content_html || '<p>No reading content found.</p>'),
         [data?.lesson?.content_html],
+    );
+
+    const handleSaveVideoNotes = useCallback(
+        async (nextNotes: VideoNote[]) => {
+            setVideoNotes(nextNotes);
+            if (!activeLessonId) return;
+            try {
+                const res = await learnApi('lms/progress-heartbeat', {
+                    method: 'POST',
+                    body: { lessonId: activeLessonId, notes: nextNotes },
+                });
+                if (Array.isArray(res?.progress?.notes_json)) {
+                    setVideoNotes(res.progress.notes_json);
+                }
+            } catch {
+                // keep optimistic local state
+            }
+        },
+        [activeLessonId],
     );
 
     const handleVideoSeeking = () => {
@@ -552,130 +574,95 @@ export function LessonPlayer() {
                 </div>
             )}
 
+            {/* Full-Width Coursera-Style Video Player Studio (when lesson is a video) */}
+            {lesson.lesson_type === 'video' && (
+                <div className="space-y-4">
+                    {lesson.video_signed_url ? (
+                        <div className="relative">
+                            <LearnVideoPlayer
+                                videoRef={videoRef}
+                                src={lesson.video_signed_url}
+                                transcriptUrl={lesson.transcript_signed_url}
+                                title={lesson.title}
+                                durationSeconds={lesson.duration_seconds || 0}
+                                chapters={(Array.isArray(lesson.chapters) ? lesson.chapters : []).map((ch: any) => ({
+                                    title: ch.title,
+                                    startSec: Number(ch.startSeconds ?? ch.startSec ?? 0),
+                                }))}
+                                notes={videoNotes}
+                                isAdmin={isAdmin}
+                                isCompleted={isCompleted}
+                                maxWatchedSec={maxWatchedSec}
+                                onSeeking={handleVideoSeeking}
+                                onRateChange={handleVideoRateChange}
+                                onPlay={() => {
+                                    if (videoRef.current) segmentStartRef.current = videoRef.current.currentTime;
+                                }}
+                                onPause={() => {
+                                    flushVideoHeartbeat();
+                                }}
+                                onEnded={() => {
+                                    flushVideoHeartbeat();
+                                }}
+                                onSeekBlocked={() => {
+                                    setSeekWarning(true);
+                                    window.setTimeout(() => setSeekWarning(false), 3500);
+                                }}
+                                onSaveNotes={handleSaveVideoNotes}
+                            />
+                            {seekWarning && (
+                                <div className="mt-2 bg-amber-50 border border-amber-300 text-amber-950 text-xs font-semibold px-3.5 py-2 flex items-center gap-2">
+                                    <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                                    Forward skipping is disabled until you watch up to that point.
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="bg-neutral-950 border border-neutral-800 text-white aspect-video flex flex-col items-center justify-center p-8 text-center space-y-3">
+                            <PlayCircle className="w-12 h-12 text-neutral-500" />
+                            <p className="text-sm font-medium text-neutral-200">
+                                {lesson.r2_configured
+                                    ? 'Video object not uploaded to Cloudflare R2 yet.'
+                                    : 'Cloudflare R2 credentials not configured in .env yet.'}
+                            </p>
+                            <p className="text-xs text-neutral-400 max-w-md">
+                                Run <code className="text-white">npx tsx scripts/ingest-ai-pm-course.ts --upload-r2</code> after adding your Cloudflare R2 keys.
+                            </p>
+                        </div>
+                    )}
+                </div>
+            )}
+
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
                 {/* Main Lesson Pane */}
                 <div className="lg:col-span-2 min-w-0 space-y-6">
-                    {/* 1. VIDEO LESSON */}
+                    {/* 1. VIDEO PROGRESS & COMPLETION CARD */}
                     {lesson.lesson_type === 'video' && (
-                        <div className="bg-white border border-neutral-200 overflow-hidden">
-                            {/* Video Player Co-Branded Top Strip (Microsoft + Coursera) */}
-                            <div className="px-4 py-2.5 bg-[#030213] text-white flex flex-wrap items-center justify-between gap-3 border-b border-white/10">
-                                <div className="inline-flex items-center gap-3">
-                                    <MicrosoftLogo dark className="h-3.5" />
-                                    <span className="text-white/30 text-xs">×</span>
-                                    <CourseraLogo dark />
+                        <div className="bg-white border border-neutral-200 p-5 space-y-4">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                <div className="space-y-1">
+                                    <div className="text-xs font-semibold text-neutral-900">
+                                        Video Progress: <span className="font-bold">{watchPct}%</span> (watch at least 90% to unlock next)
+                                    </div>
+                                    <div className="text-[11px] text-neutral-500">
+                                        Watched: {formatDuration(uniqueWatchedSec)} / {formatDuration(lesson.duration_seconds)} · Up to 1.75x speed
+                                    </div>
                                 </div>
-                                <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-neutral-400">
-                                    AI Product Manager · Protected Stream
-                                </span>
+                                <button
+                                    onClick={handleCompleteVideoOrReading}
+                                    disabled={completing || (!isAdmin && watchPct < 90)}
+                                    className="w-full sm:w-auto px-4 py-2.5 bg-[#030213] hover:bg-neutral-800 disabled:opacity-35 disabled:cursor-not-allowed text-white text-xs font-bold uppercase tracking-[0.14em] inline-flex items-center justify-center gap-2 transition"
+                                >
+                                    {completing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                                    {isCompleted ? 'Completed' : 'Mark Video Complete'}
+                                </button>
                             </div>
 
-                            {lesson.video_signed_url ? (
-                                <div className="relative bg-black">
-                                    <video
-                                        ref={videoRef}
-                                        src={lesson.video_signed_url}
-                                        controls
-                                        controlsList="nodownload"
-                                        playsInline
-                                        onSeeking={handleVideoSeeking}
-                                        onRateChange={handleVideoRateChange}
-                                        onPlay={() => {
-                                            if (videoRef.current) segmentStartRef.current = videoRef.current.currentTime;
-                                        }}
-                                        onPause={() => {
-                                            flushVideoHeartbeat();
-                                        }}
-                                        onEnded={() => {
-                                            flushVideoHeartbeat();
-                                        }}
-                                        className="w-full aspect-video"
-                                    />
-                                    {seekWarning && (
-                                        <div className="absolute top-4 right-4 bg-amber-400 text-neutral-950 text-xs font-semibold px-3 py-1.5 shadow-lg flex items-center gap-1.5">
-                                            <AlertTriangle className="w-3.5 h-3.5" />
-                                            Forward skipping is disabled until watched
-                                        </div>
-                                    )}
-                                </div>
-                            ) : (
-                                <div className="aspect-video bg-neutral-950 text-white flex flex-col items-center justify-center p-8 text-center space-y-3">
-                                    <PlayCircle className="w-12 h-12 text-neutral-500" />
-                                    <p className="text-sm font-medium text-neutral-200">
-                                        {lesson.r2_configured
-                                            ? 'Video object not uploaded to Cloudflare R2 yet.'
-                                            : 'Cloudflare R2 credentials not configured in .env yet.'}
-                                    </p>
-                                    <p className="text-xs text-neutral-400 max-w-md">
-                                        Run <code className="text-white">npx tsx scripts/ingest-ai-pm-course.ts --upload-r2</code> after adding your Cloudflare R2 keys.
-                                    </p>
-                                </div>
-                            )}
-
-                            {/* Video Telemetry & Completion Bar */}
-                            <div className="p-5 space-y-4 border-t border-neutral-200">
-                                <div className="flex flex-wrap items-center justify-between gap-3">
-                                    <div className="space-y-1">
-                                        <div className="text-xs font-semibold text-neutral-900">
-                                            Video Progress: <span className="font-bold">{watchPct}%</span> (watch at least 90% to unlock next)
-                                        </div>
-                                        <div className="text-[11px] text-neutral-500">
-                                            Watched: {formatDuration(uniqueWatchedSec)} / {formatDuration(lesson.duration_seconds)} · Up to 1.75x speed
-                                        </div>
-                                    </div>
-                                    <button
-                                        onClick={handleCompleteVideoOrReading}
-                                        disabled={completing || (!isAdmin && watchPct < 90)}
-                                        className="w-full sm:w-auto px-4 py-2.5 bg-[#030213] hover:bg-neutral-800 disabled:opacity-35 disabled:cursor-not-allowed text-white text-xs font-bold uppercase tracking-[0.14em] inline-flex items-center justify-center gap-2 transition"
-                                    >
-                                        {completing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                                        {isCompleted ? 'Completed' : 'Mark Video Complete'}
-                                    </button>
-                                </div>
-
-                                <div className="h-2 w-full bg-neutral-200 overflow-hidden">
-                                    <div
-                                        className={`h-full transition-all duration-300 ${watchPct >= 90 ? 'bg-emerald-600' : 'bg-[#030213]'}`}
-                                        style={{ width: `${watchPct}%` }}
-                                    />
-                                </div>
-
-                                {/* Clickable Chapter Markers from .txt */}
-                                {Array.isArray(lesson.chapters) && lesson.chapters.length > 0 && (
-                                    <div className="pt-2">
-                                        <div className="text-[11px] font-bold text-neutral-500 uppercase tracking-[0.16em] mb-2">
-                                            Lesson Chapters ({lesson.chapters.length})
-                                        </div>
-                                        <div className="grid sm:grid-cols-2 gap-1.5 max-h-56 overflow-y-auto pr-1">
-                                            {lesson.chapters.map((ch: any, idx: number) => {
-                                                const canJump = isAdmin || isCompleted || ch.startSeconds <= maxWatchedSec + 15;
-                                                return (
-                                                    <button
-                                                        key={idx}
-                                                        disabled={!canJump}
-                                                        onClick={() => {
-                                                            if (videoRef.current) {
-                                                                videoRef.current.currentTime = ch.startSeconds;
-                                                                segmentStartRef.current = ch.startSeconds;
-                                                                videoRef.current.play().catch(() => {});
-                                                            }
-                                                        }}
-                                                        className={`text-left px-3 py-2 border text-xs flex items-center justify-between gap-2 transition ${
-                                                            canJump
-                                                                ? 'bg-neutral-50 border-neutral-200 hover:border-neutral-950 text-neutral-900'
-                                                                : 'bg-neutral-50/50 border-neutral-200/60 text-neutral-400 cursor-not-allowed'
-                                                        }`}
-                                                    >
-                                                        <span className="truncate">{ch.title}</span>
-                                                        <span className="font-mono text-[10px] text-neutral-500 shrink-0">
-                                                            {formatDuration(ch.startSeconds)}
-                                                        </span>
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                )}
+                            <div className="h-2 w-full bg-neutral-200 overflow-hidden">
+                                <div
+                                    className={`h-full transition-all duration-300 ${watchPct >= 90 ? 'bg-emerald-600' : 'bg-[#030213]'}`}
+                                    style={{ width: `${watchPct}%` }}
+                                />
                             </div>
                         </div>
                     )}

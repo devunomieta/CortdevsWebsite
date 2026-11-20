@@ -1,4 +1,4 @@
-import React, { lazy, Suspense } from 'react';
+import React, { lazy, Suspense, useEffect } from 'react';
 import { Outlet } from 'react-router';
 import { Loader2 } from 'lucide-react';
 import { LearnAuthProvider } from '../context/LearnAuthContext';
@@ -8,10 +8,32 @@ const LazyAdminDashboard = lazy(() =>
 );
 
 export function LearnRoot() {
+    // Strictly lock Learn portal into Light Mode even on dark-mode OS/browser devices
+    useEffect(() => {
+        const root = document.documentElement;
+        root.classList.remove('dark');
+        root.classList.add('light', 'learn-force-light');
+        root.style.colorScheme = 'light';
+
+        let meta = document.querySelector('meta[name="color-scheme"]') as HTMLMetaElement | null;
+        if (!meta) {
+            meta = document.createElement('meta');
+            meta.name = 'color-scheme';
+            document.head.appendChild(meta);
+        }
+        meta.content = 'only light';
+
+        return () => {
+            root.classList.remove('learn-force-light');
+        };
+    }, []);
+
     return (
-        <LearnAuthProvider>
-            <Outlet />
-        </LearnAuthProvider>
+        <div className="learn-portal-root min-h-screen bg-white text-neutral-950">
+            <LearnAuthProvider>
+                <Outlet />
+            </LearnAuthProvider>
+        </div>
     );
 }
 

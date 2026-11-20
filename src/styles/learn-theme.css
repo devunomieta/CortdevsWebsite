@@ -1,0 +1,16 @@
+/* CortDevs Learn — Strict Forced Light Mode across OS Dark Mode & Browser Auto-Dark */
+html.learn-force-light,
+html.learn-force-light body,
+.learn-portal-root {
+    color-scheme: only light !important;
+    background-color: #ffffff;
+    color: #0a0a0a;
+}
+
+.learn-portal-root input,
+.learn-portal-root select,
+.learn-portal-root textarea,
+.learn-portal-root button,
+.learn-portal-root option {
+    color-scheme: light !important;
+}

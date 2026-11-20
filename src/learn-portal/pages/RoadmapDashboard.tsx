@@ -88,7 +88,9 @@ export function RoadmapDashboard() {
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
                     <div className="space-y-2.5 max-w-2xl">
                         <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-400">
-                            {nextUpLesson ? `Up Next · Week ${stats.currentWeek} of 12` : `Week ${stats.currentWeek} of 12`}
+                            {nextUpLesson
+                                ? `Up Next · Week ${stats.currentWeek} of ${stats.totalWeeks || 12}`
+                                : `Week ${stats.currentWeek} of ${stats.totalWeeks || 12}`}
                         </div>
                         <h1 className="text-xl sm:text-3xl font-semibold tracking-tight text-white leading-snug">
                             {nextUpLesson ? nextUpLesson.title : "You're Caught Up for This Week!"}
@@ -169,7 +171,8 @@ export function RoadmapDashboard() {
                         <CalendarClock className="w-4 h-4 text-neutral-700 shrink-0" />
                     </div>
                     <div className="mt-2 text-xl sm:text-2xl font-semibold text-neutral-950">
-                        Week {stats.currentWeek} <span className="text-xs sm:text-sm font-normal text-neutral-400">/ 12</span>
+                        Week {stats.currentWeek}{' '}
+                        <span className="text-xs sm:text-sm font-normal text-neutral-400">/ {stats.totalWeeks || 12}</span>
                     </div>
                 </div>
 

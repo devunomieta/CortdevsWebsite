@@ -1,6 +1,12 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabase } from '../../../_lib/supabase.js';
-import { isValidUuid, requireLmsAdmin, sanitizeSingleLine } from '../../../_lib/lmsGate.js';
+import {
+    getCohortTargetEndDate,
+    isValidUuid,
+    normalizeWeekExtensions,
+    requireLmsAdmin,
+    sanitizeSingleLine,
+} from '../../../_lib/lmsGate.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     const admin = await requireLmsAdmin(req, res);
@@ -15,7 +21,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === 'PATCH') {
-        const { action, start_date, target_end_date, name, pacing_mode, drip_unlock_hour, project_gate_mode, enrollmentId, peerBuddyUserId } = req.body || {};
+        const {
+            action,
+            start_date,
+            target_end_date,
+            name,
+            pacing_mode,
+            drip_unlock_hour,
+            project_gate_mode,
+            week_extensions_json,
+            enrollmentId,
+            peerBuddyUserId,
+        } = req.body || {};
 
         // Assign a mutual (2-way) peer accountability buddy within the active cohort
         if (action === 'assign_buddy' && enrollmentId) {
@@ -111,15 +128,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const cleanCohortName = sanitizeSingleLine(name, 140);
             if (cleanCohortName.length >= 2) updates.name = cleanCohortName;
         }
+        const effectiveStartDate =
+            typeof start_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(start_date)
+                ? start_date
+                : admin.cohort.start_date;
+        const hasWeekExtensionsUpdate = week_extensions_json !== undefined;
+        const effectiveExtensions = hasWeekExtensionsUpdate
+            ? normalizeWeekExtensions(week_extensions_json)
+            : normalizeWeekExtensions(admin.cohort.week_extensions_json);
+
         if (typeof start_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(start_date)) {
             updates.start_date = start_date;
-            // Automatically keep target_end_date synced to 12 weeks (84 days) after start_date unless explicitly passed
-            if (!target_end_date) {
-                const startMs = new Date(`${start_date}T00:00:00Z`).getTime();
-                updates.target_end_date = new Date(startMs + 84 * 86400 * 1000).toISOString().slice(0, 10);
-            }
         }
-        if (typeof target_end_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(target_end_date)) updates.target_end_date = target_end_date;
+        if (hasWeekExtensionsUpdate) {
+            updates.week_extensions_json = effectiveExtensions;
+        }
+        // Automatically recompute target_end_date whenever start_date or week extensions change
+        if ((typeof start_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(start_date)) || hasWeekExtensionsUpdate) {
+            updates.target_end_date = getCohortTargetEndDate(effectiveStartDate, effectiveExtensions);
+        }
+        if (typeof target_end_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(target_end_date) && !hasWeekExtensionsUpdate) {
+            updates.target_end_date = target_end_date;
+        }
         if (pacing_mode === 'weekly_drip_sequential' || pacing_mode === 'self_paced_sequential') updates.pacing_mode = pacing_mode;
         if (project_gate_mode === 'submit_to_unlock' || project_gate_mode === 'approve_to_unlock') updates.project_gate_mode = project_gate_mode;
         if (drip_unlock_hour !== undefined && Number.isFinite(Number(drip_unlock_hour))) {

@@ -1,6 +1,12 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabase } from '../../../_lib/supabase.js';
-import { getEffectiveStreak, isModuleDripUnlocked, requireLmsAdmin } from '../../../_lib/lmsGate.js';
+import {
+    buildCohortWeekSchedule,
+    getCohortTotalWeeks,
+    getEffectiveStreak,
+    isModuleDripUnlocked,
+    requireLmsAdmin,
+} from '../../../_lib/lmsGate.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
@@ -144,6 +150,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         return res.status(200).json({
             cohort,
+            totalWeeks: getCohortTotalWeeks(cohort),
+            weekSchedule: buildCohortWeekSchedule(cohort),
             summary: {
                 totalLearners: learnerRows.length,
                 atRiskCount: learnerRows.filter((r) => r.riskStatus === 'at_risk').length,

@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabase } from '../../_lib/supabase.js';
 import { evaluateLessonAccess, isValidUuid, requireLmsMember, sanitizeQuizForClient } from '../../_lib/lmsGate.js';
-import { isR2Configured, resolveReadingHtmlImages, signLessonVideoUrl } from '../../_lib/lmsR2.js';
+import { isR2Configured, resolveReadingHtmlImages, signLessonVideoUrl, signR2AssetUrl } from '../../_lib/lmsR2.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'GET') {
@@ -101,9 +101,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         // Build content payload specific to lesson type
         let videoSignedUrl: string | null = null;
+        let transcriptSignedUrl: string | null = null;
         const r2Ready = isR2Configured();
         if (lesson.lesson_type === 'video' && lesson.video_r2_key && r2Ready) {
-            videoSignedUrl = await signLessonVideoUrl(lesson.video_r2_key, 900);
+            const transcriptKey = `transcripts/${lesson.slug}.vtt`;
+            [videoSignedUrl, transcriptSignedUrl] = await Promise.all([
+                signLessonVideoUrl(lesson.video_r2_key, 900),
+                signR2AssetUrl(transcriptKey, 1800),
+            ]);
         }
 
         let projectAssetsWithUrls: any[] = [];
@@ -153,6 +158,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 estimated_minutes: lesson.estimated_minutes,
                 // video
                 video_signed_url: videoSignedUrl,
+                transcript_signed_url: transcriptSignedUrl,
                 r2_configured: r2Ready,
                 duration_seconds: lesson.duration_seconds,
                 chapters: lesson.chapters_json || [],
@@ -176,6 +182,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 scroll_depth_pct: 0,
                 active_dwell_seconds: 0,
                 key_takeaway: '',
+                notes_json: [],
             },
             quizAttempts: attempts || [],
             projectSubmission: submission || null,

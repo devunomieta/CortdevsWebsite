@@ -1,6 +1,13 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabase } from '../../_lib/supabase.js';
-import { getEffectiveStreak, isModuleDripUnlocked, requireLmsMember } from '../../_lib/lmsGate.js';
+import {
+    buildCohortWeekSchedule,
+    getCohortTotalWeeks,
+    getCurrentCohortWeek,
+    getEffectiveStreak,
+    isModuleDripUnlocked,
+    requireLmsMember,
+} from '../../_lib/lmsGate.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'GET') {
@@ -224,10 +231,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const progressPct = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
         const targetPct = totalLessons > 0 ? Math.round((eligibleLessonsCount / totalLessons) * 100) : 0;
 
-        // Current cohort week (1..12)
-        const startMs = new Date(`${cohort.start_date}T00:00:00Z`).getTime();
-        const currentWeek = Math.max(1, Math.min(12, Math.floor((Date.now() - startMs) / (7 * 86400 * 1000)) + 1));
-
+        // Current curriculum week (1..12) + total calendar weeks (12 + extensions)
+        const currentWeek = getCurrentCohortWeek(cohort, now);
+        const totalWeeks = getCohortTotalWeeks(cohort);
+        const weekSchedule = buildCohortWeekSchedule(cohort);
         const liveStreak = getEffectiveStreak(enrollment);
 
         // Assemble compact Study Partner summary from in-memory lesson/module maps (0 extra queries)
@@ -276,6 +283,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             },
             stats: {
                 currentWeek,
+                totalWeeks,
                 totalCourses: (courses || []).length,
                 totalModules: (modules || []).length,
                 completedModules: completedModulesCount,
@@ -288,6 +296,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 longestStreak: enrollment.longest_streak || 0,
             },
             studyPartner,
+            weekSchedule,
             nextUpLesson,
             courses: tree,
             teamFeed,

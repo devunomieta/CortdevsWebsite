@@ -5,6 +5,8 @@ import {
     isValidUuid,
     mergeWatchedRanges,
     requireLmsMember,
+    sanitizePlainText,
+    sanitizeSingleLine,
     sumWatchedRanges,
     WatchedRange,
 } from '../../_lib/lmsGate.js';
@@ -19,7 +21,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const member = await requireLmsMember(req, res);
     if (!member) return;
 
-    const { lessonId, watchedRange, maxSecond, lastPosition, scrollPct, dwellDeltaSeconds } = req.body || {};
+    const { lessonId, watchedRange, maxSecond, lastPosition, scrollPct, dwellDeltaSeconds, notes } = req.body || {};
     if (!isValidUuid(lessonId)) return res.status(400).json({ error: 'Valid lessonId required' });
 
     const cleanLessonId = String(lessonId);
@@ -30,7 +32,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // the 4-query evaluateLessonAccess() chain and only fetch 3 tiny metadata columns!
     const { data: existing } = await supabase
         .from('lms_lesson_progress')
-        .select('id, status, watched_ranges_json, unique_watched_seconds, max_watched_second, last_position_seconds, scroll_depth_pct, active_dwell_seconds, key_takeaway, completed_at')
+        .select('id, status, watched_ranges_json, unique_watched_seconds, max_watched_second, last_position_seconds, scroll_depth_pct, active_dwell_seconds, key_takeaway, notes_json, completed_at')
         .eq('cohort_id', member.cohort.id)
         .eq('user_id', member.enrollment.user_id)
         .eq('lesson_id', cleanLessonId)
@@ -80,6 +82,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const clampedDwellDelta = Math.max(0, Math.min(90, Math.floor(Number(dwellDeltaSeconds) || 0)));
     const nextDwell = (existing?.active_dwell_seconds || 0) + clampedDwellDelta;
 
+    let nextNotes = Array.isArray(existing?.notes_json) ? existing.notes_json : [];
+    if (Array.isArray(notes)) {
+        nextNotes = notes
+            .slice(0, 30)
+            .map((n: any, idx: number) => ({
+                id: sanitizeSingleLine(n?.id, 48) || `note-${Date.now()}-${idx}`,
+                timeSeconds: Math.max(0, Math.floor(Number(n?.timeSeconds) || 0)),
+                text: sanitizePlainText(n?.text, 500),
+                createdAt: typeof n?.createdAt === 'string' ? n.createdAt.slice(0, 40) : new Date().toISOString(),
+            }))
+            .filter((n) => n.text.length > 0);
+    }
+
     const { data: updated, error } = await supabase
         .from('lms_lesson_progress')
         .upsert(
@@ -95,6 +110,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 scroll_depth_pct: nextScroll,
                 active_dwell_seconds: nextDwell,
                 key_takeaway: existing?.key_takeaway || null,
+                notes_json: nextNotes,
                 completed_at: existing?.completed_at || null,
                 updated_at: new Date().toISOString(),
             },

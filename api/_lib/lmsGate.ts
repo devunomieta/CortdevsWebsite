@@ -54,6 +54,7 @@ export interface LmsCohort {
     drip_timezone: string;
     drip_unlock_hour: number;
     project_gate_mode: 'submit_to_unlock' | 'approve_to_unlock';
+    week_extensions_json?: Record<string, number> | null;
     is_active: boolean;
 }
 
@@ -117,22 +118,102 @@ export function sumWatchedRanges(ranges: WatchedRange[]): number {
     return mergeWatchedRanges(ranges).reduce((acc, [a, b]) => acc + (b - a), 0);
 }
 
+const BASE_COHORT_WEEKS = 12;
+
 /**
- * Computes the UTC Date when a module's Weekly Monday Drip becomes eligible.
- * Week 1 unlocks on cohort.start_date at drip_unlock_hour WAT (UTC+1).
- * Week N unlocks (N - 1) * 7 days after start_date at drip_unlock_hour WAT.
+ * Normalizes a week_extensions_json map ({ "3": 1, "7": 2 }):
+ * keys must be curriculum weeks 1..12, values are extra weeks (0..4).
  */
-export function getModuleDripUnlockAt(cohort: Pick<LmsCohort, 'start_date' | 'drip_unlock_hour'>, targetWeek: number): Date {
+export function normalizeWeekExtensions(raw: unknown): Record<string, number> {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+    const out: Record<string, number> = {};
+    for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+        const wk = Number(k);
+        const extra = Math.floor(Number(v));
+        if (Number.isInteger(wk) && wk >= 1 && wk <= BASE_COHORT_WEEKS && Number.isFinite(extra) && extra > 0) {
+            out[String(wk)] = Math.min(4, extra);
+        }
+    }
+    return out;
+}
+
+export function getCohortTotalWeeks(cohort: Pick<LmsCohort, 'week_extensions_json'>): number {
+    const ext = normalizeWeekExtensions(cohort.week_extensions_json);
+    const totalExtra = Object.values(ext).reduce((sum, n) => sum + n, 0);
+    return BASE_COHORT_WEEKS + totalExtra;
+}
+
+export function getCohortTargetEndDate(startDate: string, rawExtensions?: unknown): string {
+    const ext = normalizeWeekExtensions(rawExtensions);
+    const totalWeeks = BASE_COHORT_WEEKS + Object.values(ext).reduce((sum, n) => sum + n, 0);
+    const startMs = new Date(`${startDate}T00:00:00Z`).getTime();
+    return new Date(startMs + totalWeeks * 7 * 86400 * 1000).toISOString().slice(0, 10);
+}
+
+/**
+ * Computes the UTC Date when a module's Weekly Monday Drip becomes eligible,
+ * automatically cascading forward any extra weeks granted to earlier curriculum weeks.
+ */
+export function getModuleDripUnlockAt(
+    cohort: Pick<LmsCohort, 'start_date' | 'drip_unlock_hour' | 'week_extensions_json'>,
+    targetWeek: number,
+): Date {
     const [year, month, day] = cohort.start_date.split('-').map(Number);
     // WAT is UTC+1 -> subtract 1 hour from local hour to get UTC hour
     const utcHour = (cohort.drip_unlock_hour ?? 7) - 1;
     const baseMs = Date.UTC(year, (month || 1) - 1, day || 1, utcHour, 0, 0);
-    const offsetDays = Math.max(0, (targetWeek || 1) - 1) * 7;
+    const ext = normalizeWeekExtensions(cohort.week_extensions_json);
+    const clampedWeek = Math.max(1, Math.min(BASE_COHORT_WEEKS, Math.floor(targetWeek || 1)));
+    let extraWeeksBefore = 0;
+    for (let w = 1; w < clampedWeek; w++) {
+        extraWeeksBefore += ext[String(w)] || 0;
+    }
+    const offsetDays = (clampedWeek - 1 + extraWeeksBefore) * 7;
     return new Date(baseMs + offsetDays * 86400 * 1000);
 }
 
+export function buildCohortWeekSchedule(cohort: Pick<LmsCohort, 'start_date' | 'drip_unlock_hour' | 'week_extensions_json'>) {
+    const ext = normalizeWeekExtensions(cohort.week_extensions_json);
+    const schedule: Array<{
+        week: number;
+        extraWeeks: number;
+        durationWeeks: number;
+        unlockDate: string;
+        deadlineDate: string;
+    }> = [];
+    for (let w = 1; w <= BASE_COHORT_WEEKS; w++) {
+        const extra = ext[String(w)] || 0;
+        const durationWeeks = 1 + extra;
+        const unlockAt = getModuleDripUnlockAt(cohort, w);
+        // Deadline is the Sunday night at the end of the week window (unlock + duration*7 - 1 day)
+        const deadlineMs = unlockAt.getTime() + (durationWeeks * 7 - 1) * 86400 * 1000;
+        schedule.push({
+            week: w,
+            extraWeeks: extra,
+            durationWeeks,
+            unlockDate: new Date(unlockAt.getTime() + 3600 * 1000).toISOString().slice(0, 10),
+            deadlineDate: new Date(deadlineMs + 3600 * 1000).toISOString().slice(0, 10),
+        });
+    }
+    return schedule;
+}
+
+export function getCurrentCohortWeek(
+    cohort: Pick<LmsCohort, 'start_date' | 'drip_unlock_hour' | 'week_extensions_json'>,
+    now = new Date(),
+): number {
+    let activeWeek = 1;
+    for (let w = 1; w <= BASE_COHORT_WEEKS; w++) {
+        const unlockAt = getModuleDripUnlockAt(cohort, w);
+        if (now.getTime() >= unlockAt.getTime()) {
+            activeWeek = w;
+        }
+    }
+    return activeWeek;
+}
+
 export function isModuleDripUnlocked(
-    cohort: Pick<LmsCohort, 'start_date' | 'drip_unlock_hour' | 'pacing_mode'>,
+    cohort: Pick<LmsCohort, 'start_date' | 'drip_unlock_hour' | 'pacing_mode' | 'week_extensions_json'>,
     targetWeek: number,
     now = new Date(),
     hasDripOverride = false,

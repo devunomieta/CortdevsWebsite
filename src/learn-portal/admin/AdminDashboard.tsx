@@ -97,10 +97,11 @@ export function LearnAdminDashboard() {
     const [emailOnReset, setEmailOnReset] = useState(false);
     const [savingResetPwd, setSavingResetPwd] = useState(false);
 
-    // Course Start Date & Schedule Form
+    // Course Start Date, Pacing & Cascading Week Extensions Form
     const [cohortStart, setCohortStart] = useState('');
     const [cohortEnd, setCohortEnd] = useState('');
     const [cohortPacing, setCohortPacing] = useState('weekly_drip_sequential');
+    const [weekExtensions, setWeekExtensions] = useState<Record<string, number>>({});
     const [savingCohort, setSavingCohort] = useState(false);
 
     // Nudge modal state
@@ -123,6 +124,11 @@ export function LearnAdminDashboard() {
         setCohortStart(ov.cohort?.start_date || '');
         setCohortEnd(ov.cohort?.target_end_date || '');
         setCohortPacing(ov.cohort?.pacing_mode || 'weekly_drip_sequential');
+        setWeekExtensions(
+            ov.cohort?.week_extensions_json && typeof ov.cohort.week_extensions_json === 'object'
+                ? ov.cohort.week_extensions_json
+                : {},
+        );
     }, []);
 
     const refreshMembers = useCallback(async () => {
@@ -323,6 +329,36 @@ export function LearnAdminDashboard() {
         }
     };
 
+    const computeScheduleRows = (startIso: string, exts: Record<string, number>) => {
+        const rows: Array<{ week: number; extraWeeks: number; durationWeeks: number; unlockDate: string; deadlineDate: string }> = [];
+        let extraBefore = 0;
+        for (let wk = 1; wk <= 12; wk++) {
+            const extra = Math.max(0, Math.min(4, Math.floor(Number(exts[String(wk)] || 0))));
+            const durationWeeks = 1 + extra;
+            const offsetDays = (wk - 1 + extraBefore) * 7;
+            const unlockDate = startIso ? addDaysIso(startIso, offsetDays) : '';
+            const deadlineDate = startIso ? addDaysIso(startIso, offsetDays + durationWeeks * 7 - 1) : '';
+            rows.push({ week: wk, extraWeeks: extra, durationWeeks, unlockDate, deadlineDate });
+            extraBefore += extra;
+        }
+        return { rows, totalCalendarWeeks: 12 + extraBefore };
+    };
+
+    const handleAdjustWeekExtension = (week: number, delta: number) => {
+        setWeekExtensions((prev) => {
+            const cur = Math.floor(Number(prev[String(week)] || 0));
+            const nextVal = Math.max(0, Math.min(4, cur + delta));
+            const next = { ...prev };
+            if (nextVal === 0) delete next[String(week)];
+            else next[String(week)] = nextVal;
+            if (cohortStart) {
+                const { totalCalendarWeeks } = computeScheduleRows(cohortStart, next);
+                setCohortEnd(addDaysIso(cohortStart, totalCalendarWeeks * 7));
+            }
+            return next;
+        });
+    };
+
     const handleSaveCohort = async (e: React.FormEvent) => {
         e.preventDefault();
         setSavingCohort(true);
@@ -331,11 +367,11 @@ export function LearnAdminDashboard() {
                 method: 'PATCH',
                 body: {
                     start_date: cohortStart,
-                    target_end_date: cohortEnd || undefined,
                     pacing_mode: cohortPacing,
+                    week_extensions_json: weekExtensions,
                 },
             });
-            showToast('Course start date and weekly schedule updated!');
+            showToast('Course schedule, week extensions, and target end date saved!');
             await refreshOverview();
         } catch (err: any) {
             showToast(err?.message || 'Update failed');
@@ -1100,19 +1136,26 @@ export function LearnAdminDashboard() {
                                     <input
                                         type="date"
                                         value={cohortStart}
-                                        onChange={(e) => setCohortStart(e.target.value)}
+                                        onChange={(e) => {
+                                            const nextStart = e.target.value;
+                                            setCohortStart(nextStart);
+                                            if (nextStart) {
+                                                const { totalCalendarWeeks } = computeScheduleRows(nextStart, weekExtensions);
+                                                setCohortEnd(addDaysIso(nextStart, totalCalendarWeeks * 7));
+                                            }
+                                        }}
                                         className="w-full bg-white border border-neutral-300 px-3 py-2.5 text-base sm:text-xs text-neutral-950"
                                     />
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-600">
-                                        Target Finish Date
+                                        Target Finish Date (Auto-Synced)
                                     </label>
                                     <input
                                         type="date"
                                         value={cohortEnd}
-                                        onChange={(e) => setCohortEnd(e.target.value)}
-                                        className="w-full bg-white border border-neutral-300 px-3 py-2.5 text-base sm:text-xs text-neutral-950"
+                                        readOnly
+                                        className="w-full bg-neutral-100 border border-neutral-200 px-3 py-2.5 text-base sm:text-xs text-neutral-700 cursor-not-allowed"
                                     />
                                 </div>
                             </div>
@@ -1131,20 +1174,75 @@ export function LearnAdminDashboard() {
                                 </select>
                             </div>
 
-                            {cohortStart && cohortPacing === 'weekly_drip_sequential' && (
-                                <div className="bg-neutral-50 border border-neutral-200 p-3 space-y-1.5">
-                                    <div className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">
-                                        Weekly Unlock Preview
-                                    </div>
-                                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5 text-[11px] text-neutral-700">
-                                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((wk) => (
-                                            <div key={wk} className="bg-white border border-neutral-200 px-2 py-1">
-                                                <span className="font-semibold text-neutral-950">W{wk}:</span> {addDaysIso(cohortStart, (wk - 1) * 7)}
+                            {cohortStart && cohortPacing === 'weekly_drip_sequential' && (() => {
+                                const { rows, totalCalendarWeeks } = computeScheduleRows(cohortStart, weekExtensions);
+                                const modulesByWeek = new Map<number, number>();
+                                for (const mod of overview?.modules || []) {
+                                    modulesByWeek.set(mod.targetWeek, (modulesByWeek.get(mod.targetWeek) || 0) + 1);
+                                }
+                                return (
+                                    <div className="bg-neutral-50 border border-neutral-200 p-3 space-y-2">
+                                        <div className="flex flex-wrap items-center justify-between gap-2">
+                                            <div className="text-[10px] font-bold uppercase tracking-wider text-neutral-600">
+                                                Weekly Deadlines &amp; Extensions ({totalCalendarWeeks} calendar weeks total)
                                             </div>
-                                        ))}
+                                            {totalCalendarWeeks > 12 && (
+                                                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 bg-amber-100 text-amber-900 border border-amber-200">
+                                                    +{totalCalendarWeeks - 12} wk extended
+                                                </span>
+                                            )}
+                                        </div>
+                                        <p className="text-[11px] text-neutral-500 leading-relaxed">
+                                            Need extra time for a heavy week? Click <strong>+1w</strong> on that week — earlier weeks stay unchanged while all subsequent weeks and the target finish date shift forward automatically.
+                                        </p>
+                                        <div className="max-h-60 overflow-y-auto divide-y divide-neutral-200 border border-neutral-200 bg-white">
+                                            {rows.map((r) => (
+                                                <div
+                                                    key={r.week}
+                                                    className={`px-2.5 py-2 flex items-center justify-between gap-2 text-[11px] ${
+                                                        r.extraWeeks > 0 ? 'bg-amber-50/70' : ''
+                                                    }`}
+                                                >
+                                                    <div className="min-w-0">
+                                                        <div className="font-semibold text-neutral-950 flex items-center gap-1.5">
+                                                            <span>Week {r.week}</span>
+                                                            <span className="text-[10px] font-normal text-neutral-500">
+                                                                ({modulesByWeek.get(r.week) || 0} mod)
+                                                            </span>
+                                                            {r.extraWeeks > 0 && (
+                                                                <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase bg-amber-200/80 text-amber-950">
+                                                                    {r.durationWeeks} wks
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <div className="text-[10px] text-neutral-500 font-mono">
+                                                            {r.unlockDate} → {r.deadlineDate}
+                                                        </div>
+                                                    </div>
+                                                    <div className="inline-flex items-center gap-1 shrink-0">
+                                                        <button
+                                                            type="button"
+                                                            disabled={r.extraWeeks <= 0}
+                                                            onClick={() => handleAdjustWeekExtension(r.week, -1)}
+                                                            className="px-2 py-1 border border-neutral-300 bg-white hover:border-neutral-950 disabled:opacity-35 text-[10px] font-bold text-neutral-900"
+                                                        >
+                                                            -1w
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            disabled={r.extraWeeks >= 4}
+                                                            onClick={() => handleAdjustWeekExtension(r.week, 1)}
+                                                            className="px-2 py-1 border border-neutral-300 bg-white hover:border-neutral-950 disabled:opacity-35 text-[10px] font-bold text-neutral-900"
+                                                        >
+                                                            +1w
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
-                            )}
+                                );
+                            })()}
 
                             <button
                                 type="submit"
