@@ -4,6 +4,8 @@ import { logLmsEvent, requireLmsAdmin } from '../../../_lib/lmsGate.js';
 import { sendLmsCredentialsEmail } from '../../../_lib/lmsEmail.js';
 import { getLearnAppUrl } from '../../../_lib/appUrl.js';
 
+const ROOT_ADMIN_EMAIL = 'learn@cortdevs.com';
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     const admin = await requireLmsAdmin(req, res);
     if (!admin) return;
@@ -148,7 +150,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             if (!member) return res.status(404).json({ error: 'Member not found in this cohort.' });
 
+            const targetIsRootAdmin = member.email.toLowerCase() === ROOT_ADMIN_EMAIL;
+            const actorIsRootAdmin = (admin.user.email || '').toLowerCase() === ROOT_ADMIN_EMAIL;
+
             if (action === 'reset_password') {
+                if (targetIsRootAdmin && !actorIsRootAdmin) {
+                    return res.status(403).json({
+                        error: 'The primary admin account (learn@cortdevs.com) is protected and cannot be modified by other admins.',
+                    });
+                }
                 const cleanPassword = String(password || '');
                 if (cleanPassword.length < 8) {
                     return res.status(400).json({ error: 'New password must be at least 8 characters.' });
@@ -191,6 +201,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 });
             }
 
+            if (action === 'set_role') {
+                const nextRole = req.body?.role;
+                if (nextRole !== 'admin' && nextRole !== 'learner') {
+                    return res.status(400).json({ error: 'role must be admin or learner.' });
+                }
+                if (targetIsRootAdmin) {
+                    return res.status(403).json({
+                        error: 'The primary admin account (learn@cortdevs.com) cannot have its admin role removed.',
+                    });
+                }
+                if (targetUserId === admin.user.id && nextRole !== 'admin') {
+                    return res.status(400).json({ error: 'You cannot remove your own admin role.' });
+                }
+
+                const { data: updated, error: roleErr } = await supabase
+                    .from('lms_enrollments')
+                    .update({ role: nextRole, updated_at: new Date().toISOString() })
+                    .eq('id', member.id)
+                    .select('*')
+                    .single();
+
+                if (roleErr) return res.status(500).json({ error: roleErr.message });
+
+                await logLmsEvent({
+                    cohortId: admin.cohort.id,
+                    userId: targetUserId,
+                    eventType: nextRole === 'admin' ? 'promoted_to_admin' : 'demoted_to_learner',
+                    metadata: { changedBy: admin.user.id },
+                });
+
+                return res.status(200).json({ ok: true, member: updated });
+            }
+
             if (action === 'send_credentials') {
                 const cleanPassword = String(password || '');
                 if (!cleanPassword) return res.status(400).json({ error: 'Password required to send credentials.' });
@@ -210,6 +253,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             if (action === 'set_status') {
                 if (!['active', 'paused', 'removed'].includes(status)) {
                     return res.status(400).json({ error: 'status must be active, paused (temp block), or removed (perm block).' });
+                }
+                if (targetIsRootAdmin) {
+                    return res.status(403).json({
+                        error: 'The primary admin account (learn@cortdevs.com) is protected and cannot be blocked or removed.',
+                    });
                 }
                 if (targetUserId === admin.user.id && status !== 'active') {
                     return res.status(400).json({ error: 'You cannot block your own administrator account.' });

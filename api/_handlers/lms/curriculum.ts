@@ -137,15 +137,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const hasDripOverride = (overrides || []).some(
                 (o: any) => o.override_type === 'unlock_drip' && (!o.module_id || o.module_id === m.id),
             );
-            const drip = isModuleDripUnlocked(cohort, m.target_week, now, hasDripOverride || isAdmin);
-            if (drip.unlocked) eligibleLessonsCount += mLessons.length;
+            const dripForAccess = isModuleDripUnlocked(cohort, m.target_week, now, hasDripOverride || isAdmin);
+            // Always calculate cohort target % using the real calendar schedule (not admin preview bypass!)
+            const dripForTarget = isModuleDripUnlocked(cohort, m.target_week, now, false);
+            if (dripForTarget.unlocked) eligibleLessonsCount += mLessons.length;
             if (mLessons.length > 0 && mCompleted === mLessons.length) completedModulesCount += 1;
 
             if (!modulesByCourse.has(m.course_id)) modulesByCourse.set(m.course_id, []);
             modulesByCourse.get(m.course_id)!.push({
                 ...m,
-                drip_unlocked: drip.unlocked,
-                drip_unlocks_at: drip.unlocksAt,
+                drip_unlocked: dripForAccess.unlocked,
+                drip_unlocks_at: dripForAccess.unlocksAt,
                 total_lessons: mLessons.length,
                 completed_lessons: mCompleted,
                 lessons: mLessons,

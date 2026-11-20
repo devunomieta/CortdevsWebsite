@@ -72,7 +72,7 @@ export function LearnLogin() {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             placeholder="name@example.com"
-                            className="w-full bg-white border border-neutral-300 px-3.5 py-2.5 text-sm text-neutral-950 placeholder:text-neutral-400 focus:outline-none focus:border-neutral-950 transition"
+                            className="w-full bg-white border border-neutral-300 px-3.5 py-3 text-base sm:text-sm text-neutral-950 placeholder:text-neutral-400 focus:outline-none focus:border-neutral-950 transition"
                         />
                     </div>
 
@@ -87,7 +87,7 @@ export function LearnLogin() {
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 placeholder="••••••••"
-                                className="w-full bg-white border border-neutral-300 px-3.5 py-2.5 pr-11 text-sm text-neutral-950 placeholder:text-neutral-400 focus:outline-none focus:border-neutral-950 transition"
+                                className="w-full bg-white border border-neutral-300 px-3.5 py-3 pr-11 text-base sm:text-sm text-neutral-950 placeholder:text-neutral-400 focus:outline-none focus:border-neutral-950 transition"
                             />
                             <button
                                 type="button"

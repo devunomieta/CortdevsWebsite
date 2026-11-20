@@ -83,35 +83,35 @@ export function RoadmapDashboard() {
     return (
         <div className="space-y-8">
             {/* CortDevs Editorial Dark Hero + Microsoft & Coursera Co-Branding */}
-            <div className="bg-[#030213] text-white p-6 sm:p-8 border border-neutral-900">
+            <div className="bg-[#030213] text-white p-5 sm:p-8 border border-neutral-900">
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
                     <div className="space-y-3 max-w-2xl">
                         <div className="flex flex-wrap items-center gap-3">
                             <CoursePartnerStrip dark compact />
                             <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-400">
-                                Week {stats.currentWeek} of 12 · Sequential + Monday Drip
+                                Week {stats.currentWeek} of 12 · Step-by-Step
                             </span>
                         </div>
-                        <h1 className="text-2xl sm:text-3xl font-light tracking-tight text-white">
+                        <h1 className="text-xl sm:text-3xl font-light tracking-tight text-white">
                             {nextUpLesson ? (
                                 <>
                                     Up Next: <span className="font-semibold">{nextUpLesson.title}</span>
                                 </>
                             ) : (
-                                <span className="font-semibold">All Dripped Lessons Complete</span>
+                                <span className="font-semibold">You're Caught Up for This Week!</span>
                             )}
                         </h1>
                         <p className="text-sm text-neutral-300">
                             {nextUpLesson
-                                ? `${nextUpLesson.module_title} · Est. ${nextUpLesson.estimated_minutes} min · Complete sequentially to unlock the next step.`
-                                : 'You have completed every module unlocked so far! New modules drip every Monday at 7:00 AM WAT.'}
+                                ? `${nextUpLesson.module_title} · About ${nextUpLesson.estimated_minutes} min · Finish this lesson to unlock the next one.`
+                                : 'Great work! New lessons unlock every Monday at 7:00 AM WAT so the team stays together.'}
                         </p>
                     </div>
 
                     {nextUpLesson && (
                         <Link
                             to={`/lesson/${nextUpLesson.id}`}
-                            className="shrink-0 inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-white hover:bg-neutral-100 text-[#030213] text-xs font-bold uppercase tracking-[0.2em] transition"
+                            className="w-full sm:w-auto shrink-0 inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-white hover:bg-neutral-100 text-[#030213] text-xs font-bold uppercase tracking-[0.2em] transition"
                         >
                             <Play className="w-3.5 h-3.5 fill-current" />
                             Continue Learning
@@ -120,13 +120,13 @@ export function RoadmapDashboard() {
                 </div>
 
                 {/* Progress Bar */}
-                <div className="mt-7 pt-6 border-t border-white/10 space-y-2">
+                <div className="mt-6 pt-5 border-t border-white/10 space-y-2">
                     <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                         <span className="text-neutral-300">
-                            Overall Program Mastery: <strong className="text-white">{stats.progressPct}%</strong> ({stats.completedLessons}/{stats.totalLessons} lessons)
+                            Overall Progress: <strong className="text-white">{stats.progressPct}%</strong> ({stats.completedLessons}/{stats.totalLessons} lessons)
                         </span>
                         <span className={paceDelta >= 0 ? 'text-emerald-400 font-medium' : 'text-amber-300 font-medium'}>
-                            Cohort Target Today: {stats.targetPct}% ({paceDelta >= 0 ? 'On Track' : `${Math.abs(paceDelta)}% behind`})
+                            This Week's Goal: {stats.targetPct}% ({paceDelta >= 0 ? 'On Track' : `${Math.abs(paceDelta)}% to go`})
                         </span>
                     </div>
                     <div className="h-2 w-full bg-white/15 overflow-hidden relative">
@@ -136,7 +136,7 @@ export function RoadmapDashboard() {
                         />
                         {stats.targetPct > 0 && (
                             <div
-                                title={`Weekly Monday Drip Target: ${stats.targetPct}%`}
+                                title={`This Week's Goal: ${stats.targetPct}%`}
                                 className="absolute top-0 bottom-0 w-0.5 bg-amber-400"
                                 style={{ left: `${Math.min(100, stats.targetPct)}%` }}
                             />
@@ -146,55 +146,55 @@ export function RoadmapDashboard() {
             </div>
 
             {/* Stat Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-white border border-neutral-200 p-4">
-                    <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-[0.15em] text-neutral-500">
-                        <span>Modules Cleared</span>
-                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                <div className="bg-white border border-neutral-200 p-3.5 sm:p-4">
+                    <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.14em] text-neutral-500">
+                        <span>Modules Done</span>
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                     </div>
-                    <div className="mt-2 text-2xl font-semibold text-neutral-950">
-                        {stats.completedModules} <span className="text-sm font-normal text-neutral-400">/ {stats.totalModules}</span>
-                    </div>
-                </div>
-
-                <div className="bg-white border border-neutral-200 p-4">
-                    <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-[0.15em] text-neutral-500">
-                        <span>Active Streak</span>
-                        <Flame className="w-4 h-4 text-amber-600" />
-                    </div>
-                    <div className="mt-2 text-2xl font-semibold text-neutral-950">
-                        {stats.streak} <span className="text-sm font-normal text-neutral-400">days (best {stats.longestStreak}d)</span>
+                    <div className="mt-2 text-xl sm:text-2xl font-semibold text-neutral-950">
+                        {stats.completedModules} <span className="text-xs sm:text-sm font-normal text-neutral-400">/ {stats.totalModules}</span>
                     </div>
                 </div>
 
-                <div className="bg-white border border-neutral-200 p-4">
-                    <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-[0.15em] text-neutral-500">
-                        <span>Cohort Week</span>
-                        <CalendarClock className="w-4 h-4 text-neutral-700" />
+                <div className="bg-white border border-neutral-200 p-3.5 sm:p-4">
+                    <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.14em] text-neutral-500">
+                        <span>Study Streak</span>
+                        <Flame className="w-4 h-4 text-amber-600 shrink-0" />
                     </div>
-                    <div className="mt-2 text-2xl font-semibold text-neutral-950">
-                        Week {stats.currentWeek} <span className="text-sm font-normal text-neutral-400">/ 12</span>
+                    <div className="mt-2 text-xl sm:text-2xl font-semibold text-neutral-950">
+                        {stats.streak} <span className="text-xs sm:text-sm font-normal text-neutral-400">days (best {stats.longestStreak}d)</span>
                     </div>
                 </div>
 
-                <div className="bg-white border border-neutral-200 p-4">
-                    <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-[0.15em] text-neutral-500">
-                        <span>Pacing Rule</span>
-                        <Target className="w-4 h-4 text-neutral-700" />
+                <div className="bg-white border border-neutral-200 p-3.5 sm:p-4">
+                    <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.14em] text-neutral-500">
+                        <span>Current Week</span>
+                        <CalendarClock className="w-4 h-4 text-neutral-700 shrink-0" />
                     </div>
-                    <div className="mt-2 text-sm font-semibold text-neutral-950">
-                        {cohort.pacing_mode === 'weekly_drip_sequential' ? 'Monday Drip + Sequential' : 'Self-Paced Sequential'}
+                    <div className="mt-2 text-xl sm:text-2xl font-semibold text-neutral-950">
+                        Week {stats.currentWeek} <span className="text-xs sm:text-sm font-normal text-neutral-400">/ 12</span>
+                    </div>
+                </div>
+
+                <div className="bg-white border border-neutral-200 p-3.5 sm:p-4">
+                    <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.14em] text-neutral-500">
+                        <span>Course Schedule</span>
+                        <Target className="w-4 h-4 text-neutral-700 shrink-0" />
+                    </div>
+                    <div className="mt-2 text-xs sm:text-sm font-semibold text-neutral-950">
+                        {cohort.pacing_mode === 'weekly_drip_sequential' ? 'Weekly Unlocks (Mondays)' : 'Self-Paced'}
                     </div>
                     <div className="text-[11px] text-neutral-500 mt-0.5">Starts {cohort.start_date}</div>
                 </div>
             </div>
 
-            {/* Main 2-column layout: Curriculum Roadmap + Team Takeaways Feed */}
+            {/* Main 2-column layout: Course Lessons + Team Notes */}
             <div className="grid lg:grid-cols-3 gap-6 items-start">
                 <div className="lg:col-span-2 space-y-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-neutral-900">
-                            Sequential Curriculum Roadmap
+                            Course Lessons
                         </h2>
                         <div className="inline-flex items-center gap-2.5 text-xs text-neutral-500">
                             <MicrosoftLogo className="h-3.5" />
@@ -255,7 +255,7 @@ export function RoadmapDashboard() {
                                                     <div key={mod.id} className="bg-neutral-50/40">
                                                         <button
                                                             onClick={() => setOpenModules((p) => ({ ...p, [mod.id]: !p[mod.id] }))}
-                                                            className="w-full px-5 py-3.5 flex items-center justify-between gap-3 text-left hover:bg-neutral-100/70 transition"
+                                                            className="w-full px-4 sm:px-5 py-3.5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 text-left hover:bg-neutral-100/70 transition"
                                                         >
                                                             <div className="flex items-center gap-2.5 min-w-0">
                                                                 {modOpen ? (
@@ -350,19 +350,19 @@ export function RoadmapDashboard() {
                     )}
                 </div>
 
-                {/* Right Column: Team Key Takeaways Activity Feed */}
+                {/* Right Column: Team Notes Feed */}
                 <div className="space-y-4">
                     <div className="flex items-center gap-2">
                         <MessageSquareQuote className="w-4 h-4 text-neutral-900" />
                         <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-neutral-900">
-                            Cohort Takeaways Feed
+                            Team Notes
                         </h2>
                     </div>
 
                     <div className="bg-white border border-neutral-200 p-4 space-y-3">
                         {teamFeed.length === 0 ? (
                             <p className="text-xs text-neutral-500 py-4 text-center">
-                                As your team completes readings and projects, their 1-sentence key takeaways appear here to keep everyone inspired.
+                                Short notes teammates write after finishing a reading or project show up here.
                             </p>
                         ) : (
                             teamFeed.map((item: any, idx: number) => (

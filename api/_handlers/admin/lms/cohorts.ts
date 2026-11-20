@@ -30,7 +30,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const updates: Record<string, any> = { updated_at: new Date().toISOString() };
         if (typeof name === 'string' && name.trim()) updates.name = name.trim();
-        if (typeof start_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(start_date)) updates.start_date = start_date;
+        if (typeof start_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(start_date)) {
+            updates.start_date = start_date;
+            // Automatically keep target_end_date synced to 12 weeks (84 days) after start_date unless explicitly passed
+            if (!target_end_date) {
+                const startMs = new Date(`${start_date}T00:00:00Z`).getTime();
+                updates.target_end_date = new Date(startMs + 84 * 86400 * 1000).toISOString().slice(0, 10);
+            }
+        }
         if (typeof target_end_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(target_end_date)) updates.target_end_date = target_end_date;
         if (pacing_mode === 'weekly_drip_sequential' || pacing_mode === 'self_paced_sequential') updates.pacing_mode = pacing_mode;
         if (project_gate_mode === 'submit_to_unlock' || project_gate_mode === 'approve_to_unlock') updates.project_gate_mode = project_gate_mode;

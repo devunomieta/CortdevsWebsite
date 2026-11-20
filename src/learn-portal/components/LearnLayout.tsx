@@ -62,15 +62,15 @@ export function LearnLayout() {
         <div className="min-h-screen bg-neutral-50/60 text-neutral-950 flex flex-col font-sans">
             <header className="sticky top-0 z-30 border-b border-neutral-200 bg-white/95 backdrop-blur-md">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-8">
-                        <Link to="/dashboard" className="group transition-opacity hover:opacity-85">
-                            <CortDevsLearnLogo size="md" />
+                    <div className="flex items-center gap-4 sm:gap-8 min-w-0">
+                        <Link to="/dashboard" className="group transition-opacity hover:opacity-85 shrink-0">
+                            <CortDevsLearnLogo size="sm" />
                         </Link>
 
                         <nav className="hidden md:flex items-center gap-6">
                             <NavLink to="/dashboard" className={navItemClass}>
                                 <BookOpen className="w-3.5 h-3.5" />
-                                Roadmap
+                                Course
                             </NavLink>
                             <NavLink to="/settings" className={navItemClass}>
                                 <Settings className="w-3.5 h-3.5" />
@@ -79,19 +79,20 @@ export function LearnLayout() {
                             {isAdmin && (
                                 <NavLink to="/admin" className={navItemClass}>
                                     <ShieldCheck className="w-3.5 h-3.5" />
-                                    Team Admin
+                                    Admin
                                 </NavLink>
                             )}
                         </nav>
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                         <div
-                            title="Active daily study streak"
-                            className="inline-flex items-center gap-1.5 px-3 py-1 bg-neutral-100 border border-neutral-200 text-neutral-900 text-xs font-semibold"
+                            title="Daily study streak"
+                            className="inline-flex items-center gap-1 px-2.5 py-1 bg-neutral-100 border border-neutral-200 text-neutral-900 text-xs font-semibold"
                         >
                             <Flame className="w-3.5 h-3.5 text-amber-600" />
-                            <span>{enrollment.current_streak || 0}d streak</span>
+                            <span>{enrollment.current_streak || 0}d</span>
+                            <span className="hidden sm:inline">streak</span>
                         </div>
 
                         <div className="hidden sm:flex flex-col text-right leading-tight pl-2 border-l border-neutral-200">
@@ -104,6 +105,7 @@ export function LearnLayout() {
                         <button
                             onClick={signOut}
                             title="Sign out"
+                            aria-label="Sign out"
                             className="p-2 text-neutral-500 hover:text-neutral-950 hover:bg-neutral-100 transition"
                         >
                             <LogOut className="w-4 h-4" />
@@ -112,9 +114,9 @@ export function LearnLayout() {
                 </div>
 
                 {/* Mobile quick nav */}
-                <div className="md:hidden border-t border-neutral-200 px-4 py-2 flex items-center gap-4 overflow-x-auto bg-white">
+                <div className="md:hidden border-t border-neutral-200 px-3 py-2 flex items-center justify-around gap-2 bg-white">
                     <NavLink to="/dashboard" className={navItemClass}>
-                        <BookOpen className="w-3.5 h-3.5" /> Roadmap
+                        <BookOpen className="w-3.5 h-3.5" /> Course
                     </NavLink>
                     <NavLink to="/settings" className={navItemClass}>
                         <Settings className="w-3.5 h-3.5" /> Reminders
