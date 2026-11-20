@@ -2,11 +2,13 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabase } from '../../_lib/supabase.js';
 import { isValidUuid, requireLmsAdmin, requireLmsMember, sanitizePlainText } from '../../_lib/lmsGate.js';
 
+const AUTHOR_EDIT_WINDOW_MS = 15 * 60 * 1000; // 15-minute grace window for learners to fix typos/delete
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     const member = await requireLmsMember(req, res);
     if (!member) return;
 
-    // GET: Fetch module questions + replies (or ALL cohort questions when scope=all for Admins)
+    // GET: Fetch module questions + replies (or ALL cohort questions WITH nested replies when scope=all for Admins)
     if (req.method === 'GET') {
         const moduleId = String(req.query?.moduleId || '').trim();
         const scope = String(req.query?.scope || '').trim();
@@ -18,11 +20,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             .order('created_at', { ascending: true });
 
         if (scope === 'all') {
-            // Admin session agenda view: return top-level questions across all modules
             if (member.enrollment.role !== 'admin') {
                 return res.status(403).json({ error: 'Admin access required.' });
             }
-            query = query.is('parent_id', null).order('created_at', { ascending: false });
+            // Fetch both questions and threaded replies in 1 single cohort-scoped query (0 N+1)
         } else {
             if (!isValidUuid(moduleId)) return res.status(400).json({ error: 'Valid moduleId required' });
             query = query.eq('module_id', moduleId);
@@ -58,6 +59,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             author_role: authorMap.get(r.user_id)?.role || 'learner',
             answered_by_name: r.answered_by ? authorMap.get(r.answered_by)?.full_name || 'Admin' : null,
         }));
+
+        if (scope === 'all') {
+            const repliesByParent = new Map<string, any[]>();
+            for (const row of enriched) {
+                if (row.parent_id) {
+                    const list = repliesByParent.get(row.parent_id) || [];
+                    list.push(row);
+                    repliesByParent.set(row.parent_id, list);
+                }
+            }
+            const topLevel = enriched
+                .filter((r: any) => !r.parent_id)
+                .map((q: any) => ({
+                    ...q,
+                    replies: repliesByParent.get(q.id) || [],
+                }))
+                .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+            return res.status(200).json({ comments: topLevel });
+        }
 
         return res.status(200).json({ comments: enriched });
     }
@@ -97,12 +118,53 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
     }
 
-    // PATCH: Admin marks a question as answered & saves the agreed session answer (or reopens it)
+    // PATCH: Either (A) Author edits own post within 15 min / Admin edits anytime, OR (B) Admin marks question answered
     if (req.method === 'PATCH') {
+        const { action, commentId, body, questionId, officialAnswer, status = 'answered' } = req.body || {};
+
+        if (action === 'edit_body') {
+            const targetId = commentId || questionId;
+            const cleanBody = sanitizePlainText(body, 2000);
+            if (!isValidUuid(targetId) || cleanBody.length < 3) {
+                return res.status(400).json({ error: 'Valid commentId and text (3–2000 characters) required.' });
+            }
+
+            const { data: existing } = await supabase
+                .from('lms_module_discussions')
+                .select('id, user_id, created_at')
+                .eq('id', targetId)
+                .eq('cohort_id', member.cohort.id)
+                .maybeSingle();
+
+            if (!existing) return res.status(404).json({ error: 'Post not found.' });
+
+            const isAdmin = member.enrollment.role === 'admin';
+            const isOwner = existing.user_id === member.enrollment.user_id;
+            const ageMs = Date.now() - new Date(existing.created_at).getTime();
+
+            if (!isAdmin && (!isOwner || ageMs > AUTHOR_EDIT_WINDOW_MS)) {
+                return res.status(403).json({
+                    error: isOwner
+                        ? 'You can only edit your own post within 15 minutes of posting.'
+                        : 'You do not have permission to edit this post.',
+                });
+            }
+
+            const { data, error } = await supabase
+                .from('lms_module_discussions')
+                .update({ body: cleanBody })
+                .eq('id', targetId)
+                .eq('cohort_id', member.cohort.id)
+                .select('*')
+                .single();
+
+            if (error) return res.status(500).json({ error: error.message });
+            return res.status(200).json({ comment: data });
+        }
+
         const admin = await requireLmsAdmin(req, res);
         if (!admin) return;
 
-        const { questionId, officialAnswer, status = 'answered' } = req.body || {};
         if (!isValidUuid(questionId) || !['open', 'answered'].includes(status)) {
             return res.status(400).json({ error: 'Valid questionId and status (open | answered) required.' });
         }
@@ -132,6 +194,44 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 answered_by_name: status === 'answered' ? admin.enrollment.full_name : null,
             },
         });
+    }
+
+    // DELETE: Author deletes own post within 15 min, or Admin deletes any off-topic post anytime
+    if (req.method === 'DELETE') {
+        const targetId = String(req.query?.id || req.body?.commentId || '').trim();
+        if (!isValidUuid(targetId)) {
+            return res.status(400).json({ error: 'Valid comment id required.' });
+        }
+
+        const { data: existing } = await supabase
+            .from('lms_module_discussions')
+            .select('id, user_id, created_at')
+            .eq('id', targetId)
+            .eq('cohort_id', member.cohort.id)
+            .maybeSingle();
+
+        if (!existing) return res.status(404).json({ error: 'Post not found.' });
+
+        const isAdmin = member.enrollment.role === 'admin';
+        const isOwner = existing.user_id === member.enrollment.user_id;
+        const ageMs = Date.now() - new Date(existing.created_at).getTime();
+
+        if (!isAdmin && (!isOwner || ageMs > AUTHOR_EDIT_WINDOW_MS)) {
+            return res.status(403).json({
+                error: isOwner
+                    ? 'You can only delete your own post within 15 minutes of posting.'
+                    : 'Only admins can remove other teammates’ posts.',
+            });
+        }
+
+        const { error } = await supabase
+            .from('lms_module_discussions')
+            .delete()
+            .eq('id', targetId)
+            .eq('cohort_id', member.cohort.id);
+
+        if (error) return res.status(500).json({ error: error.message });
+        return res.status(200).json({ ok: true, deletedId: targetId });
     }
 
     return res.status(405).json({ error: 'Method not allowed' });

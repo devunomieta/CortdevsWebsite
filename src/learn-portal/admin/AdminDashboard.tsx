@@ -64,6 +64,10 @@ export function LearnAdminDashboard() {
     const [answerDraftMap, setAnswerDraftMap] = useState<Record<string, string>>({});
     const [quizzes, setQuizzes] = useState<any[]>([]);
     const [selectedQuiz, setSelectedQuiz] = useState<any | null>(null);
+    const [loadingQuiz, setLoadingQuiz] = useState(false);
+    const [savingQuiz, setSavingQuiz] = useState(false);
+    const [quizError, setQuizError] = useState<string | null>(null);
+    const [quizSearch, setQuizSearch] = useState('');
     const [loading, setLoading] = useState(true);
     const [toast, setToast] = useState<string | null>(null);
 
@@ -162,9 +166,32 @@ export function LearnAdminDashboard() {
         }
     }, [refreshMembers, refreshOverview, refreshQuestions, refreshQuizzes, refreshReviews, showToast]);
 
+    const handleOpenQuizEditor = useCallback(async (lessonId: string) => {
+        setLoadingQuiz(true);
+        setQuizError(null);
+        try {
+            const res = await learnApi(`admin/lms/quiz-keys?lessonId=${encodeURIComponent(lessonId)}`);
+            if (!res?.quiz) throw new Error('Quiz details could not be loaded.');
+            setSelectedQuiz(res.quiz);
+        } catch (err: any) {
+            const msg = err?.message || 'Failed to load quiz answers. Please retry.';
+            setQuizError(msg);
+            showToast(msg);
+        } finally {
+            setLoadingQuiz(false);
+        }
+    }, [showToast]);
+
     useEffect(() => {
         if (isAdmin) loadAll();
     }, [isAdmin, loadAll]);
+
+    // Auto-load the first quiz when switching to the Quiz Answers tab so admins see set answers immediately
+    useEffect(() => {
+        if (isAdmin && tab === 'quizzes' && !selectedQuiz && !loadingQuiz && quizzes.length > 0) {
+            handleOpenQuizEditor(quizzes[0].id);
+        }
+    }, [isAdmin, tab, selectedQuiz, loadingQuiz, quizzes, handleOpenQuizEditor]);
 
     if (!isAdmin) return <Navigate to="/dashboard" replace />;
 
@@ -390,7 +417,8 @@ export function LearnAdminDashboard() {
     };
 
     const handleSaveQuestionAnswer = async (questionId: string, status: 'answered' | 'open') => {
-        const draft = (answerDraftMap[questionId] ?? '').trim();
+        const existingQ = questions.find((q) => q.id === questionId);
+        const draft = (answerDraftMap[questionId] ?? existingQ?.official_answer ?? '').trim();
         if (status === 'answered' && draft.length < 5) {
             showToast('Write the agreed session answer (at least 5 characters) first.');
             return;
@@ -404,6 +432,17 @@ export function LearnAdminDashboard() {
             await refreshQuestions();
         } catch (err: any) {
             showToast(err?.message || 'Could not update question');
+        }
+    };
+
+    const handleDeleteDiscussion = async (commentId: string, label = 'this post') => {
+        if (!window.confirm(`Permanently delete ${label}?`)) return;
+        try {
+            await learnApi(`lms/discussions?id=${encodeURIComponent(commentId)}`, { method: 'DELETE' });
+            showToast('Deleted from Q&A.');
+            await refreshQuestions();
+        } catch (err: any) {
+            showToast(err?.message || 'Could not delete post');
         }
     };
 
@@ -452,11 +491,6 @@ export function LearnAdminDashboard() {
         showToast(`Upcoming weeks unlocked early for ${fullName}.`);
     };
 
-    const handleOpenQuizEditor = async (lessonId: string) => {
-        const res = await learnApi(`admin/lms/quiz-keys?lessonId=${encodeURIComponent(lessonId)}`);
-        setSelectedQuiz(res.quiz);
-    };
-
     const toggleQuizKey = (qIdx: number, optIdx: number) => {
         if (!selectedQuiz) return;
         const copy = JSON.parse(JSON.stringify(selectedQuiz));
@@ -472,18 +506,24 @@ export function LearnAdminDashboard() {
 
     const handleSaveQuizKeys = async () => {
         if (!selectedQuiz) return;
-        await learnApi('admin/lms/quiz-keys', {
-            method: 'PATCH',
-            body: {
-                lessonId: selectedQuiz.id,
-                questions: selectedQuiz.quiz_questions_json,
-                verified: true,
-                passThresholdPct: selectedQuiz.pass_threshold_pct || 80,
-            },
-        });
-        showToast('Quiz answers saved!');
-        setSelectedQuiz(null);
-        await Promise.all([refreshQuizzes(), refreshOverview()]);
+        setSavingQuiz(true);
+        try {
+            await learnApi('admin/lms/quiz-keys', {
+                method: 'PATCH',
+                body: {
+                    lessonId: selectedQuiz.id,
+                    questions: selectedQuiz.quiz_questions_json,
+                    verified: true,
+                    passThresholdPct: selectedQuiz.pass_threshold_pct || 80,
+                },
+            });
+            showToast('Quiz answers saved!');
+            await Promise.all([refreshQuizzes(), refreshOverview()]);
+        } catch (err: any) {
+            showToast(err?.message || 'Failed to save quiz answers');
+        } finally {
+            setSavingQuiz(false);
+        }
     };
 
     const handleExportPdf = async () => {
@@ -924,6 +964,38 @@ export function LearnAdminDashboard() {
                                             {q.body}
                                         </p>
 
+                                        {/* Peer Replies Preview inside Admin Session Q&A */}
+                                        {Array.isArray(q.replies) && q.replies.length > 0 && (
+                                            <div className="pl-3.5 border-l-2 border-neutral-200 space-y-1.5">
+                                                <div className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">
+                                                    Peer Replies ({q.replies.length})
+                                                </div>
+                                                {q.replies.map((r: any) => (
+                                                    <div
+                                                        key={r.id}
+                                                        className="bg-neutral-50 border border-neutral-200 p-2.5 text-xs space-y-1"
+                                                    >
+                                                        <div className="flex items-center justify-between gap-2 text-[11px]">
+                                                            <span className="font-semibold text-neutral-900">
+                                                                {r.author_name}{' '}
+                                                                <span className="font-normal text-neutral-400">
+                                                                    · {new Date(r.created_at).toLocaleString()}
+                                                                </span>
+                                                            </span>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleDeleteDiscussion(r.id, 'this reply')}
+                                                                className="text-[10px] font-semibold text-red-600 hover:text-red-800"
+                                                            >
+                                                                Delete
+                                                            </button>
+                                                        </div>
+                                                        <p className="text-neutral-700 whitespace-pre-wrap break-words">{r.body}</p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+
                                         <div className="space-y-2 pt-1">
                                             <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-600">
                                                 Agreed Session Answer
@@ -935,22 +1007,33 @@ export function LearnAdminDashboard() {
                                                 placeholder="Write the agreed answer from the live session..."
                                                 className="w-full bg-white border border-neutral-300 p-3 text-base sm:text-xs text-neutral-950 focus:outline-none focus:border-neutral-950"
                                             />
-                                            <div className="flex flex-wrap gap-2">
-                                                <button
-                                                    onClick={() => handleSaveQuestionAnswer(q.id, 'answered')}
-                                                    className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold uppercase tracking-wider inline-flex items-center gap-1.5"
-                                                >
-                                                    <CheckCircle2 className="w-3.5 h-3.5" />
-                                                    {isAnswered ? 'Update Agreed Answer' : 'Save & Mark Answered'}
-                                                </button>
-                                                {isAnswered && (
+                                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                                <div className="flex flex-wrap gap-2">
                                                     <button
-                                                        onClick={() => handleSaveQuestionAnswer(q.id, 'open')}
-                                                        className="px-3.5 py-2 bg-white border border-neutral-300 hover:border-neutral-950 text-neutral-700 text-xs font-semibold"
+                                                        type="button"
+                                                        onClick={() => handleSaveQuestionAnswer(q.id, 'answered')}
+                                                        className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold uppercase tracking-wider inline-flex items-center gap-1.5"
                                                     >
-                                                        Reopen Question
+                                                        <CheckCircle2 className="w-3.5 h-3.5" />
+                                                        {isAnswered ? 'Update Agreed Answer' : 'Save & Mark Answered'}
                                                     </button>
-                                                )}
+                                                    {isAnswered && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleSaveQuestionAnswer(q.id, 'open')}
+                                                            className="px-3.5 py-2 bg-white border border-neutral-300 hover:border-neutral-950 text-neutral-700 text-xs font-semibold"
+                                                        >
+                                                            Reopen Question
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleDeleteDiscussion(q.id, 'this question and its replies')}
+                                                    className="px-3 py-2 text-xs font-semibold text-red-600 hover:text-red-800 border border-red-200 hover:border-red-400 bg-white"
+                                                >
+                                                    Delete Question
+                                                </button>
                                             </div>
                                         </div>
                                     </div>
@@ -1533,97 +1616,150 @@ export function LearnAdminDashboard() {
             )}
 
             {/* TAB 4: QUIZ ANSWER KEYS */}
-            {tab === 'quizzes' && (
-                <div className="grid lg:grid-cols-3 gap-6 items-start">
-                    <div className="bg-white border border-neutral-200 p-4 space-y-2 max-h-[520px] overflow-y-auto">
-                        <h3 className="text-[11px] font-bold uppercase tracking-[0.16em] text-neutral-500 px-2 pb-1">
-                            Practice Quizzes ({quizzes.length})
-                        </h3>
-                        {quizzes.map((q: any) => (
-                            <button
-                                key={q.id}
-                                onClick={() => handleOpenQuizEditor(q.id)}
-                                className={`w-full text-left p-3 border text-xs transition ${
-                                    selectedQuiz?.id === q.id
-                                        ? 'bg-[#030213] border-[#030213] text-white'
-                                        : 'bg-neutral-50 border-neutral-200 text-neutral-800 hover:border-neutral-400'
-                                }`}
-                            >
-                                <div className="flex items-center justify-between gap-2">
-                                    <span className="font-medium truncate">{q.title}</span>
-                                    <span
-                                        className={`w-2 h-2 rounded-full shrink-0 ${
-                                            q.quiz_keys_verified ? 'bg-emerald-500' : 'bg-amber-500'
-                                        }`}
-                                    />
-                                </div>
-                                <div
-                                    className={`text-[11px] mt-0.5 truncate ${
-                                        selectedQuiz?.id === q.id ? 'text-neutral-300' : 'text-neutral-500'
-                                    }`}
-                                >
-                                    Week {q.lms_modules?.target_week} · {q.lms_modules?.title}
-                                </div>
-                            </button>
-                        ))}
-                    </div>
-
-                    <div className="lg:col-span-2 bg-white border border-neutral-200 p-4 sm:p-6">
-                        {!selectedQuiz ? (
-                            <p className="text-sm text-neutral-500 py-12 text-center">
-                                Pick a quiz to mark the correct answers for automatic grading.
-                            </p>
-                        ) : (
-                            <div className="space-y-5">
-                                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-neutral-200 pb-4">
-                                    <div>
-                                        <h3 className="text-base font-semibold text-neutral-950">{selectedQuiz.title}</h3>
-                                        <p className="text-xs text-neutral-500">
-                                            Tap the correct answer(s) for each question, then click Save.
-                                        </p>
-                                    </div>
-                                    <button
-                                        onClick={handleSaveQuizKeys}
-                                        className="w-full sm:w-auto px-4 py-2.5 bg-[#030213] hover:bg-neutral-800 text-white text-xs font-bold uppercase tracking-[0.14em] inline-flex items-center justify-center gap-1.5"
-                                    >
-                                        <Save className="w-3.5 h-3.5" /> Save Answers
-                                    </button>
-                                </div>
-
-                                <div className="space-y-4 max-h-[520px] overflow-y-auto pr-1">
-                                    {(selectedQuiz.quiz_questions_json || []).map((q: any, qIdx: number) => (
-                                        <div key={q.id} className="p-4 bg-neutral-50 border border-neutral-200 space-y-2.5">
-                                            <p className="text-xs font-semibold text-neutral-950">
-                                                Q{qIdx + 1}. {q.prompt}
-                                            </p>
-                                            <div className="space-y-1.5">
-                                                {q.options.map((opt: string, optIdx: number) => {
-                                                    const isCorrect = (q.correct_indices || []).includes(optIdx);
-                                                    return (
-                                                        <button
-                                                            key={optIdx}
-                                                            type="button"
-                                                            onClick={() => toggleQuizKey(qIdx, optIdx)}
-                                                            className={`w-full text-left px-3 py-2.5 border text-xs transition ${
-                                                                isCorrect
-                                                                    ? 'bg-emerald-50 border-emerald-600 text-emerald-900 font-semibold'
-                                                                    : 'bg-white border-neutral-200 text-neutral-700 hover:border-neutral-400'
-                                                            }`}
-                                                        >
-                                                            {isCorrect ? '✓ ' : '○ '}
-                                                            {opt}
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
+            {tab === 'quizzes' && (() => {
+                const filteredQuizzes = quizzes.filter((q: any) => {
+                    const term = quizSearch.trim().toLowerCase();
+                    if (!term) return true;
+                    return (
+                        String(q.title || '').toLowerCase().includes(term) ||
+                        String(q.lms_modules?.title || '').toLowerCase().includes(term) ||
+                        `week ${q.lms_modules?.target_week}`.includes(term)
+                    );
+                });
+                return (
+                    <div className="grid lg:grid-cols-3 gap-6 items-start">
+                        <div className="bg-white border border-neutral-200 p-4 space-y-2.5 max-h-[600px] flex flex-col">
+                            <div className="space-y-2 shrink-0">
+                                <h3 className="text-[11px] font-bold uppercase tracking-[0.16em] text-neutral-500 px-1">
+                                    Practice Quizzes ({filteredQuizzes.length} / {quizzes.length})
+                                </h3>
+                                <input
+                                    type="text"
+                                    value={quizSearch}
+                                    onChange={(e) => setQuizSearch(e.target.value)}
+                                    placeholder="Search quiz or week..."
+                                    className="w-full bg-neutral-50 border border-neutral-300 px-3 py-2 text-xs text-neutral-950 focus:outline-none focus:border-neutral-950"
+                                />
                             </div>
-                        )}
+                            <div className="space-y-2 overflow-y-auto pr-1 flex-1">
+                                {filteredQuizzes.map((q: any) => (
+                                    <button
+                                        key={q.id}
+                                        type="button"
+                                        onClick={() => handleOpenQuizEditor(q.id)}
+                                        className={`w-full text-left p-3 border text-xs transition ${
+                                            selectedQuiz?.id === q.id
+                                                ? 'bg-[#030213] border-[#030213] text-white'
+                                                : 'bg-neutral-50 border-neutral-200 text-neutral-800 hover:border-neutral-400'
+                                        }`}
+                                    >
+                                        <div className="flex items-center justify-between gap-2">
+                                            <span className="font-medium truncate">{q.title}</span>
+                                            <span
+                                                title={q.quiz_keys_verified ? 'Answers verified' : 'Pending verification'}
+                                                className={`w-2 h-2 rounded-full shrink-0 ${
+                                                    q.quiz_keys_verified ? 'bg-emerald-500' : 'bg-amber-500'
+                                                }`}
+                                            />
+                                        </div>
+                                        <div
+                                            className={`text-[11px] mt-0.5 truncate ${
+                                                selectedQuiz?.id === q.id ? 'text-neutral-300' : 'text-neutral-500'
+                                            }`}
+                                        >
+                                            Week {q.lms_modules?.target_week} · {q.lms_modules?.title}
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="lg:col-span-2 bg-white border border-neutral-200 p-4 sm:p-6">
+                            {loadingQuiz ? (
+                                <div className="py-16 flex items-center justify-center gap-3 text-neutral-500 text-xs uppercase tracking-[0.18em]">
+                                    <Loader2 className="w-4 h-4 animate-spin text-neutral-950" />
+                                    <span>Loading quiz answers...</span>
+                                </div>
+                            ) : quizError ? (
+                                <div className="bg-red-50 border border-red-200 p-4 text-xs text-red-700">
+                                    {quizError}
+                                </div>
+                            ) : !selectedQuiz ? (
+                                <p className="text-sm text-neutral-500 py-12 text-center">
+                                    Pick a quiz on the left to view or update its preset correct answers.
+                                </p>
+                            ) : (
+                                <div className="space-y-5">
+                                    <div className="flex flex-wrap items-start justify-between gap-3 border-b border-neutral-200 pb-4">
+                                        <div className="space-y-1">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <h3 className="text-base font-semibold text-neutral-950">{selectedQuiz.title}</h3>
+                                                {selectedQuiz.quiz_keys_verified && (
+                                                    <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800">
+                                                        Answers Set ✓
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <p className="text-xs text-neutral-500">
+                                                {(selectedQuiz.quiz_questions_json || []).length} questions · Pass score:{' '}
+                                                <strong>{selectedQuiz.pass_threshold_pct || 80}%</strong> · Green options are the active correct answers (tap any option to edit, then Save).
+                                            </p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            disabled={savingQuiz}
+                                            onClick={handleSaveQuizKeys}
+                                            className="w-full sm:w-auto px-4 py-2.5 bg-[#030213] hover:bg-neutral-800 disabled:opacity-50 text-white text-xs font-bold uppercase tracking-[0.14em] inline-flex items-center justify-center gap-1.5"
+                                        >
+                                            <Save className="w-3.5 h-3.5" /> {savingQuiz ? 'Saving...' : 'Save Changes'}
+                                        </button>
+                                    </div>
+
+                                    <div className="space-y-4 max-h-[540px] overflow-y-auto pr-1">
+                                        {(selectedQuiz.quiz_questions_json || []).map((q: any, qIdx: number) => (
+                                            <div key={q.id} className="p-4 bg-neutral-50 border border-neutral-200 space-y-2.5 text-left">
+                                                <div className="flex items-start justify-between gap-2">
+                                                    <p className="text-xs font-semibold text-neutral-950 leading-relaxed">
+                                                        Q{qIdx + 1}. {q.prompt}
+                                                    </p>
+                                                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 bg-white border border-neutral-200 text-neutral-500 shrink-0">
+                                                        {q.type === 'multi' ? 'Multi-select' : 'Single'}
+                                                    </span>
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    {q.options.map((opt: string, optIdx: number) => {
+                                                        const isCorrect = (q.correct_indices || []).includes(optIdx);
+                                                        return (
+                                                            <button
+                                                                key={optIdx}
+                                                                type="button"
+                                                                onClick={() => toggleQuizKey(qIdx, optIdx)}
+                                                                className={`w-full text-left px-3 py-2.5 border text-xs transition ${
+                                                                    isCorrect
+                                                                        ? 'bg-emerald-50 border-emerald-600 text-emerald-900 font-semibold'
+                                                                        : 'bg-white border-neutral-200 text-neutral-700 hover:border-neutral-400'
+                                                                }`}
+                                                            >
+                                                                {isCorrect ? '✓ ' : '○ '}
+                                                                {opt}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                                {q.explanation && (
+                                                    <div className="pt-1 text-[11px] text-neutral-600 bg-white border border-neutral-200 px-3 py-2 leading-relaxed">
+                                                        <strong className="text-neutral-800">Explanation:</strong> {q.explanation}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
-                </div>
-            )}
+                );
+            })()}
 
             {/* Change Password Modal */}
             {pwdTarget && (

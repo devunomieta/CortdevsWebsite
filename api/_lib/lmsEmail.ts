@@ -358,6 +358,8 @@ export async function sendLmsMondayDripLearner(params: {
     lessonsCompletedLastWeek: number;
     progressPct: number;
     streak: number;
+    qaAnsweredThisWeek?: number;
+    qaOpenCount?: number;
     cohortId: string;
     userId: string;
     weekKey: string;
@@ -365,6 +367,11 @@ export async function sendLmsMondayDripLearner(params: {
     const modList = params.newlyUnlockedModules.length
         ? `<ul style="padding-left: 20px; margin: 8px 0;">${params.newlyUnlockedModules.map((m) => `<li><strong>${esc(m)}</strong></li>`).join('')}</ul>`
         : `<p>Keep finishing your current unlocked modules at your own pace.</p>`;
+
+    const qaNote =
+        (params.qaAnsweredThisWeek || 0) > 0 || (params.qaOpenCount || 0) > 0
+            ? `<br/><strong>Team Session Q&amp;A:</strong> ${params.qaAnsweredThisWeek || 0} answered this week · ${params.qaOpenCount || 0} queued for next session`
+            : '';
 
     return sendLmsEmail({
         to: params.to,
@@ -380,7 +387,7 @@ export async function sendLmsMondayDripLearner(params: {
             <div style="background: #f4f4f5; padding: 14px 16px; margin: 16px 0; font-size: 14px;">
                 <strong>Last 7 Days:</strong> ${params.lessonsCompletedLastWeek} lessons completed<br/>
                 <strong>Overall Progress:</strong> ${params.progressPct}%<br/>
-                <strong>Study Streak:</strong> ${params.streak} day${params.streak === 1 ? '' : 's'}
+                <strong>Study Streak:</strong> ${params.streak} day${params.streak === 1 ? '' : 's'}${qaNote}
             </div>
             ${ctaButton(`${getLearnAppUrl()}/dashboard`, `Start Week ${params.weekNumber}`)}
         `,
@@ -392,6 +399,8 @@ export async function sendLmsMondayAdminDigest(params: {
     cohortName: string;
     weekNumber: number;
     pendingReviewsCount: number;
+    qaAnsweredThisWeek?: number;
+    qaOpenCount?: number;
     learnersSummaryRows: Array<{ fullName: string; progressPct: number; last7d: number; streak: number }>;
     cohortId: string;
     weekKey: string;
@@ -430,7 +439,7 @@ export async function sendLmsMondayAdminDigest(params: {
         idempotencyKey: `monday_admin:${params.cohortId}:${params.weekKey}`,
         bodyHtml: `
             <h2 style="margin: 0 0 12px; font-size: 20px;">Week ${params.weekNumber} Team Progress Report</h2>
-            <p><strong>${esc(params.cohortName)}</strong> · Projects Waiting for Review: <strong>${params.pendingReviewsCount}</strong></p>
+            <p><strong>${esc(params.cohortName)}</strong> · Projects Waiting for Review: <strong>${params.pendingReviewsCount}</strong> · Session Q&amp;A: <strong>${params.qaOpenCount || 0} open</strong> (${params.qaAnsweredThisWeek || 0} answered this week)</p>
             ${tableHtml}
             ${ctaButton(`${getLearnAppUrl()}/admin`, 'Open Team Dashboard')}
         `,

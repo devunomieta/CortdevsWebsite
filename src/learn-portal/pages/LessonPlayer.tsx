@@ -31,7 +31,7 @@ const HEARTBEAT_INTERVAL_MS = 30000; // 30s heartbeat (cuts free-tier API + DB l
 export function LessonPlayer() {
     const { lessonId } = useParams();
     const navigate = useNavigate();
-    const { isAdmin, refreshProfile } = useLearnAuth();
+    const { isAdmin, user, refreshProfile } = useLearnAuth();
 
     const [loading, setLoading] = useState(true);
     const [data, setData] = useState<any | null>(null);
@@ -75,6 +75,8 @@ export function LessonPlayer() {
     const [answeringId, setAnsweringId] = useState<string | null>(null);
     const [officialAnswerDraft, setOfficialAnswerDraft] = useState('');
     const [savingAnswer, setSavingAnswer] = useState(false);
+    const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+    const [editingCommentBody, setEditingCommentBody] = useState('');
 
     const loadLesson = useCallback(async () => {
         if (!lessonId) return;
@@ -438,6 +440,42 @@ export function LessonPlayer() {
             setActionMsg({ type: 'error', text: err?.message || 'Could not save session answer.' });
         } finally {
             setSavingAnswer(false);
+        }
+    };
+
+    const canModifyPost = (post: any): boolean => {
+        if (isAdmin) return true;
+        if (!user?.id || post.user_id !== user.id) return false;
+        const createdMs = new Date(post.created_at).getTime();
+        return Number.isFinite(createdMs) && Date.now() - createdMs <= 15 * 60 * 1000;
+    };
+
+    const handleSaveCommentEdit = async (e: React.FormEvent, commentId: string) => {
+        e.preventDefault();
+        if (editingCommentBody.trim().length < 3) return;
+        setPostingComment(true);
+        try {
+            const res = await learnApi('lms/discussions', {
+                method: 'PATCH',
+                body: { action: 'edit_body', commentId, body: editingCommentBody.trim() },
+            });
+            setComments((prev) => prev.map((c) => (c.id === commentId ? { ...c, body: res.comment.body } : c)));
+            setEditingCommentId(null);
+            setEditingCommentBody('');
+        } catch (err: any) {
+            setActionMsg({ type: 'error', text: err?.message || 'Could not edit post.' });
+        } finally {
+            setPostingComment(false);
+        }
+    };
+
+    const handleDeleteComment = async (commentId: string) => {
+        if (!window.confirm('Delete this post?')) return;
+        try {
+            await learnApi(`lms/discussions?id=${encodeURIComponent(commentId)}`, { method: 'DELETE' });
+            setComments((prev) => prev.filter((c) => c.id !== commentId && c.parent_id !== commentId));
+        } catch (err: any) {
+            setActionMsg({ type: 'error', text: err?.message || 'Could not delete post.' });
         }
     };
 
@@ -1026,9 +1064,36 @@ export function LessonPlayer() {
                                                 </span>
                                             </div>
 
-                                            <p className="text-xs text-neutral-800 whitespace-pre-wrap break-words leading-relaxed">
-                                                {q.body}
-                                            </p>
+                                            {editingCommentId === q.id ? (
+                                                <form onSubmit={(e) => handleSaveCommentEdit(e, q.id)} className="space-y-2">
+                                                    <textarea
+                                                        rows={2}
+                                                        value={editingCommentBody}
+                                                        onChange={(e) => setEditingCommentBody(e.target.value)}
+                                                        className="w-full bg-white border border-neutral-300 p-2 text-base sm:text-xs text-neutral-950 focus:outline-none focus:border-neutral-950"
+                                                    />
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            type="submit"
+                                                            disabled={postingComment || editingCommentBody.trim().length < 3}
+                                                            className="px-2.5 py-1 bg-[#030213] text-white text-[11px] font-semibold disabled:opacity-40"
+                                                        >
+                                                            Save
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setEditingCommentId(null)}
+                                                            className="px-2.5 py-1 border border-neutral-300 text-[11px] text-neutral-600"
+                                                        >
+                                                            Cancel
+                                                        </button>
+                                                    </div>
+                                                </form>
+                                            ) : (
+                                                <p className="text-xs text-neutral-800 whitespace-pre-wrap break-words leading-relaxed">
+                                                    {q.body}
+                                                </p>
+                                            )}
 
                                             {/* Pinned Agreed Session Answer */}
                                             {isAnswered && q.official_answer && (
@@ -1044,15 +1109,62 @@ export function LessonPlayer() {
                                             {replies.length > 0 && (
                                                 <div className="pl-3 border-l-2 border-neutral-200 space-y-1.5 pt-1">
                                                     {replies.map((r) => (
-                                                        <div key={r.id} className="text-[11px] bg-white border border-neutral-200 p-2 space-y-0.5">
-                                                            <div className="font-semibold text-neutral-900">{r.author_name}</div>
-                                                            <p className="text-neutral-700 whitespace-pre-wrap break-words">{r.body}</p>
+                                                        <div key={r.id} className="text-[11px] bg-white border border-neutral-200 p-2 space-y-1">
+                                                            <div className="flex items-center justify-between gap-2">
+                                                                <span className="font-semibold text-neutral-900">{r.author_name}</span>
+                                                                {canModifyPost(r) && (
+                                                                    <div className="inline-flex items-center gap-2 text-[10px]">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                setEditingCommentId(r.id);
+                                                                                setEditingCommentBody(r.body);
+                                                                            }}
+                                                                            className="text-neutral-500 hover:text-neutral-950 font-semibold"
+                                                                        >
+                                                                            Edit
+                                                                        </button>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleDeleteComment(r.id)}
+                                                                            className="text-red-600 hover:text-red-800 font-semibold"
+                                                                        >
+                                                                            Delete
+                                                                        </button>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                            {editingCommentId === r.id ? (
+                                                                <form onSubmit={(e) => handleSaveCommentEdit(e, r.id)} className="flex gap-1.5">
+                                                                    <input
+                                                                        type="text"
+                                                                        value={editingCommentBody}
+                                                                        onChange={(e) => setEditingCommentBody(e.target.value)}
+                                                                        className="flex-1 bg-neutral-50 border border-neutral-300 px-2 py-1 text-xs text-neutral-950"
+                                                                    />
+                                                                    <button
+                                                                        type="submit"
+                                                                        className="px-2 py-1 bg-[#030213] text-white text-[10px] font-semibold"
+                                                                    >
+                                                                        Save
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => setEditingCommentId(null)}
+                                                                        className="px-2 py-1 border border-neutral-300 text-[10px] text-neutral-600"
+                                                                    >
+                                                                        Cancel
+                                                                    </button>
+                                                                </form>
+                                                            ) : (
+                                                                <p className="text-neutral-700 whitespace-pre-wrap break-words">{r.body}</p>
+                                                            )}
                                                         </div>
                                                     ))}
                                                 </div>
                                             )}
 
-                                            {/* Action Links: Reply + Admin Mark Answered */}
+                                            {/* Action Links: Reply + Edit/Delete (15m window or Admin) + Admin Mark Answered */}
                                             <div className="flex flex-wrap items-center gap-3 pt-1 text-[11px]">
                                                 <button
                                                     type="button"
@@ -1064,6 +1176,27 @@ export function LessonPlayer() {
                                                 >
                                                     {replyingToId === q.id ? 'Cancel Reply' : `Reply${replies.length ? ` (${replies.length})` : ''}`}
                                                 </button>
+                                                {canModifyPost(q) && (
+                                                    <>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setEditingCommentId(editingCommentId === q.id ? null : q.id);
+                                                                setEditingCommentBody(q.body);
+                                                            }}
+                                                            className="font-semibold text-neutral-500 hover:text-neutral-950"
+                                                        >
+                                                            Edit
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleDeleteComment(q.id)}
+                                                            className="font-semibold text-red-600 hover:text-red-800"
+                                                        >
+                                                            Delete
+                                                        </button>
+                                                    </>
+                                                )}
                                                 {isAdmin && (
                                                     <button
                                                         type="button"

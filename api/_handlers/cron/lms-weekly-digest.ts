@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabase } from '../../_lib/supabase.js';
+import { getCurrentCohortWeek, getEffectiveStreak } from '../../_lib/lmsGate.js';
 import { sendLmsMondayAdminDigest, sendLmsMondayDripLearner } from '../../_lib/lmsEmail.js';
 
 /**
@@ -33,11 +34,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         let adminDigestsSent = 0;
 
         for (const cohort of cohorts || []) {
-            const startMs = new Date(`${cohort.start_date}T00:00:00Z`).getTime();
-            const currentWeek = Math.max(1, Math.min(12, Math.floor((now.getTime() - startMs) / (7 * 86400 * 1000)) + 1));
+            const currentWeek = getCurrentCohortWeek(cohort, now);
             const weekModules = (modules || []).filter((m: any) => m.target_week === currentWeek).map((m: any) => m.title);
 
-            const [{ data: enrollments }, { data: progressRows }, { count: pendingReviews }] = await Promise.all([
+            const [
+                { data: enrollments },
+                { data: progressRows },
+                { count: pendingReviews },
+                { count: qaAnsweredThisWeek },
+                { count: qaOpenCount },
+            ] = await Promise.all([
                 supabase.from('lms_enrollments').select('*').eq('cohort_id', cohort.id).eq('status', 'active'),
                 supabase
                     .from('lms_lesson_progress')
@@ -49,6 +55,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     .select('id', { count: 'exact', head: true })
                     .eq('cohort_id', cohort.id)
                     .eq('review_status', 'submitted'),
+                supabase
+                    .from('lms_module_discussions')
+                    .select('id', { count: 'exact', head: true })
+                    .eq('cohort_id', cohort.id)
+                    .is('parent_id', null)
+                    .eq('status', 'answered')
+                    .gte('answered_at', sevenDaysAgoIso),
+                supabase
+                    .from('lms_module_discussions')
+                    .select('id', { count: 'exact', head: true })
+                    .eq('cohort_id', cohort.id)
+                    .is('parent_id', null)
+                    .neq('status', 'answered'),
             ]);
 
             if (!enrollments?.length) continue;
@@ -65,12 +84,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             for (const enr of enrollments) {
                 const stats = doneCountByUser.get(enr.user_id) || { total: 0, last7d: 0 };
                 const pct = Math.round((stats.total / totalLessons) * 100);
+                const liveStreak = getEffectiveStreak(enr);
 
                 summaryRows.push({
                     fullName: enr.full_name,
                     progressPct: pct,
                     last7d: stats.last7d,
-                    streak: enr.current_streak || 0,
+                    streak: liveStreak,
                 });
 
                 const sent = await sendLmsMondayDripLearner({
@@ -80,7 +100,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     newlyUnlockedModules: weekModules,
                     lessonsCompletedLastWeek: stats.last7d,
                     progressPct: pct,
-                    streak: enr.current_streak || 0,
+                    streak: liveStreak,
+                    qaAnsweredThisWeek: qaAnsweredThisWeek || 0,
+                    qaOpenCount: qaOpenCount || 0,
                     cohortId: cohort.id,
                     userId: enr.user_id,
                     weekKey,
@@ -95,6 +117,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     cohortName: cohort.name,
                     weekNumber: currentWeek,
                     pendingReviewsCount: pendingReviews || 0,
+                    qaAnsweredThisWeek: qaAnsweredThisWeek || 0,
+                    qaOpenCount: qaOpenCount || 0,
                     learnersSummaryRows: summaryRows,
                     cohortId: cohort.id,
                     weekKey,
