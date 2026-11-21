@@ -148,6 +148,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             eligibility,
             canIssue: eligibility.eligible || member.enrollment.role === 'admin',
             isAdminPreview: !eligibility.eligible && member.enrollment.role === 'admin',
+            nameLocked: Boolean(existing && member.enrollment.role !== 'admin'),
             defaultName: member.enrollment.full_name,
             certificate: existing
                 ? {
@@ -178,13 +179,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             });
         }
 
-        // Check if already issued — allow updating recipient_name cleanly without changing certificate_code
+        // Check if already issued — permanently lock recipient_name for learners once generated
         const { data: existing } = await supabase
             .from('lms_certificates')
             .select('*')
             .eq('cohort_id', member.cohort.id)
             .eq('user_id', member.enrollment.user_id)
             .maybeSingle();
+
+        if (existing && !isAdmin) {
+            return res.status(409).json({
+                error: 'Your certificate has already been issued and your name is permanently locked. Contact your CortDevs Program Manager if you need a legal name correction.',
+                nameLocked: true,
+            });
+        }
+
+        if (!existing && req.body?.confirmed !== true) {
+            return res.status(400).json({
+                error: 'Please confirm that your full name is spelled accurately before generating your certificate.',
+            });
+        }
 
         let saved: any = null;
         if (existing) {
@@ -236,6 +250,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         return res.status(200).json({
+            nameLocked: !isAdmin,
             certificate: {
                 ...saved,
                 cohort_name: member.cohort.name,

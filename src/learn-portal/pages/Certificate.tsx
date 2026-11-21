@@ -36,6 +36,7 @@ export function LearnCertificate() {
     const [loading, setLoading] = useState(true);
     const [data, setData] = useState<any | null>(null);
     const [recipientName, setRecipientName] = useState('');
+    const [confirmingName, setConfirmingName] = useState(false);
     const [qrDataUrl, setQrDataUrl] = useState<string>('');
     const [issuing, setIssuing] = useState(false);
     const [downloading, setDownloading] = useState(false);
@@ -77,16 +78,30 @@ export function LearnCertificate() {
             .catch(() => setQrDataUrl(''));
     }, [verifyUrl]);
 
-    const handleIssue = async (e: React.FormEvent) => {
+    const handleRequestConfirm = (e: React.FormEvent) => {
         e.preventDefault();
+        setError(null);
+        if (recipientName.trim().length < 2) {
+            setError('Please enter your full name (at least 2 characters).');
+            return;
+        }
+        setConfirmingName(true);
+    };
+
+    const handleConfirmIssue = async () => {
         setIssuing(true);
         setError(null);
         try {
             const res = await learnApi('lms/certificate', {
                 method: 'POST',
-                body: { recipientName: recipientName.trim() },
+                body: { recipientName: recipientName.trim(), confirmed: true },
             });
-            setData((prev: any) => ({ ...prev, certificate: res.certificate }));
+            setData((prev: any) => ({
+                ...prev,
+                nameLocked: res.nameLocked ?? prev?.nameLocked,
+                certificate: res.certificate,
+            }));
+            setConfirmingName(false);
         } catch (err: any) {
             setError(err?.message || 'Could not generate certificate.');
         } finally {
@@ -361,39 +376,96 @@ export function LearnCertificate() {
                 </div>
             )}
 
-            {/* Name Confirmation / Issue Form */}
+            {/* Name Confirmation / Issue Form (Permanently Locked Once Issued for Learners) */}
             {canIssue ? (
-                <form onSubmit={handleIssue} className="bg-white border border-neutral-200 p-5 sm:p-6 space-y-4">
-                    {data?.isAdminPreview && (
-                        <div className="text-xs text-amber-800 bg-amber-50 border border-amber-200 px-3.5 py-2.5 text-left">
-                            <strong>Admin Preview Mode:</strong> As an administrator, you can preview and test certificate generation anytime. Regular learners unlock this only at 100% completion + all projects approved.
-                        </div>
-                    )}
-                    <div className="space-y-1.5">
-                        <label className="text-[11px] font-bold uppercase tracking-[0.15em] text-neutral-700">
-                            Full Name on Certificate
-                        </label>
-                        <div className="flex flex-col sm:flex-row gap-3">
-                            <input
-                                type="text"
-                                required
-                                minLength={2}
-                                maxLength={120}
-                                value={recipientName}
-                                onChange={(e) => setRecipientName(e.target.value)}
-                                placeholder="Enter your full legal name"
-                                className="flex-1 bg-white border border-neutral-300 px-3.5 py-2.5 text-base sm:text-sm text-neutral-950 focus:outline-none focus:border-neutral-950"
-                            />
-                            <button
-                                type="submit"
-                                disabled={issuing}
-                                className="px-6 py-2.5 bg-[#030213] hover:bg-neutral-800 disabled:opacity-60 text-white text-xs font-bold uppercase tracking-[0.16em] shrink-0"
-                            >
-                                {issuing ? 'Generating...' : cert ? 'Update Name' : 'Generate Certificate'}
-                            </button>
+                cert && data?.nameLocked ? (
+                    <div className="bg-white border border-neutral-200 p-4 sm:p-5 flex flex-wrap items-center justify-between gap-3 text-left">
+                        <div className="flex items-start gap-2.5">
+                            <Lock className="w-4 h-4 text-neutral-700 shrink-0 mt-0.5" />
+                            <div className="space-y-0.5">
+                                <div className="text-xs font-bold uppercase tracking-[0.14em] text-neutral-900">
+                                    Certificate Name Permanently Locked: <span className="normal-case font-semibold">{cert.recipient_name}</span>
+                                </div>
+                                <p className="text-xs text-neutral-500">
+                                    To prevent duplicate certificates, names cannot be changed after issuance. Contact your CortDevs Program Manager if you need a legal name correction.
+                                </p>
+                            </div>
                         </div>
                     </div>
-                </form>
+                ) : (
+                    <form onSubmit={handleRequestConfirm} className="bg-white border border-neutral-200 p-5 sm:p-6 space-y-4 text-left">
+                        {data?.isAdminPreview && (
+                            <div className="text-xs text-amber-800 bg-amber-50 border border-amber-200 px-3.5 py-2.5 text-left">
+                                <strong>Admin Preview Mode:</strong> As an administrator, you can preview and test certificate generation anytime. Regular learners unlock this only at 100% completion + all projects approved, and their name locks permanently once issued.
+                            </div>
+                        )}
+                        <div className="space-y-1.5">
+                            <label className="text-[11px] font-bold uppercase tracking-[0.15em] text-neutral-700">
+                                Full Name on Certificate
+                            </label>
+                            <p className="text-xs text-neutral-500">
+                                Double-check spelling carefully — once generated, your certificate name is permanently locked.
+                            </p>
+                            <div className="flex flex-col sm:flex-row gap-3 pt-1">
+                                <input
+                                    type="text"
+                                    required
+                                    minLength={2}
+                                    maxLength={120}
+                                    disabled={confirmingName || issuing}
+                                    value={recipientName}
+                                    onChange={(e) => setRecipientName(e.target.value)}
+                                    placeholder="Enter your full legal name"
+                                    className="flex-1 bg-white border border-neutral-300 disabled:bg-neutral-100 px-3.5 py-2.5 text-base sm:text-sm text-neutral-950 focus:outline-none focus:border-neutral-950"
+                                />
+                                {!confirmingName && (
+                                    <button
+                                        type="submit"
+                                        disabled={issuing}
+                                        className="px-6 py-2.5 bg-[#030213] hover:bg-neutral-800 disabled:opacity-60 text-white text-xs font-bold uppercase tracking-[0.16em] shrink-0"
+                                    >
+                                        {cert ? 'Update Name' : 'Generate Certificate'}
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+
+                        {confirmingName && (
+                            <div className="bg-amber-50 border border-amber-300 p-4 space-y-3">
+                                <div className="text-xs font-bold uppercase tracking-[0.14em] text-amber-950">
+                                    Confirm Certificate Name Spelling
+                                </div>
+                                <p className="text-xs text-amber-900 leading-relaxed">
+                                    Your certificate will be permanently issued in the name:
+                                </p>
+                                <div className="bg-white border border-amber-200 px-4 py-3 text-center text-xl font-serif italic font-bold text-[#030213]">
+                                    {recipientName.trim()}
+                                </div>
+                                <p className="text-[11px] text-amber-900 leading-relaxed">
+                                    Once generated, this name is <strong>permanently locked</strong> and cannot be edited to generate another certificate. Is this spelling 100% final?
+                                </p>
+                                <div className="flex flex-wrap gap-2 pt-1">
+                                    <button
+                                        type="button"
+                                        disabled={issuing}
+                                        onClick={handleConfirmIssue}
+                                        className="px-5 py-2.5 bg-[#030213] hover:bg-neutral-800 disabled:opacity-60 text-white text-xs font-bold uppercase tracking-[0.15em]"
+                                    >
+                                        {issuing ? 'Generating...' : 'Yes, Lock Name & Generate'}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        disabled={issuing}
+                                        onClick={() => setConfirmingName(false)}
+                                        className="px-4 py-2.5 bg-white border border-neutral-300 hover:border-neutral-950 text-xs font-bold uppercase tracking-[0.14em] text-neutral-800"
+                                    >
+                                        Edit Name
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </form>
+                )
             ) : (
                 <div className="bg-white border border-neutral-200 p-6 space-y-3 text-left">
                     <div className="flex items-center gap-2 text-sm font-semibold text-neutral-950">

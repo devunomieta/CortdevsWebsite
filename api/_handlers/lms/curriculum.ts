@@ -84,7 +84,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const now = new Date();
         const isAdmin = enrollment.role === 'admin';
 
-        // Build global sequential state across all lessons
+        // Build Module-Gated, Flexible Within-Module access state:
+        //  - Between modules/weeks: strict global dual-lock (all earlier modules done + Monday drip unlocked)
+        //  - Inside unlocked module: Video + Readings unlock together; Quizzes after Video+Readings; Project after Quizzes
         const allLessons = lessons || [];
         const completedSet = new Set<string>(
             (progressRows || []).filter((p: any) => p.status === 'completed').map((p: any) => p.lesson_id),
@@ -92,6 +94,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const moduleMap = new Map<string, any>();
         for (const m of modules || []) moduleMap.set(m.id, m);
+
+        const rawLessonsByMod = new Map<string, any[]>();
+        for (const l of allLessons) {
+            const list = rawLessonsByMod.get(l.module_id) || [];
+            list.push(l);
+            rawLessonsByMod.set(l.module_id, list);
+        }
+
+        const prevModulesDoneByModId = new Map<string, boolean>();
+        const studyDoneByModId = new Map<string, boolean>();
+        const studyAndQuizDoneByModId = new Map<string, boolean>();
+
+        let allPriorModulesDone = true;
+        for (const m of modules || []) {
+            prevModulesDoneByModId.set(m.id, allPriorModulesDone);
+            const mList = rawLessonsByMod.get(m.id) || [];
+            const studyItems = mList.filter((l: any) => l.lesson_type === 'video' || l.lesson_type === 'reading');
+            const studyAndQuizItems = mList.filter(
+                (l: any) => l.lesson_type === 'video' || l.lesson_type === 'reading' || l.lesson_type === 'quiz',
+            );
+            const studyDone = studyItems.every((l: any) => completedSet.has(l.id));
+            const studyQuizDone = studyAndQuizItems.every((l: any) => completedSet.has(l.id));
+            const modAllDone = mList.every((l: any) => completedSet.has(l.id));
+            studyDoneByModId.set(m.id, studyDone);
+            studyAndQuizDoneByModId.set(m.id, studyQuizDone);
+            if (!modAllDone) allPriorModulesDone = false;
+        }
 
         let nextUpLesson: any = null;
         const lessonStateMap = new Map<string, { state: string; unlocksAt?: string }>();
@@ -107,7 +136,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             );
 
             const drip = isModuleDripUnlocked(cohort, mod?.target_week || 1, now, hasDripOverride || isAdmin);
-            const prevCompleted = i === 0 || completedSet.has(allLessons[i - 1].id);
+            const priorModulesDone = prevModulesDoneByModId.get(lesson.module_id) ?? true;
+            const studyDone = studyDoneByModId.get(lesson.module_id) ?? true;
+            const studyQuizDone = studyAndQuizDoneByModId.get(lesson.module_id) ?? true;
+
+            let prereqMet = false;
+            if (priorModulesDone) {
+                if (lesson.lesson_type === 'video' || lesson.lesson_type === 'reading') {
+                    prereqMet = true;
+                } else if (lesson.lesson_type === 'quiz') {
+                    prereqMet = studyDone;
+                } else {
+                    prereqMet = studyQuizDone;
+                }
+            }
+
             const isDone = completedSet.has(lesson.id);
             const prog = progressMap.get(lesson.id);
 
@@ -116,7 +159,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 state = 'completed';
             } else if (!drip.unlocked) {
                 state = 'locked_drip';
-            } else if (prevCompleted || hasLessonOverride || isAdmin) {
+            } else if (prereqMet || hasLessonOverride || isAdmin) {
                 state = prog ? 'in_progress' : 'unlocked';
                 if (!nextUpLesson) {
                     nextUpLesson = {

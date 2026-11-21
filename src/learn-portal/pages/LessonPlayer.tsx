@@ -31,7 +31,7 @@ const HEARTBEAT_INTERVAL_MS = 30000; // 30s heartbeat (cuts free-tier API + DB l
 export function LessonPlayer() {
     const { lessonId } = useParams();
     const navigate = useNavigate();
-    const { isAdmin, user, refreshProfile } = useLearnAuth();
+    const { isAdmin, user, enrollment, refreshProfile } = useLearnAuth();
 
     const [loading, setLoading] = useState(true);
     const [data, setData] = useState<any | null>(null);
@@ -627,6 +627,10 @@ export function LessonPlayer() {
                                     title: ch.title,
                                     startSec: Number(ch.startSeconds ?? ch.startSec ?? 0),
                                 }))}
+                                moduleReadings={Array.isArray(lesson.module_readings) ? lesson.module_readings : []}
+                                watermarkIdentity={[enrollment?.full_name || user?.email, enrollment?.email || user?.email, 'CortDevs']
+                                    .filter(Boolean)
+                                    .join(' · ')}
                                 notes={videoNotes}
                                 isAdmin={isAdmin}
                                 isCompleted={isCompleted}

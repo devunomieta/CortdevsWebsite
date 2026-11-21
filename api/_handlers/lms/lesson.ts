@@ -89,6 +89,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 : Promise.resolve({ data: null }),
         ]);
 
+        // For video lessons, load the module's supporting readings so they appear in the video player's Readings tab
+        let moduleReadings: Array<{ id: string; title: string; estimated_minutes: number; completed: boolean }> = [];
+        if (lesson.lesson_type === 'video' && lesson.module_id) {
+            const { data: readingRows } = await supabase
+                .from('lms_lessons')
+                .select('id, title, estimated_minutes, order_index')
+                .eq('module_id', lesson.module_id)
+                .eq('lesson_type', 'reading')
+                .order('order_index', { ascending: true });
+
+            if (readingRows && readingRows.length > 0) {
+                const readingIds = readingRows.map((r: any) => r.id);
+                const { data: doneReadings } = await supabase
+                    .from('lms_lesson_progress')
+                    .select('lesson_id')
+                    .eq('cohort_id', member.cohort.id)
+                    .eq('user_id', member.enrollment.user_id)
+                    .eq('status', 'completed')
+                    .in('lesson_id', readingIds);
+
+                const doneSet = new Set((doneReadings || []).map((d: any) => d.lesson_id));
+                moduleReadings = readingRows.map((r: any) => ({
+                    id: r.id,
+                    title: r.title,
+                    estimated_minutes: r.estimated_minutes || 5,
+                    completed: doneSet.has(r.id),
+                }));
+            }
+        }
+
         // Ensure an 'in_progress' record exists once opened
         if (!progress) {
             await supabase.from('lms_lesson_progress').insert({
@@ -162,6 +192,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 r2_configured: r2Ready,
                 duration_seconds: lesson.duration_seconds,
                 chapters: lesson.chapters_json || [],
+                module_readings: moduleReadings,
                 // reading
                 content_html: readingContentHtml,
                 word_count: lesson.word_count,

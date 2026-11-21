@@ -433,29 +433,80 @@ export async function evaluateLessonAccess(params: {
         };
     }
 
-    // 2. Check Strict Sequential Prerequisite Gate
+    // 2. Module-Gated, Flexible Within-Module Prerequisite Gate:
+    //    - Between modules: strictly global — ALL lessons in earlier modules must be completed first.
+    //    - Inside an unlocked module: Module Video + all Readings unlock together as supporting materials;
+    //      Quizzes unlock once Video + Readings are done; Module Project unlocks once Video + Readings + Quizzes are done.
     if (lesson.global_order > 1 && !hasLessonOverride && enrollment.role !== 'admin') {
-        const { data: prevLesson } = await supabase
-            .from('lms_lessons')
-            .select('id, title, global_order')
-            .eq('global_order', lesson.global_order - 1)
-            .maybeSingle();
-
-        if (prevLesson) {
-            const { data: prevProgress } = await supabase
+        const [{ data: moduleLessons }, { data: completedRows }] = await Promise.all([
+            supabase
+                .from('lms_lessons')
+                .select('id, title, module_id, lesson_type, global_order, order_index')
+                .eq('module_id', lesson.module_id)
+                .order('global_order', { ascending: true }),
+            supabase
                 .from('lms_lesson_progress')
-                .select('status')
+                .select('lesson_id')
                 .eq('cohort_id', cohort.id)
                 .eq('user_id', enrollment.user_id)
-                .eq('lesson_id', prevLesson.id)
-                .maybeSingle();
+                .eq('status', 'completed'),
+        ]);
 
-            if (prevProgress?.status !== 'completed') {
+        const completedSet = new Set<string>((completedRows || []).map((r: any) => r.lesson_id));
+        const modList = moduleLessons || [];
+        const firstGlobalInMod = modList.length > 0 ? modList[0].global_order : lesson.global_order;
+
+        // 2a. Strict Global Gate between modules: verify every lesson before this module is completed
+        if (firstGlobalInMod > 1) {
+            const { data: earlierLessons } = await supabase
+                .from('lms_lessons')
+                .select('id, title, global_order')
+                .lt('global_order', firstGlobalInMod)
+                .order('global_order', { ascending: true });
+
+            const firstMissingEarlier = (earlierLessons || []).find((l: any) => !completedSet.has(l.id));
+            if (firstMissingEarlier) {
                 return {
                     allowed: false,
                     reason: 'prerequisite_locked',
-                    prerequisiteLessonId: prevLesson.id,
-                    prerequisiteTitle: prevLesson.title,
+                    prerequisiteLessonId: firstMissingEarlier.id,
+                    prerequisiteTitle: firstMissingEarlier.title,
+                    lesson,
+                    module: mod,
+                };
+            }
+        }
+
+        // 2b. Within this unlocked module:
+        //     - video & reading: all unlocked together
+        //     - quiz: requires this module's video + readings completed
+        //     - project: requires this module's video + readings + quizzes completed
+        if (lesson.lesson_type === 'quiz') {
+            const missingStudy = modList.find(
+                (l: any) => (l.lesson_type === 'video' || l.lesson_type === 'reading') && !completedSet.has(l.id),
+            );
+            if (missingStudy) {
+                return {
+                    allowed: false,
+                    reason: 'prerequisite_locked',
+                    prerequisiteLessonId: missingStudy.id,
+                    prerequisiteTitle: missingStudy.title,
+                    lesson,
+                    module: mod,
+                };
+            }
+        } else if (lesson.lesson_type === 'project') {
+            const missingBeforeProject = modList.find(
+                (l: any) =>
+                    (l.lesson_type === 'video' || l.lesson_type === 'reading' || l.lesson_type === 'quiz') &&
+                    !completedSet.has(l.id),
+            );
+            if (missingBeforeProject) {
+                return {
+                    allowed: false,
+                    reason: 'prerequisite_locked',
+                    prerequisiteLessonId: missingBeforeProject.id,
+                    prerequisiteTitle: missingBeforeProject.title,
                     lesson,
                     module: mod,
                 };

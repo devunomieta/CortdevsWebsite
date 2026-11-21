@@ -1,7 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router';
 import {
     BookMarked,
+    BookOpen,
     Captions,
+    CheckCircle2,
+    ExternalLink,
     FileText,
     ListVideo,
     Maximize,
@@ -34,6 +38,13 @@ export interface VideoNote {
     createdAt: string;
 }
 
+export interface ModuleReadingItem {
+    id: string;
+    title: string;
+    estimated_minutes: number;
+    completed: boolean;
+}
+
 interface VttCue {
     id: number;
     start: number;
@@ -41,7 +52,15 @@ interface VttCue {
     text: string;
 }
 
-type SideTab = 'transcript' | 'notes' | 'chapters';
+type SideTab = 'transcript' | 'notes' | 'chapters' | 'readings';
+
+const WATERMARK_POSITIONS = [
+    'top-[16%] left-[7%]',
+    'top-[44%] left-[12%]',
+    'top-[26%] right-[8%]',
+    'bottom-[24%] left-[10%]',
+    'bottom-[22%] right-[8%]',
+];
 
 function parseVttTimestamp(raw: string): number {
     const clean = raw.trim().replace(',', '.');
@@ -93,6 +112,8 @@ export function LearnVideoPlayer({
     title,
     durationSeconds,
     chapters,
+    moduleReadings = [],
+    watermarkIdentity = '',
     notes,
     isAdmin,
     isCompleted,
@@ -111,6 +132,8 @@ export function LearnVideoPlayer({
     title: string;
     durationSeconds: number;
     chapters: VideoChapter[];
+    moduleReadings?: ModuleReadingItem[];
+    watermarkIdentity?: string;
     notes: VideoNote[];
     isAdmin: boolean;
     isCompleted: boolean;
@@ -153,6 +176,16 @@ export function LearnVideoPlayer({
     // Personal timestamped notes state
     const [noteDraft, setNoteDraft] = useState('');
     const [savingNote, setSavingNote] = useState(false);
+
+    // Subtle drifting forensic watermark index (rotates every 18s while playing)
+    const [watermarkPosIdx, setWatermarkPosIdx] = useState(0);
+    useEffect(() => {
+        if (!watermarkIdentity) return;
+        const id = window.setInterval(() => {
+            setWatermarkPosIdx((prev) => (prev + 1) % WATERMARK_POSITIONS.length);
+        }, 18000);
+        return () => window.clearInterval(id);
+    }, [watermarkIdentity]);
 
     const pipSupported = typeof document !== 'undefined' && Boolean((document as any).pictureInPictureEnabled);
     const speedOptions = isAdmin ? [0.75, 1, 1.25, 1.5, 1.75, 2] : [0.75, 1, 1.25, 1.5, 1.75];
@@ -445,11 +478,12 @@ export function LearnVideoPlayer({
 
             {/* Coursera-style Split Layout: Video Stage + Collapsible Side Drawer + Vertical Icon Rail */}
             <div className="flex flex-col lg:flex-row bg-[#05050b]">
-                {/* Video Stage Wrapper (Fullscreen target so custom controls + CortDevs watermark stay visible in Fullscreen!) */}
+                {/* Video Stage Wrapper (Fullscreen target so custom controls + CortDevs + user forensic watermark stay visible in Fullscreen!) */}
                 <div
                     ref={containerRef}
                     onMouseMove={bumpControlsVisibility}
                     onTouchStart={bumpControlsVisibility}
+                    onContextMenu={(e) => e.preventDefault()}
                     className={`relative bg-black flex-1 min-w-0 flex flex-col justify-center select-none ${
                         isFullscreen ? 'w-screen h-screen' : theaterMode ? 'w-full' : ''
                     }`}
@@ -460,6 +494,7 @@ export function LearnVideoPlayer({
                         playsInline
                         preload="metadata"
                         controlsList="nodownload"
+                        onContextMenu={(e) => e.preventDefault()}
                         onClick={togglePlay}
                         onLoadedMetadata={() => {
                             if (videoRef.current && Number.isFinite(videoRef.current.duration)) {
@@ -505,6 +540,18 @@ export function LearnVideoPlayer({
                             Learn
                         </span>
                     </div>
+
+                    {/* Subtle Drifting User-Identity Forensic Watermark (~12% opacity, traces screen recordings in Normal + Fullscreen) */}
+                    {watermarkIdentity && (
+                        <div
+                            aria-hidden="true"
+                            className={`pointer-events-none select-none absolute z-20 transition-all duration-1000 ease-in-out ${WATERMARK_POSITIONS[watermarkPosIdx]}`}
+                        >
+                            <span className="text-[10px] sm:text-[11px] font-mono tracking-wide text-white/[0.14] drop-shadow-[0_1px_2px_rgba(0,0,0,0.65)] whitespace-nowrap">
+                                {watermarkIdentity}
+                            </span>
+                        </div>
+                    )}
 
                     {/* Floating Top-Left Lesson / Chapter Title Pill (auto-fades with controls) */}
                     <div
@@ -764,9 +811,10 @@ export function LearnVideoPlayer({
                 {!theaterMode && (
                     <>
                         {/* Mobile horizontal tab bar */}
-                        <div className="flex lg:hidden border-t border-neutral-200 bg-neutral-50">
+                        <div className="flex lg:hidden border-t border-neutral-200 bg-neutral-50 overflow-x-auto">
                             {[
                                 { id: 'transcript' as SideTab, label: 'Transcript', icon: FileText },
+                                { id: 'readings' as SideTab, label: `Readings (${moduleReadings.length})`, icon: BookOpen },
                                 { id: 'notes' as SideTab, label: `Notes (${notes.length})`, icon: BookMarked },
                                 { id: 'chapters' as SideTab, label: `Chapters (${chapters.length})`, icon: ListVideo },
                             ].map((t) => {
@@ -780,13 +828,13 @@ export function LearnVideoPlayer({
                                             setActiveTab(t.id);
                                             setPanelOpen(true);
                                         }}
-                                        className={`flex-1 py-2.5 px-2 inline-flex items-center justify-center gap-1.5 text-[11px] font-bold uppercase tracking-wider border-b-2 transition ${
+                                        className={`flex-1 py-2.5 px-2 inline-flex items-center justify-center gap-1 text-[10px] font-bold uppercase tracking-wider border-b-2 whitespace-nowrap transition ${
                                             active
                                                 ? 'border-[#030213] text-neutral-950 bg-white'
                                                 : 'border-transparent text-neutral-500 hover:text-neutral-900'
                                         }`}
                                     >
-                                        <Icon className="w-3.5 h-3.5" />
+                                        <Icon className="w-3.5 h-3.5 shrink-0" />
                                         <span>{t.label}</span>
                                     </button>
                                 );
@@ -800,9 +848,11 @@ export function LearnVideoPlayer({
                                     <div className="text-xs font-bold uppercase tracking-[0.16em] text-neutral-900">
                                         {activeTab === 'transcript'
                                             ? 'Transcript'
-                                            : activeTab === 'notes'
-                                              ? `My Notes (${notes.length})`
-                                              : `Chapters (${chapters.length})`}
+                                            : activeTab === 'readings'
+                                              ? `Module Readings (${moduleReadings.length})`
+                                              : activeTab === 'notes'
+                                                ? `My Notes (${notes.length})`
+                                                : `Chapters (${chapters.length})`}
                                     </div>
                                     <div className="flex items-center gap-2">
                                         {activeTab === 'transcript' && cues.length > 0 && (
@@ -991,6 +1041,52 @@ export function LearnVideoPlayer({
                                         )}
                                     </div>
                                 )}
+                                {/* TAB 4: MODULE SUPPORTING READINGS (FILES) */}
+                                {activeTab === 'readings' && (
+                                    <div className="flex-1 overflow-y-auto p-3 space-y-2 text-left">
+                                        {moduleReadings.length === 0 ? (
+                                            <p className="text-xs text-neutral-500 py-4 leading-relaxed">
+                                                No supporting readings are attached to this module.
+                                            </p>
+                                        ) : (
+                                            <>
+                                                <p className="text-[11px] text-neutral-500 leading-relaxed pb-1">
+                                                    All supporting readings for this module are unlocked alongside the video. Open in a new tab to read while watching.
+                                                </p>
+                                                {moduleReadings.map((r) => (
+                                                    <div
+                                                        key={r.id}
+                                                        className="p-2.5 bg-neutral-50 border border-neutral-200 hover:border-neutral-400 transition flex items-start justify-between gap-2"
+                                                    >
+                                                        <Link to={`/lesson/${r.id}`} className="min-w-0 flex-1 space-y-0.5">
+                                                            <div className="text-xs font-medium text-neutral-950 hover:underline leading-snug break-words flex items-start gap-1.5">
+                                                                {r.completed ? (
+                                                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                                                                ) : (
+                                                                    <BookOpen className="w-3.5 h-3.5 text-neutral-400 shrink-0 mt-0.5" />
+                                                                )}
+                                                                <span>{r.title}</span>
+                                                            </div>
+                                                            <div className="text-[10px] text-neutral-500 pl-5">
+                                                                {r.estimated_minutes} min read{r.completed ? ' · Completed' : ''}
+                                                            </div>
+                                                        </Link>
+                                                        <Link
+                                                            to={`/lesson/${r.id}`}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            title="Open reading in new tab"
+                                                            aria-label={`Open ${r.title} in new tab`}
+                                                            className="p-1 text-neutral-400 hover:text-neutral-950 shrink-0"
+                                                        >
+                                                            <ExternalLink className="w-3.5 h-3.5" />
+                                                        </Link>
+                                                    </div>
+                                                ))}
+                                            </>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         )}
 
@@ -998,6 +1094,7 @@ export function LearnVideoPlayer({
                         <div className="hidden lg:flex flex-col items-center gap-1.5 py-3 px-1.5 bg-[#0a0a14] border-l border-white/10 w-14 shrink-0">
                             {[
                                 { id: 'transcript' as SideTab, label: 'Transcript', icon: FileText },
+                                { id: 'readings' as SideTab, label: 'Readings', icon: BookOpen },
                                 { id: 'notes' as SideTab, label: 'Notes', icon: BookMarked },
                                 { id: 'chapters' as SideTab, label: 'Chapters', icon: ListVideo },
                             ].map((item) => {
