@@ -60,6 +60,9 @@ interface VttCue {
 
 type SideTab = 'transcript' | 'notes' | 'chapters' | 'readings';
 
+// Temporarily hidden until video transcripts are populated
+const SHOW_TRANSCRIPT_TAB = false;
+
 const WATERMARK_POSITIONS = [
     'top-[16%] left-[7%]',
     'top-[44%] left-[12%]',
@@ -185,7 +188,9 @@ export function LearnVideoPlayer({
 
     // Side panel state
     const [panelOpen, setPanelOpen] = useState(true);
-    const [activeTab, setActiveTab] = useState<SideTab>(chapters.length > 0 ? 'chapters' : 'transcript');
+    const [activeTab, setActiveTab] = useState<SideTab>(
+        moduleReadings.length > 0 ? 'readings' : chapters.length > 0 ? 'chapters' : 'notes',
+    );
     const [cues, setCues] = useState<VttCue[]>([]);
     const [transcriptStatus, setTranscriptStatus] = useState<'idle' | 'loading' | 'ready' | 'unavailable'>('idle');
     const [transcriptSearch, setTranscriptSearch] = useState('');
@@ -360,7 +365,7 @@ export function LearnVideoPlayer({
                 const parsed = parseWebVtt(text);
                 setCues(parsed);
                 setTranscriptStatus(parsed.length > 0 ? 'ready' : 'unavailable');
-                if (parsed.length > 0) {
+                if (SHOW_TRANSCRIPT_TAB && parsed.length > 0) {
                     setActiveTab('transcript');
                 }
             })
@@ -1003,7 +1008,9 @@ export function LearnVideoPlayer({
                         {/* Mobile horizontal tab bar */}
                         <div className="flex lg:hidden border-t border-neutral-200 bg-neutral-50 overflow-x-auto">
                             {[
-                                { id: 'transcript' as SideTab, label: 'Transcript', icon: FileText },
+                                ...(SHOW_TRANSCRIPT_TAB
+                                    ? [{ id: 'transcript' as SideTab, label: 'Transcript', icon: FileText }]
+                                    : []),
                                 { id: 'readings' as SideTab, label: `Readings (${moduleReadings.length})`, icon: BookOpen },
                                 { id: 'notes' as SideTab, label: `Notes (${notes.length})`, icon: BookMarked },
                                 { id: 'chapters' as SideTab, label: `Chapters (${chapters.length})`, icon: ListVideo },
@@ -1442,7 +1449,9 @@ export function LearnVideoPlayer({
                         {/* Desktop Far-Right Coursera-Style Vertical Icon Rail */}
                         <div className="hidden lg:flex flex-col items-center gap-1.5 py-3 px-1.5 bg-[#0a0a14] border-l border-white/10 w-14 shrink-0">
                             {[
-                                { id: 'transcript' as SideTab, label: 'Transcript', icon: FileText },
+                                ...(SHOW_TRANSCRIPT_TAB
+                                    ? [{ id: 'transcript' as SideTab, label: 'Transcript', icon: FileText }]
+                                    : []),
                                 { id: 'readings' as SideTab, label: 'Readings', icon: BookOpen },
                                 { id: 'notes' as SideTab, label: 'Notes', icon: BookMarked },
                                 { id: 'chapters' as SideTab, label: 'Chapters', icon: ListVideo },
