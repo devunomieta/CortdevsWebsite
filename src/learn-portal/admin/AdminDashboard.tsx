@@ -415,14 +415,19 @@ export function LearnAdminDashboard() {
     };
 
     const handleSetStudyGroup = async (enrollmentId: string, studyGroupName: string) => {
+        const prevMembers = members;
+        setMembers((cur) =>
+            cur.map((m) => (m.id === enrollmentId ? { ...m, study_group_name: studyGroupName || null } : m)),
+        );
         try {
             await learnApi('admin/lms/cohorts', {
                 method: 'PATCH',
                 body: { action: 'set_study_group', enrollmentId, studyGroupName: studyGroupName || null },
             });
-            showToast(studyGroupName ? `Assigned to ${studyGroupName}!` : 'Removed from study group.');
+            showToast(studyGroupName ? `Assigned to ${studyGroupName}!` : 'Removed from group.');
             await refreshMembers();
         } catch (err: any) {
+            setMembers(prevMembers);
             showToast(err?.message || 'Failed to update study group');
         }
     };
@@ -612,7 +617,7 @@ export function LearnAdminDashboard() {
             </div>
 
             {toast && (
-                <div className="bg-neutral-950 text-white px-4 py-3 text-sm border border-neutral-800">
+                <div className="fixed bottom-5 right-5 z-50 max-w-sm bg-neutral-950 text-white px-4 py-3 text-xs sm:text-sm border border-neutral-800 shadow-2xl">
                     {toast}
                 </div>
             )}
@@ -1390,8 +1395,8 @@ export function LearnAdminDashboard() {
                                     <th className="p-3.5 uppercase tracking-wider text-[10px] font-bold">Member</th>
                                     <th className="p-3.5 uppercase tracking-wider text-[10px] font-bold">Role</th>
                                     <th className="p-3.5 uppercase tracking-wider text-[10px] font-bold">Status</th>
-                                    <th className="p-3.5 uppercase tracking-wider text-[10px] font-bold">Study Pod (2+)</th>
-                                    <th className="p-3.5 text-right uppercase tracking-wider text-[10px] font-bold">Controls</th>
+                                    <th className="p-3.5 uppercase tracking-wider text-[10px] font-bold">Study Group</th>
+                                    <th className="p-3.5 text-right uppercase tracking-wider text-[10px] font-bold">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-neutral-200/80">
@@ -1399,6 +1404,10 @@ export function LearnAdminDashboard() {
                                     const isSelf = m.user_id === user?.id;
                                     const isRoot = m.email.toLowerCase() === ROOT_ADMIN_EMAIL;
                                     const canChangePwd = !isRoot || actorIsRootAdmin;
+                                    const groupOptions = ['Group 1', 'Group 2', 'Group 3', 'Group 4', 'Group 5', 'Group 6'];
+                                    if (m.study_group_name && !groupOptions.includes(m.study_group_name)) {
+                                        groupOptions.unshift(m.study_group_name);
+                                    }
                                     return (
                                         <tr key={m.id} className="hover:bg-neutral-50/70">
                                             <td className="p-3.5">
@@ -1437,94 +1446,134 @@ export function LearnAdminDashboard() {
                                                 <select
                                                     value={m.study_group_name || ''}
                                                     onChange={(e) => handleSetStudyGroup(m.id, e.target.value)}
-                                                    className="bg-white border border-neutral-300 px-2 py-1 text-xs text-neutral-900"
+                                                    className="bg-white border border-neutral-300 px-2.5 py-1.5 text-xs text-neutral-900"
                                                 >
                                                     <option value="">Unassigned</option>
-                                                    {['Pod A', 'Pod B', 'Pod C', 'Pod D', 'Pod E', 'Pod F'].map((pod) => {
+                                                    {groupOptions.map((grp) => {
                                                         const count = members.filter(
-                                                            (x) => x.status === 'active' && x.study_group_name === pod,
+                                                            (x) => x.status === 'active' && x.study_group_name === grp,
                                                         ).length;
                                                         return (
-                                                            <option key={pod} value={pod}>
-                                                                {pod} {count > 0 ? `(${count})` : ''}
+                                                            <option key={grp} value={grp}>
+                                                                {grp} {count > 0 ? `(${count})` : ''}
                                                             </option>
                                                         );
                                                     })}
                                                 </select>
                                             </td>
-                                            <td className="p-3.5 text-right whitespace-nowrap space-x-1.5">
-                                                {canChangePwd && (
-                                                    <button
-                                                        onClick={() => {
-                                                            setPwdTarget(m);
-                                                            setResetPwdValue(generateStrongPassword());
-                                                            setEmailOnReset(false);
-                                                        }}
-                                                        className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-white border border-neutral-300 hover:border-neutral-950 text-neutral-800 font-semibold"
-                                                    >
-                                                        <KeyRound className="w-3.5 h-3.5" /> Password
-                                                    </button>
-                                                )}
-
-                                                {!isRoot && !isSelf && m.status === 'active' && (
-                                                    <button
-                                                        onClick={() => handleToggleAdminRole(m)}
-                                                        className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-white border border-neutral-300 hover:border-neutral-950 text-neutral-800 font-semibold"
-                                                    >
-                                                        {m.role === 'admin' ? (
-                                                            <>
-                                                                <ShieldOff className="w-3.5 h-3.5" /> Remove Admin
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <Shield className="w-3.5 h-3.5" /> Make Admin
-                                                            </>
-                                                        )}
-                                                    </button>
-                                                )}
-
-                                                {!isRoot && !isSelf && m.status === 'active' && (
-                                                    <>
+                                            <td className="p-3.5 text-right whitespace-nowrap">
+                                                <div className="inline-flex items-center justify-end gap-1.5">
+                                                    {canChangePwd && (
                                                         <button
-                                                            onClick={() => handleSetMemberStatus(m, 'paused')}
-                                                            className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-amber-50 border border-amber-300 hover:bg-amber-100 text-amber-900 font-semibold"
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setPwdTarget(m);
+                                                                setResetPwdValue(generateStrongPassword());
+                                                                setEmailOnReset(false);
+                                                            }}
+                                                            title="Change Password"
+                                                            aria-label="Change Password"
+                                                            className="group relative inline-flex items-center justify-center w-8 h-8 bg-white border border-neutral-300 hover:border-neutral-950 hover:bg-neutral-50 text-neutral-800 transition"
                                                         >
-                                                            <PauseCircle className="w-3.5 h-3.5" /> Temp Block
+                                                            <KeyRound className="w-3.5 h-3.5" />
+                                                            <span className="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full right-0 mb-1.5 px-2 py-1 bg-neutral-950 text-white text-[10px] font-medium whitespace-nowrap z-30 shadow">
+                                                                Change Password
+                                                            </span>
                                                         </button>
-                                                        <button
-                                                            onClick={() => handleSetMemberStatus(m, 'removed')}
-                                                            className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-red-50 border border-red-300 hover:bg-red-100 text-red-800 font-semibold"
-                                                        >
-                                                            <Ban className="w-3.5 h-3.5" /> Perm Block
-                                                        </button>
-                                                    </>
-                                                )}
+                                                    )}
 
-                                                {!isRoot && !isSelf && m.status === 'paused' && (
-                                                    <>
+                                                    {!isRoot && !isSelf && m.status === 'active' && (
                                                         <button
+                                                            type="button"
+                                                            onClick={() => handleToggleAdminRole(m)}
+                                                            title={m.role === 'admin' ? 'Remove Admin' : 'Make Admin'}
+                                                            aria-label={m.role === 'admin' ? 'Remove Admin' : 'Make Admin'}
+                                                            className="group relative inline-flex items-center justify-center w-8 h-8 bg-white border border-neutral-300 hover:border-neutral-950 hover:bg-neutral-50 text-neutral-800 transition"
+                                                        >
+                                                            {m.role === 'admin' ? (
+                                                                <ShieldOff className="w-3.5 h-3.5" />
+                                                            ) : (
+                                                                <Shield className="w-3.5 h-3.5" />
+                                                            )}
+                                                            <span className="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full right-0 mb-1.5 px-2 py-1 bg-neutral-950 text-white text-[10px] font-medium whitespace-nowrap z-30 shadow">
+                                                                {m.role === 'admin' ? 'Remove Admin' : 'Make Admin'}
+                                                            </span>
+                                                        </button>
+                                                    )}
+
+                                                    {!isRoot && !isSelf && m.status === 'active' && (
+                                                        <>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleSetMemberStatus(m, 'paused')}
+                                                                title="Temp Block"
+                                                                aria-label="Temp Block"
+                                                                className="group relative inline-flex items-center justify-center w-8 h-8 bg-amber-50 border border-amber-300 hover:bg-amber-100 text-amber-900 transition"
+                                                            >
+                                                                <PauseCircle className="w-3.5 h-3.5" />
+                                                                <span className="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full right-0 mb-1.5 px-2 py-1 bg-neutral-950 text-white text-[10px] font-medium whitespace-nowrap z-30 shadow">
+                                                                    Temp Block
+                                                                </span>
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleSetMemberStatus(m, 'removed')}
+                                                                title="Perm Block"
+                                                                aria-label="Perm Block"
+                                                                className="group relative inline-flex items-center justify-center w-8 h-8 bg-red-50 border border-red-300 hover:bg-red-100 text-red-800 transition"
+                                                            >
+                                                                <Ban className="w-3.5 h-3.5" />
+                                                                <span className="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full right-0 mb-1.5 px-2 py-1 bg-neutral-950 text-white text-[10px] font-medium whitespace-nowrap z-30 shadow">
+                                                                    Perm Block
+                                                                </span>
+                                                            </button>
+                                                        </>
+                                                    )}
+
+                                                    {!isRoot && !isSelf && m.status === 'paused' && (
+                                                        <>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleSetMemberStatus(m, 'active')}
+                                                                title="Restore Access"
+                                                                aria-label="Restore Access"
+                                                                className="group relative inline-flex items-center justify-center w-8 h-8 bg-emerald-50 border border-emerald-300 hover:bg-emerald-100 text-emerald-900 transition"
+                                                            >
+                                                                <PlayCircle className="w-3.5 h-3.5" />
+                                                                <span className="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full right-0 mb-1.5 px-2 py-1 bg-neutral-950 text-white text-[10px] font-medium whitespace-nowrap z-30 shadow">
+                                                                    Restore Access
+                                                                </span>
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleSetMemberStatus(m, 'removed')}
+                                                                title="Perm Block"
+                                                                aria-label="Perm Block"
+                                                                className="group relative inline-flex items-center justify-center w-8 h-8 bg-red-50 border border-red-300 hover:bg-red-100 text-red-800 transition"
+                                                            >
+                                                                <Ban className="w-3.5 h-3.5" />
+                                                                <span className="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full right-0 mb-1.5 px-2 py-1 bg-neutral-950 text-white text-[10px] font-medium whitespace-nowrap z-30 shadow">
+                                                                    Perm Block
+                                                                </span>
+                                                            </button>
+                                                        </>
+                                                    )}
+
+                                                    {!isRoot && !isSelf && m.status === 'removed' && (
+                                                        <button
+                                                            type="button"
                                                             onClick={() => handleSetMemberStatus(m, 'active')}
-                                                            className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 border border-emerald-300 hover:bg-emerald-100 text-emerald-900 font-semibold"
+                                                            title="Restore Access"
+                                                            aria-label="Restore Access"
+                                                            className="group relative inline-flex items-center justify-center w-8 h-8 bg-emerald-50 border border-emerald-300 hover:bg-emerald-100 text-emerald-900 transition"
                                                         >
-                                                            <PlayCircle className="w-3.5 h-3.5" /> Restore
+                                                            <PlayCircle className="w-3.5 h-3.5" />
+                                                            <span className="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full right-0 mb-1.5 px-2 py-1 bg-neutral-950 text-white text-[10px] font-medium whitespace-nowrap z-30 shadow">
+                                                                Restore Access
+                                                            </span>
                                                         </button>
-                                                        <button
-                                                            onClick={() => handleSetMemberStatus(m, 'removed')}
-                                                            className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-red-50 border border-red-300 hover:bg-red-100 text-red-800 font-semibold"
-                                                        >
-                                                            <Ban className="w-3.5 h-3.5" /> Perm Block
-                                                        </button>
-                                                    </>
-                                                )}
-
-                                                {!isRoot && !isSelf && m.status === 'removed' && (
-                                                    <button
-                                                        onClick={() => handleSetMemberStatus(m, 'active')}
-                                                        className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-white border border-neutral-300 hover:border-neutral-950 text-neutral-800 font-semibold"
-                                                    >
-                                                        <PlayCircle className="w-3.5 h-3.5" /> Restore Access
-                                                    </button>
-                                                )}
+                                                    )}
+                                                </div>
                                             </td>
                                         </tr>
                                     );
@@ -1577,20 +1626,20 @@ export function LearnAdminDashboard() {
                                     </div>
 
                                     <div className="flex items-center justify-between gap-2 text-xs">
-                                        <span className="text-neutral-500">Study Pod (2+):</span>
+                                        <span className="text-neutral-500">Study Group:</span>
                                         <select
                                             value={m.study_group_name || ''}
                                             onChange={(e) => handleSetStudyGroup(m.id, e.target.value)}
                                             className="bg-white border border-neutral-300 px-2.5 py-1.5 text-xs text-neutral-900"
                                         >
                                             <option value="">Unassigned</option>
-                                            {['Pod A', 'Pod B', 'Pod C', 'Pod D', 'Pod E', 'Pod F'].map((pod) => {
+                                            {['Group 1', 'Group 2', 'Group 3', 'Group 4', 'Group 5', 'Group 6'].map((grp) => {
                                                 const count = members.filter(
-                                                    (x) => x.status === 'active' && x.study_group_name === pod,
+                                                    (x) => x.status === 'active' && x.study_group_name === grp,
                                                 ).length;
                                                 return (
-                                                    <option key={pod} value={pod}>
-                                                        {pod} {count > 0 ? `(${count})` : ''}
+                                                    <option key={grp} value={grp}>
+                                                        {grp} {count > 0 ? `(${count})` : ''}
                                                     </option>
                                                 );
                                             })}

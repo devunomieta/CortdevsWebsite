@@ -393,20 +393,20 @@ export function RoadmapDashboard() {
                                 <p className="text-[11px] text-neutral-300 leading-relaxed">
                                     {weeklyLead.isCurrentUser
                                         ? 'You are coordinating this week’s check-ins, Q&A agenda, and team accountability.'
-                                        : 'Coordinating this week’s check-ins, Q&A agenda, and pod accountability.'}
+                                        : 'Coordinating this week’s check-ins, Q&A agenda, and group accountability.'}
                                 </p>
                             </div>
                         </div>
                     )}
 
-                    {/* My Study Pod (2, 3, 4+ members) */}
+                    {/* My Study Group (2, 3, 4+ members) */}
                     {myStudyGroup && myStudyGroup.members?.length > 0 && (
                         <div className="space-y-3">
                             <div className="flex items-center justify-between gap-2">
                                 <div className="flex items-center gap-2">
                                     <Users className="w-4 h-4 text-neutral-900" />
                                     <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-neutral-900">
-                                        My Study Pod
+                                        My Study Group
                                     </h2>
                                 </div>
                                 <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-neutral-200/80 text-neutral-800">
@@ -462,13 +462,13 @@ export function RoadmapDashboard() {
                         </div>
                     )}
 
-                    {/* Full Team Pairings & Study Pods Directory */}
+                    {/* Full Team Groups Directory */}
                     {teamPairings && (teamPairings.groups?.length > 0 || teamPairings.unassigned?.length > 0) && (
                         <div className="space-y-3">
                             <div className="flex items-center gap-2">
                                 <Users className="w-4 h-4 text-neutral-900" />
                                 <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-neutral-900">
-                                    Team Pairings
+                                    Team Groups
                                 </h2>
                             </div>
 
@@ -504,7 +504,7 @@ export function RoadmapDashboard() {
                                 {(teamPairings.unassigned || []).length > 0 && (
                                     <div className="p-3 bg-white border border-dashed border-neutral-300 space-y-1.5">
                                         <div className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">
-                                            Cohort Members (Not in a Pod Yet)
+                                            Cohort Members (Not in a Group Yet)
                                         </div>
                                         {teamPairings.unassigned.map((m: any, idx: number) => (
                                             <div key={idx} className="flex items-center justify-between gap-2 text-xs">

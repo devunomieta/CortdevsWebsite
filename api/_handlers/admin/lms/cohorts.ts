@@ -51,7 +51,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 })
                 .eq('id', enrollmentId)
                 .eq('cohort_id', admin.cohort.id);
-            if (error) return res.status(500).json({ error: error.message });
+            if (error) {
+                const missingCol = /study_group_name/i.test(error.message);
+                return res.status(500).json({
+                    error: missingCol
+                        ? 'Database column study_group_name not added yet — run the 2-line ALTER TABLE SQL in Supabase SQL Editor first.'
+                        : error.message,
+                });
+            }
             return res.status(200).json({ ok: true, studyGroupName: cleanGroup });
         }
 
@@ -98,7 +105,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     .update({ peer_buddy_user_id: null, updated_at: nowIso })
                     .eq('id', memberA.id)
                     .eq('cohort_id', admin.cohort.id);
-                if (error) return res.status(500).json({ error: error.message });
+                if (error) {
+                const missingCol = /study_group_name/i.test(error.message);
+                return res.status(500).json({
+                    error: missingCol
+                        ? 'Database column study_group_name not added yet — run the 2-line ALTER TABLE SQL in Supabase SQL Editor first.'
+                        : error.message,
+                });
+            }
                 return res.status(200).json({ ok: true, mutual: true });
             }
 
