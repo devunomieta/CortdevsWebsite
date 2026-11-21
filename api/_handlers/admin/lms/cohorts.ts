@@ -4,6 +4,7 @@ import {
     getCohortTargetEndDate,
     isValidUuid,
     normalizeWeekExtensions,
+    normalizeWeeklyLeads,
     requireLmsAdmin,
     sanitizeSingleLine,
 } from '../../../_lib/lmsGate.js';
@@ -30,9 +31,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             drip_unlock_hour,
             project_gate_mode,
             week_extensions_json,
+            weekly_leads_json,
             enrollmentId,
             peerBuddyUserId,
+            studyGroupName,
         } = req.body || {};
+
+        // Assign a member to a Study Group / Pod (supports 2, 3, 4+ members per pod)
+        if (action === 'set_study_group' && enrollmentId) {
+            if (!isValidUuid(enrollmentId)) {
+                return res.status(400).json({ error: 'Valid enrollmentId is required.' });
+            }
+            const cleanGroup = sanitizeSingleLine(studyGroupName, 40) || null;
+            const { error } = await supabase
+                .from('lms_enrollments')
+                .update({
+                    study_group_name: cleanGroup,
+                    updated_at: new Date().toISOString(),
+                })
+                .eq('id', enrollmentId)
+                .eq('cohort_id', admin.cohort.id);
+            if (error) return res.status(500).json({ error: error.message });
+            return res.status(200).json({ ok: true, studyGroupName: cleanGroup });
+        }
 
         // Assign a mutual (2-way) peer accountability buddy within the active cohort
         if (action === 'assign_buddy' && enrollmentId) {
@@ -142,6 +163,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
         if (hasWeekExtensionsUpdate) {
             updates.week_extensions_json = effectiveExtensions;
+        }
+        if (weekly_leads_json !== undefined) {
+            const cleanLeads = normalizeWeeklyLeads(weekly_leads_json);
+            const leadUserIds = [...new Set(Object.values(cleanLeads))];
+            if (leadUserIds.length > 0) {
+                const { data: validMembers } = await supabase
+                    .from('lms_enrollments')
+                    .select('user_id')
+                    .eq('cohort_id', admin.cohort.id)
+                    .eq('status', 'active')
+                    .in('user_id', leadUserIds);
+                const validSet = new Set((validMembers || []).map((m: any) => m.user_id));
+                const filteredLeads: Record<string, string> = {};
+                for (const [wk, uid] of Object.entries(cleanLeads)) {
+                    if (validSet.has(uid)) filteredLeads[wk] = uid;
+                }
+                updates.weekly_leads_json = filteredLeads;
+            } else {
+                updates.weekly_leads_json = {};
+            }
         }
         // Automatically recompute target_end_date whenever start_date or week extensions change
         if ((typeof start_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(start_date)) || hasWeekExtensionsUpdate) {

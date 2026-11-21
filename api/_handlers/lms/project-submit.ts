@@ -147,19 +147,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         metadata: { title: lesson.title, hasFile: Boolean(cleanPath), hasUrl: Boolean(cleanUrl) },
     });
 
-    const [{ data: admins }, { data: buddy }] = await Promise.all([
+    const [{ data: admins }, { data: podMates }, { data: buddy }] = await Promise.all([
         supabase
             .from('lms_enrollments')
             .select('email')
             .eq('cohort_id', member.cohort.id)
             .eq('role', 'admin')
             .eq('status', 'active'),
+        member.enrollment.study_group_name
+            ? supabase
+                  .from('lms_enrollments')
+                  .select('email')
+                  .eq('cohort_id', member.cohort.id)
+                  .eq('study_group_name', member.enrollment.study_group_name)
+                  .eq('status', 'active')
+                  .neq('user_id', member.enrollment.user_id)
+            : Promise.resolve({ data: [] }),
         member.enrollment.peer_buddy_user_id
             ? supabase
                   .from('lms_enrollments')
                   .select('email')
                   .eq('cohort_id', member.cohort.id)
                   .eq('user_id', member.enrollment.peer_buddy_user_id)
+                  .eq('status', 'active')
                   .maybeSingle()
             : Promise.resolve({ data: null }),
     ]);
@@ -170,6 +180,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         projectTitle: lesson.title,
         adminEmails: (admins || []).map((a: any) => a.email),
         peerBuddyEmail: buddy?.email || null,
+        peerBuddyEmails: (podMates || []).map((p: any) => p.email),
         cohortId: member.cohort.id,
         userId: member.enrollment.user_id,
         lessonId: lesson.id,

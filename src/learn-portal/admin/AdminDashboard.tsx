@@ -101,11 +101,12 @@ export function LearnAdminDashboard() {
     const [emailOnReset, setEmailOnReset] = useState(false);
     const [savingResetPwd, setSavingResetPwd] = useState(false);
 
-    // Course Start Date, Pacing & Cascading Week Extensions Form
+    // Course Start Date, Pacing, Cascading Week Extensions & Weekly Team Leads Form
     const [cohortStart, setCohortStart] = useState('');
     const [cohortEnd, setCohortEnd] = useState('');
     const [cohortPacing, setCohortPacing] = useState('weekly_drip_sequential');
     const [weekExtensions, setWeekExtensions] = useState<Record<string, number>>({});
+    const [weeklyLeads, setWeeklyLeads] = useState<Record<string, string>>({});
     const [savingCohort, setSavingCohort] = useState(false);
 
     // Nudge modal state
@@ -131,6 +132,11 @@ export function LearnAdminDashboard() {
         setWeekExtensions(
             ov.cohort?.week_extensions_json && typeof ov.cohort.week_extensions_json === 'object'
                 ? ov.cohort.week_extensions_json
+                : {},
+        );
+        setWeeklyLeads(
+            ov.cohort?.weekly_leads_json && typeof ov.cohort.weekly_leads_json === 'object'
+                ? ov.cohort.weekly_leads_json
                 : {},
         );
     }, []);
@@ -396,9 +402,10 @@ export function LearnAdminDashboard() {
                     start_date: cohortStart,
                     pacing_mode: cohortPacing,
                     week_extensions_json: weekExtensions,
+                    weekly_leads_json: weeklyLeads,
                 },
             });
-            showToast('Course schedule, week extensions, and target end date saved!');
+            showToast('Course schedule, weekly team leads, and extensions saved!');
             await refreshOverview();
         } catch (err: any) {
             showToast(err?.message || 'Update failed');
@@ -407,13 +414,17 @@ export function LearnAdminDashboard() {
         }
     };
 
-    const handleAssignBuddy = async (enrollmentId: string, peerBuddyUserId: string) => {
-        await learnApi('admin/lms/cohorts', {
-            method: 'PATCH',
-            body: { action: 'assign_buddy', enrollmentId, peerBuddyUserId: peerBuddyUserId || null },
-        });
-        showToast('Study partner updated!');
-        await refreshMembers();
+    const handleSetStudyGroup = async (enrollmentId: string, studyGroupName: string) => {
+        try {
+            await learnApi('admin/lms/cohorts', {
+                method: 'PATCH',
+                body: { action: 'set_study_group', enrollmentId, studyGroupName: studyGroupName || null },
+            });
+            showToast(studyGroupName ? `Assigned to ${studyGroupName}!` : 'Removed from study group.');
+            await refreshMembers();
+        } catch (err: any) {
+            showToast(err?.message || 'Failed to update study group');
+        }
     };
 
     const handleSaveQuestionAnswer = async (questionId: string, status: 'answered' | 'open') => {
@@ -1276,49 +1287,78 @@ export function LearnAdminDashboard() {
                                             )}
                                         </div>
                                         <p className="text-[11px] text-neutral-500 leading-relaxed">
-                                            Need extra time for a heavy week? Click <strong>+1w</strong> on that week — earlier weeks stay unchanged while all subsequent weeks and the target finish date shift forward automatically.
+                                            Delegate a <strong>Weekly Team Lead</strong> for each week and click <strong>+1w</strong> on any heavy week to automatically shift subsequent weeks and the target finish date forward.
                                         </p>
-                                        <div className="max-h-60 overflow-y-auto divide-y divide-neutral-200 border border-neutral-200 bg-white">
+                                        <div className="max-h-72 overflow-y-auto divide-y divide-neutral-200 border border-neutral-200 bg-white">
                                             {rows.map((r) => (
                                                 <div
                                                     key={r.week}
-                                                    className={`px-2.5 py-2 flex items-center justify-between gap-2 text-[11px] ${
+                                                    className={`px-2.5 py-2 space-y-1.5 text-[11px] ${
                                                         r.extraWeeks > 0 ? 'bg-amber-50/70' : ''
                                                     }`}
                                                 >
-                                                    <div className="min-w-0">
-                                                        <div className="font-semibold text-neutral-950 flex items-center gap-1.5">
-                                                            <span>Week {r.week}</span>
-                                                            <span className="text-[10px] font-normal text-neutral-500">
-                                                                ({modulesByWeek.get(r.week) || 0} mod)
-                                                            </span>
-                                                            {r.extraWeeks > 0 && (
-                                                                <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase bg-amber-200/80 text-amber-950">
-                                                                    {r.durationWeeks} wks
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <div className="min-w-0">
+                                                            <div className="font-semibold text-neutral-950 flex items-center gap-1.5">
+                                                                <span>Week {r.week}</span>
+                                                                <span className="text-[10px] font-normal text-neutral-500">
+                                                                    ({modulesByWeek.get(r.week) || 0} mod)
                                                                 </span>
-                                                            )}
+                                                                {r.extraWeeks > 0 && (
+                                                                    <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase bg-amber-200/80 text-amber-950">
+                                                                        {r.durationWeeks} wks
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <div className="text-[10px] text-neutral-500 font-mono">
+                                                                {r.unlockDate} → {r.deadlineDate}
+                                                            </div>
                                                         </div>
-                                                        <div className="text-[10px] text-neutral-500 font-mono">
-                                                            {r.unlockDate} → {r.deadlineDate}
+                                                        <div className="inline-flex items-center gap-1 shrink-0">
+                                                            <button
+                                                                type="button"
+                                                                disabled={r.extraWeeks <= 0}
+                                                                onClick={() => handleAdjustWeekExtension(r.week, -1)}
+                                                                className="px-2 py-1 border border-neutral-300 bg-white hover:border-neutral-950 disabled:opacity-35 text-[10px] font-bold text-neutral-900"
+                                                            >
+                                                                -1w
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                disabled={r.extraWeeks >= 4}
+                                                                onClick={() => handleAdjustWeekExtension(r.week, 1)}
+                                                                className="px-2 py-1 border border-neutral-300 bg-white hover:border-neutral-950 disabled:opacity-35 text-[10px] font-bold text-neutral-900"
+                                                            >
+                                                                +1w
+                                                            </button>
                                                         </div>
                                                     </div>
-                                                    <div className="inline-flex items-center gap-1 shrink-0">
-                                                        <button
-                                                            type="button"
-                                                            disabled={r.extraWeeks <= 0}
-                                                            onClick={() => handleAdjustWeekExtension(r.week, -1)}
-                                                            className="px-2 py-1 border border-neutral-300 bg-white hover:border-neutral-950 disabled:opacity-35 text-[10px] font-bold text-neutral-900"
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500 shrink-0">
+                                                            Week {r.week} Lead:
+                                                        </span>
+                                                        <select
+                                                            value={weeklyLeads[String(r.week)] || ''}
+                                                            onChange={(e) => {
+                                                                const val = e.target.value;
+                                                                setWeeklyLeads((prev) => {
+                                                                    const next = { ...prev };
+                                                                    if (!val) delete next[String(r.week)];
+                                                                    else next[String(r.week)] = val;
+                                                                    return next;
+                                                                });
+                                                            }}
+                                                            className="flex-1 min-w-0 bg-neutral-50 border border-neutral-300 px-2 py-1 text-[11px] text-neutral-900"
                                                         >
-                                                            -1w
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            disabled={r.extraWeeks >= 4}
-                                                            onClick={() => handleAdjustWeekExtension(r.week, 1)}
-                                                            className="px-2 py-1 border border-neutral-300 bg-white hover:border-neutral-950 disabled:opacity-35 text-[10px] font-bold text-neutral-900"
-                                                        >
-                                                            +1w
-                                                        </button>
+                                                            <option value="">Unassigned</option>
+                                                            {members
+                                                                .filter((mem) => mem.status === 'active')
+                                                                .map((mem) => (
+                                                                    <option key={mem.user_id} value={mem.user_id}>
+                                                                        {mem.full_name}
+                                                                    </option>
+                                                                ))}
+                                                        </select>
                                                     </div>
                                                 </div>
                                             ))}
@@ -1350,7 +1390,7 @@ export function LearnAdminDashboard() {
                                     <th className="p-3.5 uppercase tracking-wider text-[10px] font-bold">Member</th>
                                     <th className="p-3.5 uppercase tracking-wider text-[10px] font-bold">Role</th>
                                     <th className="p-3.5 uppercase tracking-wider text-[10px] font-bold">Status</th>
-                                    <th className="p-3.5 uppercase tracking-wider text-[10px] font-bold">Study Partner</th>
+                                    <th className="p-3.5 uppercase tracking-wider text-[10px] font-bold">Study Pod (2+)</th>
                                     <th className="p-3.5 text-right uppercase tracking-wider text-[10px] font-bold">Controls</th>
                                 </tr>
                             </thead>
@@ -1395,18 +1435,21 @@ export function LearnAdminDashboard() {
                                             </td>
                                             <td className="p-3.5">
                                                 <select
-                                                    value={m.peer_buddy_user_id || ''}
-                                                    onChange={(e) => handleAssignBuddy(m.id, e.target.value)}
+                                                    value={m.study_group_name || ''}
+                                                    onChange={(e) => handleSetStudyGroup(m.id, e.target.value)}
                                                     className="bg-white border border-neutral-300 px-2 py-1 text-xs text-neutral-900"
                                                 >
-                                                    <option value="">None</option>
-                                                    {members
-                                                        .filter((other) => other.user_id !== m.user_id && other.status === 'active')
-                                                        .map((other) => (
-                                                            <option key={other.user_id} value={other.user_id}>
-                                                                {other.full_name}
+                                                    <option value="">Unassigned</option>
+                                                    {['Pod A', 'Pod B', 'Pod C', 'Pod D', 'Pod E', 'Pod F'].map((pod) => {
+                                                        const count = members.filter(
+                                                            (x) => x.status === 'active' && x.study_group_name === pod,
+                                                        ).length;
+                                                        return (
+                                                            <option key={pod} value={pod}>
+                                                                {pod} {count > 0 ? `(${count})` : ''}
                                                             </option>
-                                                        ))}
+                                                        );
+                                                    })}
                                                 </select>
                                             </td>
                                             <td className="p-3.5 text-right whitespace-nowrap space-x-1.5">
@@ -1534,20 +1577,23 @@ export function LearnAdminDashboard() {
                                     </div>
 
                                     <div className="flex items-center justify-between gap-2 text-xs">
-                                        <span className="text-neutral-500">Study Partner:</span>
+                                        <span className="text-neutral-500">Study Pod (2+):</span>
                                         <select
-                                            value={m.peer_buddy_user_id || ''}
-                                            onChange={(e) => handleAssignBuddy(m.id, e.target.value)}
+                                            value={m.study_group_name || ''}
+                                            onChange={(e) => handleSetStudyGroup(m.id, e.target.value)}
                                             className="bg-white border border-neutral-300 px-2.5 py-1.5 text-xs text-neutral-900"
                                         >
-                                            <option value="">None</option>
-                                            {members
-                                                .filter((other) => other.user_id !== m.user_id && other.status === 'active')
-                                                .map((other) => (
-                                                    <option key={other.user_id} value={other.user_id}>
-                                                        {other.full_name}
+                                            <option value="">Unassigned</option>
+                                            {['Pod A', 'Pod B', 'Pod C', 'Pod D', 'Pod E', 'Pod F'].map((pod) => {
+                                                const count = members.filter(
+                                                    (x) => x.status === 'active' && x.study_group_name === pod,
+                                                ).length;
+                                                return (
+                                                    <option key={pod} value={pod}>
+                                                        {pod} {count > 0 ? `(${count})` : ''}
                                                     </option>
-                                                ))}
+                                                );
+                                            })}
                                         </select>
                                     </div>
 

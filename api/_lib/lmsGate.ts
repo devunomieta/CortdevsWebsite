@@ -55,6 +55,7 @@ export interface LmsCohort {
     drip_unlock_hour: number;
     project_gate_mode: 'submit_to_unlock' | 'approve_to_unlock';
     week_extensions_json?: Record<string, number> | null;
+    weekly_leads_json?: Record<string, string> | null;
     is_active: boolean;
 }
 
@@ -67,6 +68,7 @@ export interface LmsEnrollment {
     job_role: string;
     role: 'learner' | 'admin';
     peer_buddy_user_id: string | null;
+    study_group_name?: string | null;
     timezone: string;
     reminder_hour: number;
     weekend_reminders: boolean;
@@ -132,6 +134,22 @@ export function normalizeWeekExtensions(raw: unknown): Record<string, number> {
         const extra = Math.floor(Number(v));
         if (Number.isInteger(wk) && wk >= 1 && wk <= BASE_COHORT_WEEKS && Number.isFinite(extra) && extra > 0) {
             out[String(wk)] = Math.min(4, extra);
+        }
+    }
+    return out;
+}
+
+/**
+ * Normalizes a weekly_leads_json map ({ "1": "<user_uuid>", "2": "<user_uuid>" }):
+ * keys must be curriculum weeks 1..12, values must be valid UUIDs.
+ */
+export function normalizeWeeklyLeads(raw: unknown): Record<string, string> {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+    const out: Record<string, string> = {};
+    for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+        const wk = Number(k);
+        if (Number.isInteger(wk) && wk >= 1 && wk <= BASE_COHORT_WEEKS && isValidUuid(v)) {
+            out[String(wk)] = v.trim();
         }
     }
     return out;

@@ -14,6 +14,7 @@ import {
     MessageSquareQuote,
     Play,
     PlayCircle,
+    Star,
     Target,
     Users,
 } from 'lucide-react';
@@ -78,7 +79,7 @@ export function RoadmapDashboard() {
         );
     }
 
-    const { stats, nextUpLesson, courses, teamFeed, cohort, studyPartner } = data;
+    const { stats, nextUpLesson, courses, teamFeed, cohort, weeklyLead, myStudyGroup, teamPairings } = data;
     const paceDelta = stats.progressPct - stats.targetPct;
 
     return (
@@ -357,63 +358,171 @@ export function RoadmapDashboard() {
                     )}
                 </div>
 
-                {/* Right Column: Study Partner + Team Notes Feed */}
+                {/* Right Column: Weekly Team Lead + Study Pods & Pairings + Team Notes */}
                 <div className="min-w-0 w-full space-y-6">
-                    {studyPartner && (
+                    {/* Delegated Weekly Team Lead */}
+                    {weeklyLead && (
+                        <div className="space-y-3">
+                            <div className="flex items-center gap-2">
+                                <Star className="w-4 h-4 text-amber-600" />
+                                <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-neutral-900">
+                                    Week {weeklyLead.week} Team Lead
+                                </h2>
+                            </div>
+                            <div className="bg-[#030213] text-white p-4 space-y-2 text-left border border-neutral-900">
+                                <div className="flex items-start justify-between gap-2">
+                                    <div className="min-w-0">
+                                        <div className="text-sm font-semibold truncate">
+                                            {weeklyLead.fullName}
+                                            {weeklyLead.isCurrentUser && (
+                                                <span className="ml-2 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-amber-400 text-neutral-950">
+                                                    You
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="text-[11px] text-neutral-400 truncate">
+                                            {weeklyLead.jobRole || 'Cohort Lead'}
+                                            {weeklyLead.studyGroup ? ` · ${weeklyLead.studyGroup}` : ''}
+                                        </div>
+                                    </div>
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-white/10 text-white text-[11px] font-semibold shrink-0">
+                                        <Flame className="w-3 h-3 text-amber-400" />
+                                        {weeklyLead.streak}d
+                                    </span>
+                                </div>
+                                <p className="text-[11px] text-neutral-300 leading-relaxed">
+                                    {weeklyLead.isCurrentUser
+                                        ? 'You are coordinating this week’s check-ins, Q&A agenda, and team accountability.'
+                                        : 'Coordinating this week’s check-ins, Q&A agenda, and pod accountability.'}
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* My Study Pod (2, 3, 4+ members) */}
+                    {myStudyGroup && myStudyGroup.members?.length > 0 && (
+                        <div className="space-y-3">
+                            <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2">
+                                    <Users className="w-4 h-4 text-neutral-900" />
+                                    <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-neutral-900">
+                                        My Study Pod
+                                    </h2>
+                                </div>
+                                <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-neutral-200/80 text-neutral-800">
+                                    {myStudyGroup.name}
+                                </span>
+                            </div>
+
+                            <div className="bg-white border border-neutral-200 p-4 space-y-3 text-left">
+                                {myStudyGroup.members.map((m: any, idx: number) => (
+                                    <div
+                                        key={idx}
+                                        className={`space-y-1.5 ${idx > 0 ? 'pt-3 border-t border-neutral-100' : ''}`}
+                                    >
+                                        <div className="flex items-start justify-between gap-2">
+                                            <div className="min-w-0">
+                                                <div className="text-xs font-semibold text-neutral-950 flex flex-wrap items-center gap-1.5">
+                                                    <span className="truncate">{m.fullName}</span>
+                                                    {m.isCurrentUser && (
+                                                        <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 bg-neutral-100 border border-neutral-200 text-neutral-600">
+                                                            You
+                                                        </span>
+                                                    )}
+                                                    {m.isWeeklyLead && (
+                                                        <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 bg-amber-100 text-amber-900">
+                                                            Week {stats.currentWeek} Lead
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                {m.jobRole && (
+                                                    <div className="text-[11px] text-neutral-500 truncate">{m.jobRole}</div>
+                                                )}
+                                            </div>
+                                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-neutral-100 border border-neutral-200 text-neutral-900 text-[11px] font-semibold shrink-0">
+                                                <Flame className="w-3 h-3 text-amber-600" />
+                                                {m.streak}d
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center justify-between text-[11px]">
+                                            <span className="font-semibold text-neutral-900">{m.progressPct}% complete</span>
+                                            <span className="text-neutral-500">
+                                                {m.completedLessons}/{m.totalLessons} lessons
+                                            </span>
+                                        </div>
+                                        <div className="h-1.5 w-full bg-neutral-200 overflow-hidden">
+                                            <div
+                                                className="h-full bg-[#030213] transition-all duration-500"
+                                                style={{ width: `${m.progressPct}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Full Team Pairings & Study Pods Directory */}
+                    {teamPairings && (teamPairings.groups?.length > 0 || teamPairings.unassigned?.length > 0) && (
                         <div className="space-y-3">
                             <div className="flex items-center gap-2">
                                 <Users className="w-4 h-4 text-neutral-900" />
                                 <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-neutral-900">
-                                    Study Partner
+                                    Team Pairings
                                 </h2>
                             </div>
 
                             <div className="bg-white border border-neutral-200 p-4 space-y-3 text-left">
-                                <div className="flex items-start justify-between gap-3">
-                                    <div className="min-w-0">
-                                        <div className="text-sm font-semibold text-neutral-950 truncate">
-                                            {studyPartner.fullName}
+                                {(teamPairings.groups || []).map((grp: any) => (
+                                    <div key={grp.name} className="p-3 bg-neutral-50 border border-neutral-200 space-y-2">
+                                        <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-neutral-600">
+                                            <span>{grp.name}</span>
+                                            <span>{grp.members.length} members</span>
                                         </div>
-                                        {studyPartner.jobRole && (
-                                            <div className="text-[11px] text-neutral-500 truncate">
-                                                {studyPartner.jobRole}
+                                        <div className="space-y-1.5">
+                                            {grp.members.map((m: any, idx: number) => (
+                                                <div key={idx} className="flex items-center justify-between gap-2 text-xs">
+                                                    <div className="min-w-0 flex items-center gap-1.5">
+                                                        <span className="font-medium text-neutral-900 truncate">
+                                                            {m.fullName}
+                                                        </span>
+                                                        {m.isWeeklyLead && (
+                                                            <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase bg-amber-100 text-amber-900 shrink-0">
+                                                                Lead
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <span className="text-[11px] font-mono text-neutral-600 shrink-0">
+                                                        {m.progressPct}% · {m.streak}d
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+
+                                {(teamPairings.unassigned || []).length > 0 && (
+                                    <div className="p-3 bg-white border border-dashed border-neutral-300 space-y-1.5">
+                                        <div className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">
+                                            Cohort Members (Not in a Pod Yet)
+                                        </div>
+                                        {teamPairings.unassigned.map((m: any, idx: number) => (
+                                            <div key={idx} className="flex items-center justify-between gap-2 text-xs">
+                                                <div className="min-w-0 flex items-center gap-1.5">
+                                                    <span className="text-neutral-800 truncate">{m.fullName}</span>
+                                                    {m.isWeeklyLead && (
+                                                        <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase bg-amber-100 text-amber-900 shrink-0">
+                                                            Lead
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <span className="text-[11px] font-mono text-neutral-500 shrink-0">
+                                                    {m.progressPct}% · {m.streak}d
+                                                </span>
                                             </div>
-                                        )}
+                                        ))}
                                     </div>
-                                    <span
-                                        title="Partner's daily study streak"
-                                        className="inline-flex items-center gap-1 px-2 py-0.5 bg-neutral-100 border border-neutral-200 text-neutral-900 text-xs font-semibold shrink-0"
-                                    >
-                                        <Flame className="w-3 h-3 text-amber-600" />
-                                        {studyPartner.streak}d
-                                    </span>
-                                </div>
-
-                                <div className="space-y-1.5">
-                                    <div className="flex items-center justify-between text-xs">
-                                        <span className="font-semibold text-neutral-950">
-                                            {studyPartner.progressPct}% complete
-                                        </span>
-                                        <span className="text-neutral-500">
-                                            {studyPartner.completedLessons}/{studyPartner.totalLessons} lessons
-                                        </span>
-                                    </div>
-                                    <div className="h-1.5 w-full bg-neutral-200 overflow-hidden">
-                                        <div
-                                            className="h-full bg-[#030213] transition-all duration-500"
-                                            style={{ width: `${studyPartner.progressPct}%` }}
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="flex items-center justify-between text-[11px] text-neutral-500 pt-1 border-t border-neutral-100">
-                                    <span>Currently on Week {studyPartner.currentWeek}</span>
-                                    <span>
-                                        {studyPartner.lastActiveAt
-                                            ? `Active ${new Date(studyPartner.lastActiveAt).toLocaleDateString()}`
-                                            : 'Not started yet'}
-                                    </span>
-                                </div>
+                                )}
                             </div>
                         </div>
                     )}

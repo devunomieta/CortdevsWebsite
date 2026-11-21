@@ -6,6 +6,7 @@ import {
     getCurrentCohortWeek,
     getEffectiveStreak,
     isModuleDripUnlocked,
+    normalizeWeeklyLeads,
     requireLmsMember,
 } from '../../_lib/lmsGate.js';
 
@@ -20,8 +21,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
         const { cohort, enrollment } = member;
 
-        const partnerUserId = enrollment.peer_buddy_user_id || null;
-
         const [
             { data: courses },
             { data: modules },
@@ -30,9 +29,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             { data: submissions },
             { data: overrides },
             { data: recentTakeaways },
-            partnerEnrollmentRes,
-            partnerCompletedCountRes,
-            partnerLatestProgressRes,
+            { data: cohortMembers },
+            { data: cohortCompletedRows },
         ] = await Promise.all([
             supabase.from('lms_courses').select('*').order('order_index', { ascending: true }),
             supabase.from('lms_modules').select('*').order('global_order', { ascending: true }),
@@ -62,35 +60,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 .not('key_takeaway', 'is', null)
                 .order('completed_at', { ascending: false })
                 .limit(12),
-            // Ultra-lightweight Study Partner queries (only run when paired; 0 rows transferred for count!)
-            partnerUserId
-                ? supabase
-                      .from('lms_enrollments')
-                      .select('user_id, full_name, job_role, current_streak, longest_streak, last_streak_date, last_active_at')
-                      .eq('cohort_id', cohort.id)
-                      .eq('user_id', partnerUserId)
-                      .eq('status', 'active')
-                      .maybeSingle()
-                : Promise.resolve({ data: null }),
-            partnerUserId
-                ? supabase
-                      .from('lms_lesson_progress')
-                      .select('lesson_id', { count: 'exact', head: true })
-                      .eq('cohort_id', cohort.id)
-                      .eq('user_id', partnerUserId)
-                      .eq('status', 'completed')
-                : Promise.resolve({ count: 0 }),
-            partnerUserId
-                ? supabase
-                      .from('lms_lesson_progress')
-                      .select('lesson_id, completed_at')
-                      .eq('cohort_id', cohort.id)
-                      .eq('user_id', partnerUserId)
-                      .eq('status', 'completed')
-                      .order('completed_at', { ascending: false })
-                      .limit(1)
-                      .maybeSingle()
-                : Promise.resolve({ data: null }),
+            // Active cohort roster (safe non-PII fields only: name, role, study pod, streak)
+            supabase
+                .from('lms_enrollments')
+                .select('user_id, full_name, job_role, role, study_group_name, peer_buddy_user_id, current_streak, longest_streak, last_streak_date, last_active_at')
+                .eq('cohort_id', cohort.id)
+                .eq('status', 'active')
+                .order('full_name', { ascending: true }),
+            // Compact completed-lesson user_id list for cohort pod progress counts
+            supabase
+                .from('lms_lesson_progress')
+                .select('user_id')
+                .eq('cohort_id', cohort.id)
+                .eq('status', 'completed'),
         ]);
 
         const progressMap = new Map<string, any>();
@@ -237,43 +219,93 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const weekSchedule = buildCohortWeekSchedule(cohort);
         const liveStreak = getEffectiveStreak(enrollment);
 
-        // Assemble compact Study Partner summary from in-memory lesson/module maps (0 extra queries)
-        let studyPartner: {
-            fullName: string;
-            jobRole: string | null;
-            completedLessons: number;
-            totalLessons: number;
-            progressPct: number;
-            currentWeek: number;
-            streak: number;
-            longestStreak: number;
-            lastActiveAt: string | null;
-        } | null = null;
+        // Aggregate completed lesson counts across cohort members (in-memory, 0 extra DB queries)
+        const completedCountByUser = new Map<string, number>();
+        for (const r of cohortCompletedRows || []) {
+            completedCountByUser.set(r.user_id, (completedCountByUser.get(r.user_id) || 0) + 1);
+        }
 
-        const partnerRow = partnerEnrollmentRes?.data as any;
-        if (partnerRow) {
-            const pCompleted = (partnerCompletedCountRes as any)?.count || 0;
-            const latestRow = (partnerLatestProgressRes as any)?.data as { lesson_id?: string } | null;
-            let partnerWeek = 1;
-            if (latestRow?.lesson_id) {
-                const matchedLesson = allLessons.find((l: any) => l.id === latestRow.lesson_id);
-                if (matchedLesson) {
-                    const matchedMod = moduleMap.get(matchedLesson.module_id);
-                    if (matchedMod?.target_week) partnerWeek = matchedMod.target_week;
+        const weeklyLeadsMap = normalizeWeeklyLeads(cohort.weekly_leads_json);
+        const currentWeekLeadUserId = weeklyLeadsMap[String(currentWeek)] || null;
+
+        const roster = (cohortMembers || []).map((m: any) => {
+            const done = completedCountByUser.get(m.user_id) || 0;
+            return {
+                userId: m.user_id,
+                fullName: m.full_name,
+                jobRole: m.job_role || null,
+                role: m.role,
+                studyGroup: m.study_group_name || null,
+                peerBuddyUserId: m.peer_buddy_user_id || null,
+                completedLessons: done,
+                totalLessons,
+                progressPct: totalLessons > 0 ? Math.round((done / totalLessons) * 100) : 0,
+                streak: getEffectiveStreak(m),
+                lastActiveAt: m.last_active_at || null,
+                isCurrentUser: m.user_id === enrollment.user_id,
+                isWeeklyLead: Boolean(currentWeekLeadUserId && m.user_id === currentWeekLeadUserId),
+            };
+        });
+
+        // Build Study Groups / Pods (supports 2, 3, 4+ members per pod + backward-compatible legacy 1-to-1 pairs)
+        const groupsMap = new Map<string, typeof roster>();
+        const unassigned: typeof roster = [];
+        const handledLegacyPairs = new Set<string>();
+
+        for (const m of roster) {
+            if (m.studyGroup) {
+                const list = groupsMap.get(m.studyGroup) || [];
+                list.push(m);
+                groupsMap.set(m.studyGroup, list);
+            }
+        }
+
+        // Fold any legacy 1-to-1 peer_buddy_user_id pairs (without study_group_name) into auto-named pairs
+        let legacyPairNum = 1;
+        for (const m of roster) {
+            if (m.studyGroup || handledLegacyPairs.has(m.userId)) continue;
+            if (m.peerBuddyUserId) {
+                const buddy = roster.find((x) => x.userId === m.peerBuddyUserId && !x.studyGroup);
+                if (buddy && !handledLegacyPairs.has(buddy.userId)) {
+                    const pairLabel = `Pair ${legacyPairNum++}`;
+                    groupsMap.set(pairLabel, [m, buddy]);
+                    handledLegacyPairs.add(m.userId);
+                    handledLegacyPairs.add(buddy.userId);
+                    continue;
                 }
             }
-            studyPartner = {
-                fullName: partnerRow.full_name,
-                jobRole: partnerRow.job_role || null,
-                completedLessons: pCompleted,
-                totalLessons,
-                progressPct: totalLessons > 0 ? Math.round((pCompleted / totalLessons) * 100) : 0,
-                currentWeek: partnerWeek,
-                streak: getEffectiveStreak(partnerRow),
-                longestStreak: partnerRow.longest_streak || 0,
-                lastActiveAt: partnerRow.last_active_at || null,
-            };
+            unassigned.push(m);
         }
+
+        const groups = Array.from(groupsMap.entries())
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([name, membersList]) => ({
+                name,
+                members: membersList.map(({ peerBuddyUserId: _p, userId: _u, ...safe }) => safe),
+            }));
+
+        const myGroupEntry = Array.from(groupsMap.entries()).find(([, membersList]) =>
+            membersList.some((x) => x.isCurrentUser),
+        );
+        const myStudyGroup = myGroupEntry
+            ? {
+                  name: myGroupEntry[0],
+                  members: myGroupEntry[1].map(({ peerBuddyUserId: _p, userId: _u, ...safe }) => safe),
+              }
+            : null;
+
+        const leadMember = currentWeekLeadUserId ? roster.find((m) => m.userId === currentWeekLeadUserId) : null;
+        const weeklyLead = leadMember
+            ? {
+                  week: currentWeek,
+                  fullName: leadMember.fullName,
+                  jobRole: leadMember.jobRole,
+                  studyGroup: leadMember.studyGroup,
+                  progressPct: leadMember.progressPct,
+                  streak: leadMember.streak,
+                  isCurrentUser: leadMember.isCurrentUser,
+              }
+            : null;
 
         return res.status(200).json({
             cohort,
@@ -295,7 +327,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 streak: liveStreak,
                 longestStreak: enrollment.longest_streak || 0,
             },
-            studyPartner,
+            weeklyLead,
+            myStudyGroup,
+            teamPairings: {
+                groups,
+                unassigned: unassigned.map(({ peerBuddyUserId: _p, userId: _u, ...safe }) => safe),
+            },
             weekSchedule,
             nextUpLesson,
             courses: tree,

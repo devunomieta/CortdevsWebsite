@@ -179,6 +179,7 @@ export async function sendLmsProjectSubmitted(params: {
     projectTitle: string;
     adminEmails: string[];
     peerBuddyEmail?: string | null;
+    peerBuddyEmails?: string[];
     cohortId: string;
     userId: string;
     lessonId: string;
@@ -196,7 +197,11 @@ export async function sendLmsProjectSubmitted(params: {
         `,
     });
 
-    const reviewers = [...new Set([...params.adminEmails, ...(params.peerBuddyEmail ? [params.peerBuddyEmail] : [])])].filter(
+    const peerEmails = [
+        ...(params.peerBuddyEmail ? [params.peerBuddyEmail] : []),
+        ...(params.peerBuddyEmails || []),
+    ];
+    const reviewers = [...new Set([...params.adminEmails, ...peerEmails])].filter(
         (e) => e && e.toLowerCase() !== params.learnerEmail.toLowerCase(),
     );
     if (reviewers.length > 0) {
