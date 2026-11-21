@@ -164,6 +164,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 if (!nextUpLesson) {
                     nextUpLesson = {
                         id: lesson.id,
+                        slug: lesson.slug,
                         title: lesson.title,
                         lesson_type: lesson.lesson_type,
                         estimated_minutes: lesson.estimated_minutes,

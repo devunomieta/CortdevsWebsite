@@ -105,7 +105,7 @@ export function RoadmapDashboard() {
 
                     {nextUpLesson && (
                         <Link
-                            to={`/lesson/${nextUpLesson.id}`}
+                            to={`/lesson/${nextUpLesson.slug || nextUpLesson.id}`}
                             className="w-full sm:w-auto shrink-0 inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-white hover:bg-neutral-100 text-[#030213] text-xs font-bold uppercase tracking-[0.2em] transition"
                         >
                             <Play className="w-3.5 h-3.5 fill-current" />
@@ -340,7 +340,11 @@ export function RoadmapDashboard() {
                                                                     return isLocked ? (
                                                                         <div key={lesson.id}>{rowInner}</div>
                                                                     ) : (
-                                                                        <Link key={lesson.id} to={`/lesson/${lesson.id}`} className="block">
+                                                                        <Link
+                                                                            key={lesson.id}
+                                                                            to={`/lesson/${lesson.slug || lesson.id}`}
+                                                                            className="block"
+                                                                        >
                                                                             {rowInner}
                                                                         </Link>
                                                                     );

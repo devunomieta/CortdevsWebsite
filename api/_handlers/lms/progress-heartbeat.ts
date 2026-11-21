@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabase } from '../../_lib/supabase.js';
 import {
     evaluateLessonAccess,
+    isValidLessonIdentifier,
     isValidUuid,
     mergeWatchedRanges,
     requireLmsMember,
@@ -22,9 +23,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!member) return;
 
     const { lessonId, watchedRange, maxSecond, lastPosition, scrollPct, dwellDeltaSeconds, notes } = req.body || {};
-    if (!isValidUuid(lessonId)) return res.status(400).json({ error: 'Valid lessonId required' });
+    if (!isValidLessonIdentifier(lessonId)) return res.status(400).json({ error: 'Valid lessonId or slug required' });
 
-    const cleanLessonId = String(lessonId);
+    const rawIdentifier = String(lessonId).trim();
+    let cleanLessonId = rawIdentifier;
+    if (!isValidUuid(lessonId as unknown)) {
+        const { data: resolved } = await supabase
+            .from('lms_lessons')
+            .select('id')
+            .eq('slug', rawIdentifier.toLowerCase())
+            .maybeSingle();
+        if (!resolved?.id) return res.status(404).json({ error: 'Lesson not found' });
+        cleanLessonId = resolved.id;
+    }
 
     // Fast path for free-tier efficiency:
     // If an in_progress/completed row already exists for this user + lesson,

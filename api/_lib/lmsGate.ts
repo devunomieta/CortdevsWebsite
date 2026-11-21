@@ -5,6 +5,7 @@ import { verifyAuth } from './auth.js';
 export type WatchedRange = [number, number];
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const LESSON_SLUG_REGEX = /^[a-z0-9][a-z0-9-]{2,140}$/i;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 // Strips ASCII control chars (except \n, \t) and Unicode zero-width / BiDi spoofing characters
 // eslint-disable-next-line no-control-regex
@@ -37,6 +38,14 @@ export function sanitizeSingleLine(input: unknown, maxLen: number): string {
 
 export function isValidUuid(input: unknown): input is string {
     return typeof input === 'string' && UUID_REGEX.test(input.trim());
+}
+
+export function isValidLessonSlug(input: unknown): input is string {
+    return typeof input === 'string' && LESSON_SLUG_REGEX.test(input.trim());
+}
+
+export function isValidLessonIdentifier(input: unknown): input is string {
+    return isValidUuid(input) || isValidLessonSlug(input);
 }
 
 export function isValidEmail(input: unknown): input is string {
@@ -387,20 +396,26 @@ export async function evaluateLessonAccess(params: {
     reason?: 'drip_locked' | 'prerequisite_locked' | 'not_found';
     unlocksAt?: string;
     prerequisiteLessonId?: string;
+    prerequisiteLessonSlug?: string;
     prerequisiteTitle?: string;
     lesson?: any;
     module?: any;
 }> {
     const { cohort, enrollment, lessonId, includeContent = false } = params;
+    const cleanRef = String(lessonId || '').trim();
+    if (!isValidLessonIdentifier(cleanRef)) {
+        return { allowed: false, reason: 'not_found' };
+    }
 
     const lessonColumns = includeContent
         ? '*, lms_modules(id, title, target_week, global_order, lms_courses(id, title))'
         : 'id, module_id, slug, order_index, global_order, lesson_type, title, estimated_minutes, duration_seconds, min_dwell_seconds, pass_threshold_pct, quiz_keys_verified, lms_modules(id, title, target_week, global_order, lms_courses(id, title))';
 
+    const lookupCol = isValidUuid(cleanRef) ? 'id' : 'slug';
     const { data: lesson } = await supabase
         .from('lms_lessons')
         .select(lessonColumns)
-        .eq('id', lessonId)
+        .eq(lookupCol, lookupCol === 'slug' ? cleanRef.toLowerCase() : cleanRef)
         .maybeSingle();
 
     if (!lesson) return { allowed: false, reason: 'not_found' };
@@ -441,7 +456,7 @@ export async function evaluateLessonAccess(params: {
         const [{ data: moduleLessons }, { data: completedRows }] = await Promise.all([
             supabase
                 .from('lms_lessons')
-                .select('id, title, module_id, lesson_type, global_order, order_index')
+                .select('id, slug, title, module_id, lesson_type, global_order, order_index')
                 .eq('module_id', lesson.module_id)
                 .order('global_order', { ascending: true }),
             supabase
@@ -460,7 +475,7 @@ export async function evaluateLessonAccess(params: {
         if (firstGlobalInMod > 1) {
             const { data: earlierLessons } = await supabase
                 .from('lms_lessons')
-                .select('id, title, global_order')
+                .select('id, slug, title, global_order')
                 .lt('global_order', firstGlobalInMod)
                 .order('global_order', { ascending: true });
 
@@ -470,6 +485,7 @@ export async function evaluateLessonAccess(params: {
                     allowed: false,
                     reason: 'prerequisite_locked',
                     prerequisiteLessonId: firstMissingEarlier.id,
+                    prerequisiteLessonSlug: firstMissingEarlier.slug,
                     prerequisiteTitle: firstMissingEarlier.title,
                     lesson,
                     module: mod,
@@ -490,6 +506,7 @@ export async function evaluateLessonAccess(params: {
                     allowed: false,
                     reason: 'prerequisite_locked',
                     prerequisiteLessonId: missingStudy.id,
+                    prerequisiteLessonSlug: missingStudy.slug,
                     prerequisiteTitle: missingStudy.title,
                     lesson,
                     module: mod,
@@ -506,6 +523,7 @@ export async function evaluateLessonAccess(params: {
                     allowed: false,
                     reason: 'prerequisite_locked',
                     prerequisiteLessonId: missingBeforeProject.id,
+                    prerequisiteLessonSlug: missingBeforeProject.slug,
                     prerequisiteTitle: missingBeforeProject.title,
                     lesson,
                     module: mod,

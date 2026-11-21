@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 import {
     AlertTriangle,
     ArrowLeft,
@@ -30,13 +30,23 @@ const HEARTBEAT_INTERVAL_MS = 30000; // 30s heartbeat (cuts free-tier API + DB l
 
 export function LessonPlayer() {
     const { lessonId } = useParams();
+    const location = useLocation();
+    const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const { isAdmin, user, enrollment, refreshProfile } = useLearnAuth();
+
+    const fromVideo = searchParams.get('fromVideo') || '';
+    const resumeParamRaw = Number(searchParams.get('t') || '0');
+    const resumeParamSec = Number.isFinite(resumeParamRaw) && resumeParamRaw > 0 ? Math.floor(resumeParamRaw) : 0;
+
+    const skipNextLoadForSlugRef = useRef<string | null>(null);
+    const appliedResumeForLessonRef = useRef<string | null>(null);
 
     const [loading, setLoading] = useState(true);
     const [data, setData] = useState<any | null>(null);
     const [lockedInfo, setLockedInfo] = useState<any | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [resumedBanner, setResumedBanner] = useState<string | null>(null);
 
     // Video state (refs prevent stale closures in heartbeat & pause/ended handlers)
     const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -80,12 +90,18 @@ export function LessonPlayer() {
 
     const loadLesson = useCallback(async () => {
         if (!lessonId) return;
+        if (skipNextLoadForSlugRef.current === lessonId) {
+            skipNextLoadForSlugRef.current = null;
+            return;
+        }
         setLoading(true);
         setError(null);
         setLockedInfo(null);
         setActionMsg(null);
         setQuizResult(null);
         setQuizAnswers({});
+        setResumedBanner(null);
+        appliedResumeForLessonRef.current = null;
 
         try {
             const res = await learnApi(`lms/lesson?id=${encodeURIComponent(lessonId)}`);
@@ -101,6 +117,12 @@ export function LessonPlayer() {
             setExternalUrl(res.projectSubmission?.external_url || '');
             setReflection(res.projectSubmission?.reflection_notes || '');
 
+            // Silently upgrade legacy /lesson/<uuid> URLs to canonical /lesson/<slug>
+            if (res.lesson?.slug && lessonId !== res.lesson.slug) {
+                skipNextLoadForSlugRef.current = res.lesson.slug;
+                navigate(`/lesson/${res.lesson.slug}${location.search}`, { replace: true });
+            }
+
             if (res.lesson?.module_id) {
                 learnApi(`lms/discussions?moduleId=${encodeURIComponent(res.lesson.module_id)}`)
                     .then((d) => setComments(d.comments || []))
@@ -115,7 +137,7 @@ export function LessonPlayer() {
         } finally {
             setLoading(false);
         }
-    }, [lessonId]);
+    }, [lessonId, location.search, navigate]);
 
     useEffect(() => {
         loadLesson();
@@ -124,6 +146,7 @@ export function LessonPlayer() {
     const activeLessonId = data?.lesson?.id as string | undefined;
     const activeLessonType = data?.lesson?.lesson_type as string | undefined;
     const initialLastPosition = (data?.progress?.last_position_seconds as number) || 0;
+    const activeLessonCompleted = data?.progress?.status === 'completed';
 
     const flushVideoHeartbeat = useCallback(
         async (forceLessonId?: string) => {
@@ -160,13 +183,42 @@ export function LessonPlayer() {
         [activeLessonId],
     );
 
-    // Video 30-second heartbeat + initial resume position
+    // Video 30-second heartbeat + exact resume position (?t= param or saved last_position_seconds)
     useEffect(() => {
         if (!activeLessonId || activeLessonType !== 'video') return;
         const vid = videoRef.current;
-        if (vid && initialLastPosition > 5) {
-            vid.currentTime = initialLastPosition;
-            segmentStartRef.current = initialLastPosition;
+        let bannerTimer: number | null = null;
+
+        const applyResumePosition = () => {
+            if (!vid || appliedResumeForLessonRef.current === activeLessonId) return;
+            const dur = Number.isFinite(vid.duration) && vid.duration > 0 ? vid.duration : 0;
+
+            let targetSec = 0;
+            if (resumeParamSec > 0) {
+                const maxAllowed =
+                    isAdmin || activeLessonCompleted
+                        ? resumeParamSec
+                        : Math.min(resumeParamSec, Math.max(maxWatchedRef.current + 15, initialLastPosition));
+                targetSec = dur > 1 ? Math.min(maxAllowed, Math.floor(dur - 1)) : maxAllowed;
+            } else if (initialLastPosition > 5 && (dur === 0 || initialLastPosition < dur - 10)) {
+                targetSec = initialLastPosition;
+            }
+
+            appliedResumeForLessonRef.current = activeLessonId;
+            if (targetSec > 2) {
+                vid.currentTime = targetSec;
+                segmentStartRef.current = targetSec;
+                setResumedBanner(formatDuration(targetSec));
+                bannerTimer = window.setTimeout(() => setResumedBanner(null), 5000);
+            }
+        };
+
+        if (vid) {
+            if (vid.readyState >= 1) {
+                applyResumePosition();
+            } else {
+                vid.addEventListener('loadedmetadata', applyResumePosition, { once: true });
+            }
         }
 
         const interval = window.setInterval(() => {
@@ -174,8 +226,12 @@ export function LessonPlayer() {
             flushVideoHeartbeat(activeLessonId);
         }, HEARTBEAT_INTERVAL_MS);
 
-        return () => window.clearInterval(interval);
-    }, [activeLessonId, activeLessonType, initialLastPosition, flushVideoHeartbeat]);
+        return () => {
+            if (vid) vid.removeEventListener('loadedmetadata', applyResumePosition);
+            if (bannerTimer) window.clearTimeout(bannerTimer);
+            window.clearInterval(interval);
+        };
+    }, [activeLessonId, activeLessonType, activeLessonCompleted, initialLastPosition, isAdmin, resumeParamSec, flushVideoHeartbeat]);
 
     // Reading active dwell timer (30s heartbeats while tab is visible) + scroll tracking
     useEffect(() => {
@@ -263,12 +319,14 @@ export function LessonPlayer() {
         }
     };
 
-    const handleCompleteVideoOrReading = async () => {
+    const handleCompleteVideoOrReading = async (afterAction: 'continue' | 'return_video' | 'stay' = 'continue') => {
         if (!data) return;
         setCompleting(true);
         setActionMsg(null);
         try {
-            if (data.lesson.lesson_type === 'reading') {
+            if (data.lesson.lesson_type === 'video') {
+                await flushVideoHeartbeat(data.lesson.id);
+            } else if (data.lesson.lesson_type === 'reading') {
                 await learnApi('lms/progress-heartbeat', {
                     method: 'POST',
                     body: { lessonId: data.lesson.id, scrollPct: Math.max(scrollPct, 90), dwellDeltaSeconds: 5 },
@@ -282,8 +340,28 @@ export function LessonPlayer() {
                 },
             });
             setData((prev: any) => ({ ...prev, progress: res.progress }));
-            await refreshProfile();
-            setActionMsg({ type: 'success', text: 'Lesson completed! Your next lesson is now unlocked.' });
+            refreshProfile().catch(() => {});
+
+            if (afterAction === 'return_video' && fromVideo) {
+                navigate(`/lesson/${fromVideo}${resumeParamSec > 0 ? `?t=${resumeParamSec}` : ''}`);
+                return;
+            }
+
+            const nextTarget = res.nextLesson || data.navigation?.next;
+            if (afterAction === 'continue' && nextTarget) {
+                navigate(`/lesson/${nextTarget.slug || nextTarget.id}`);
+                return;
+            }
+
+            setActionMsg({
+                type: 'success',
+                text:
+                    afterAction === 'stay'
+                        ? 'Key takeaway note saved.'
+                        : nextTarget
+                          ? 'Lesson completed! Your next lesson is now unlocked.'
+                          : 'Lesson completed! You have finished this track.',
+            });
         } catch (err: any) {
             setActionMsg({ type: 'error', text: err?.message || 'Could not complete lesson yet.' });
         } finally {
@@ -515,9 +593,9 @@ export function LessonPlayer() {
                     >
                         Back to Roadmap
                     </Link>
-                    {lockedInfo.prerequisiteLessonId && (
+                    {(lockedInfo.prerequisiteLessonSlug || lockedInfo.prerequisiteLessonId) && (
                         <Link
-                            to={`/lesson/${lockedInfo.prerequisiteLessonId}`}
+                            to={`/lesson/${lockedInfo.prerequisiteLessonSlug || lockedInfo.prerequisiteLessonId}`}
                             className="px-5 py-2.5 bg-[#030213] hover:bg-neutral-800 text-xs font-bold uppercase tracking-[0.16em] text-white"
                         >
                             Go to: {lockedInfo.prerequisiteTitle || 'Previous Lesson'}
@@ -574,7 +652,7 @@ export function LessonPlayer() {
                 <div className="flex items-center gap-2 w-full sm:w-auto">
                     {navigation.prev && (
                         <button
-                            onClick={() => navigate(`/lesson/${navigation.prev.id}`)}
+                            onClick={() => navigate(`/lesson/${navigation.prev.slug || navigation.prev.id}`)}
                             className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-white border border-neutral-300 hover:border-neutral-950 text-xs font-bold uppercase tracking-[0.14em] text-neutral-800 transition"
                         >
                             <ArrowLeft className="w-3.5 h-3.5" /> Prev
@@ -583,7 +661,7 @@ export function LessonPlayer() {
                     {navigation.next && (
                         <button
                             disabled={!isCompleted && !isAdmin}
-                            onClick={() => navigate(`/lesson/${navigation.next.id}`)}
+                            onClick={() => navigate(`/lesson/${navigation.next.slug || navigation.next.id}`)}
                             className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-[#030213] hover:bg-neutral-800 disabled:opacity-35 disabled:cursor-not-allowed text-xs font-bold uppercase tracking-[0.14em] text-white transition"
                         >
                             Next Lesson <ArrowRight className="w-3.5 h-3.5" />
@@ -591,6 +669,21 @@ export function LessonPlayer() {
                     )}
                 </div>
             </div>
+
+            {lesson.lesson_type === 'reading' && fromVideo && (
+                <div className="bg-[#030213] text-white px-4 py-2.5 flex flex-wrap items-center justify-between gap-3">
+                    <Link
+                        to={`/lesson/${fromVideo}${resumeParamSec > 0 ? `?t=${resumeParamSec}` : ''}`}
+                        className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-white hover:text-neutral-200"
+                    >
+                        <ArrowLeft className="w-3.5 h-3.5" />
+                        Return to Module Video{resumeParamSec > 0 ? ` (at ${formatDuration(resumeParamSec)})` : ''}
+                    </Link>
+                    <span className="text-[11px] text-neutral-300">
+                        Your video position is saved — return any time or continue to the next lesson below.
+                    </span>
+                </div>
+            )}
 
             {actionMsg && (
                 <div
@@ -603,7 +696,7 @@ export function LessonPlayer() {
                     <span>{actionMsg.text}</span>
                     {actionMsg.type === 'success' && navigation.next && (
                         <button
-                            onClick={() => navigate(`/lesson/${navigation.next.id}`)}
+                            onClick={() => navigate(`/lesson/${navigation.next.slug || navigation.next.id}`)}
                             className="shrink-0 px-3.5 py-1.5 bg-[#030213] hover:bg-neutral-800 text-white text-xs font-bold uppercase tracking-[0.14em]"
                         >
                             Next Lesson →
@@ -617,11 +710,18 @@ export function LessonPlayer() {
                 <div className="space-y-4">
                     {lesson.video_signed_url ? (
                         <div className="relative">
+                            {resumedBanner && (
+                                <div className="mb-2 bg-neutral-900 text-white text-xs font-medium px-3.5 py-2 inline-flex items-center gap-2">
+                                    <PlayCircle className="w-3.5 h-3.5 text-emerald-400" />
+                                    Resumed video at <strong className="font-mono">{resumedBanner}</strong>
+                                </div>
+                            )}
                             <LearnVideoPlayer
                                 videoRef={videoRef}
                                 src={lesson.video_signed_url}
                                 transcriptUrl={lesson.transcript_signed_url}
                                 title={lesson.title}
+                                lessonSlug={lesson.slug || lesson.id}
                                 durationSeconds={lesson.duration_seconds || 0}
                                 chapters={(Array.isArray(lesson.chapters) ? lesson.chapters : []).map((ch: any) => ({
                                     title: ch.title,
@@ -631,6 +731,9 @@ export function LessonPlayer() {
                                 watermarkIdentity={[enrollment?.full_name || user?.email, enrollment?.email || user?.email, 'CortDevs']
                                     .filter(Boolean)
                                     .join(' · ')}
+                                nextLesson={navigation.next}
+                                canComplete={isAdmin || isCompleted || watchPct >= 90}
+                                completing={completing}
                                 notes={videoNotes}
                                 isAdmin={isAdmin}
                                 isCompleted={isCompleted}
@@ -651,6 +754,29 @@ export function LessonPlayer() {
                                     window.setTimeout(() => setSeekWarning(false), 3500);
                                 }}
                                 onSaveNotes={handleSaveVideoNotes}
+                                onCompleteAndContinue={() => {
+                                    if (isCompleted && navigation.next) {
+                                        navigate(`/lesson/${navigation.next.slug || navigation.next.id}`);
+                                    } else {
+                                        handleCompleteVideoOrReading('continue');
+                                    }
+                                }}
+                                onReadingCompleted={(completedReadingId) => {
+                                    setData((prev: any) =>
+                                        prev
+                                            ? {
+                                                  ...prev,
+                                                  lesson: {
+                                                      ...prev.lesson,
+                                                      module_readings: (prev.lesson.module_readings || []).map((r: any) =>
+                                                          r.id === completedReadingId ? { ...r, completed: true } : r,
+                                                      ),
+                                                  },
+                                              }
+                                            : prev,
+                                    );
+                                    refreshProfile().catch(() => {});
+                                }}
                             />
                             {seekWarning && (
                                 <div className="mt-2 bg-amber-50 border border-amber-300 text-amber-950 text-xs font-semibold px-3.5 py-2 flex items-center gap-2">
@@ -691,12 +817,30 @@ export function LessonPlayer() {
                                     </div>
                                 </div>
                                 <button
-                                    onClick={handleCompleteVideoOrReading}
-                                    disabled={completing || (!isAdmin && watchPct < 90)}
+                                    onClick={() => {
+                                        if (isCompleted && navigation.next) {
+                                            navigate(`/lesson/${navigation.next.slug || navigation.next.id}`);
+                                        } else {
+                                            handleCompleteVideoOrReading('continue');
+                                        }
+                                    }}
+                                    disabled={completing || (isCompleted && !navigation.next) || (!isCompleted && !isAdmin && watchPct < 90)}
                                     className="w-full sm:w-auto px-4 py-2.5 bg-[#030213] hover:bg-neutral-800 disabled:opacity-35 disabled:cursor-not-allowed text-white text-xs font-bold uppercase tracking-[0.14em] inline-flex items-center justify-center gap-2 transition"
                                 >
-                                    {completing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                                    {isCompleted ? 'Completed' : 'Mark Video Complete'}
+                                    {completing ? (
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                    ) : isCompleted && navigation.next ? (
+                                        <ArrowRight className="w-4 h-4" />
+                                    ) : (
+                                        <CheckCircle2 className="w-4 h-4" />
+                                    )}
+                                    {isCompleted
+                                        ? navigation.next
+                                            ? 'Next Lesson'
+                                            : 'Completed'
+                                        : navigation.next
+                                          ? 'Complete & Continue'
+                                          : 'Mark Video Complete'}
                                 </button>
                             </div>
 
@@ -749,14 +893,68 @@ export function LessonPlayer() {
                                 />
                                 <div className="flex flex-wrap items-center justify-between gap-3">
                                     <span className="text-xs text-neutral-500">{takeaway.trim().length} / 30 characters minimum</span>
-                                    <button
-                                        onClick={handleCompleteVideoOrReading}
-                                        disabled={completing}
-                                        className="w-full sm:w-auto px-5 py-2.5 bg-[#030213] hover:bg-neutral-800 disabled:opacity-50 text-white text-xs font-bold uppercase tracking-[0.16em] inline-flex items-center justify-center gap-2 transition"
-                                    >
-                                        {completing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                                        {isCompleted ? 'Update Note' : 'Save Note & Complete Reading'}
-                                    </button>
+                                    <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                                        {isCompleted ? (
+                                            <>
+                                                <button
+                                                    onClick={() => handleCompleteVideoOrReading('stay')}
+                                                    disabled={completing}
+                                                    className="flex-1 sm:flex-none px-4 py-2.5 bg-white border border-neutral-300 hover:border-neutral-950 disabled:opacity-50 text-neutral-900 text-xs font-bold uppercase tracking-[0.14em] inline-flex items-center justify-center gap-2 transition"
+                                                >
+                                                    {completing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                                                    Update Note
+                                                </button>
+                                                {fromVideo ? (
+                                                    <Link
+                                                        to={`/lesson/${fromVideo}${resumeParamSec > 0 ? `?t=${resumeParamSec}` : ''}`}
+                                                        className="flex-1 sm:flex-none px-5 py-2.5 bg-[#030213] hover:bg-neutral-800 text-white text-xs font-bold uppercase tracking-[0.14em] inline-flex items-center justify-center gap-2 transition"
+                                                    >
+                                                        <ArrowLeft className="w-3.5 h-3.5" />
+                                                        Return to Video{resumeParamSec > 0 ? ` (${formatDuration(resumeParamSec)})` : ''}
+                                                    </Link>
+                                                ) : (
+                                                    navigation.next && (
+                                                        <button
+                                                            onClick={() => navigate(`/lesson/${navigation.next.slug || navigation.next.id}`)}
+                                                            className="flex-1 sm:flex-none px-5 py-2.5 bg-[#030213] hover:bg-neutral-800 text-white text-xs font-bold uppercase tracking-[0.14em] inline-flex items-center justify-center gap-2 transition"
+                                                        >
+                                                            Next Lesson <ArrowRight className="w-3.5 h-3.5" />
+                                                        </button>
+                                                    )
+                                                )}
+                                            </>
+                                        ) : fromVideo ? (
+                                            <>
+                                                <button
+                                                    onClick={() => handleCompleteVideoOrReading('return_video')}
+                                                    disabled={completing}
+                                                    className="flex-1 sm:flex-none px-5 py-2.5 bg-[#030213] hover:bg-neutral-800 disabled:opacity-50 text-white text-xs font-bold uppercase tracking-[0.14em] inline-flex items-center justify-center gap-2 transition"
+                                                >
+                                                    {completing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                                                    Complete &amp; Return to Video{resumeParamSec > 0 ? ` (${formatDuration(resumeParamSec)})` : ''}
+                                                </button>
+                                                {navigation.next && (
+                                                    <button
+                                                        onClick={() => handleCompleteVideoOrReading('continue')}
+                                                        disabled={completing}
+                                                        className="flex-1 sm:flex-none px-4 py-2.5 bg-white border border-neutral-300 hover:border-neutral-950 disabled:opacity-50 text-neutral-900 text-xs font-bold uppercase tracking-[0.14em] inline-flex items-center justify-center gap-2 transition"
+                                                    >
+                                                        Complete &amp; Next <ArrowRight className="w-3.5 h-3.5" />
+                                                    </button>
+                                                )}
+                                            </>
+                                        ) : (
+                                            <button
+                                                onClick={() => handleCompleteVideoOrReading('continue')}
+                                                disabled={completing}
+                                                className="w-full sm:w-auto px-5 py-2.5 bg-[#030213] hover:bg-neutral-800 disabled:opacity-50 text-white text-xs font-bold uppercase tracking-[0.16em] inline-flex items-center justify-center gap-2 transition"
+                                            >
+                                                {completing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                                                {navigation.next ? 'Complete & Continue' : 'Save Note & Complete Reading'}
+                                                {navigation.next && <ArrowRight className="w-3.5 h-3.5" />}
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -791,9 +989,12 @@ export function LessonPlayer() {
                                         {quizResult.passed ? 'Passed!' : 'Not quite yet — try again!'} Score: {quizResult.scorePct}% (
                                         {quizResult.correctCount}/{quizResult.totalQuestions} correct)
                                     </div>
-                                    {quizResult.passed && navigation.next && (
+                                    {quizResult.passed && (quizResult.nextLesson || navigation.next) && (
                                         <button
-                                            onClick={() => navigate(`/lesson/${navigation.next.id}`)}
+                                            onClick={() => {
+                                                const nextTarget = quizResult.nextLesson || navigation.next;
+                                                navigate(`/lesson/${nextTarget.slug || nextTarget.id}`);
+                                            }}
                                             className="mt-2.5 px-4 py-2 bg-[#030213] hover:bg-neutral-800 text-white text-xs font-bold uppercase tracking-[0.14em]"
                                         >
                                             Continue to Next Lesson →

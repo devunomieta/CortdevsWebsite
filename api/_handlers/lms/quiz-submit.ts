@@ -144,7 +144,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const { data: nl } = await supabase
             .from('lms_lessons')
-            .select('id, title, lesson_type')
+            .select('id, slug, title, lesson_type')
             .eq('global_order', lesson.global_order + 1)
             .maybeSingle();
         nextLesson = nl || null;

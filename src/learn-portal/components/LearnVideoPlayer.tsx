@@ -1,13 +1,17 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import {
+    ArrowLeft,
+    ArrowRight,
     BookMarked,
     BookOpen,
     Captions,
     CheckCircle2,
+    Expand,
     ExternalLink,
     FileText,
     ListVideo,
+    Loader2,
     Maximize,
     Minimize,
     Pause,
@@ -24,7 +28,8 @@ import {
     X,
 } from 'lucide-react';
 import { CourseraLogo, MicrosoftLogo } from './BrandLogos';
-import { formatDuration } from '../lib/api';
+import { formatDuration, learnApi } from '../lib/api';
+import { sanitizeReadingHtml } from '../lib/sessionTimer';
 
 export interface VideoChapter {
     title: string;
@@ -40,6 +45,7 @@ export interface VideoNote {
 
 export interface ModuleReadingItem {
     id: string;
+    slug?: string;
     title: string;
     estimated_minutes: number;
     completed: boolean;
@@ -110,10 +116,14 @@ export function LearnVideoPlayer({
     src,
     transcriptUrl,
     title,
+    lessonSlug = '',
     durationSeconds,
     chapters,
     moduleReadings = [],
     watermarkIdentity = '',
+    nextLesson = null,
+    canComplete = false,
+    completing = false,
     notes,
     isAdmin,
     isCompleted,
@@ -125,15 +135,21 @@ export function LearnVideoPlayer({
     onEnded,
     onSeekBlocked,
     onSaveNotes,
+    onCompleteAndContinue,
+    onReadingCompleted,
 }: {
     videoRef: React.RefObject<HTMLVideoElement | null>;
     src: string;
     transcriptUrl?: string | null;
     title: string;
+    lessonSlug?: string;
     durationSeconds: number;
     chapters: VideoChapter[];
     moduleReadings?: ModuleReadingItem[];
     watermarkIdentity?: string;
+    nextLesson?: { id: string; slug?: string; title: string } | null;
+    canComplete?: boolean;
+    completing?: boolean;
     notes: VideoNote[];
     isAdmin: boolean;
     isCompleted: boolean;
@@ -145,6 +161,8 @@ export function LearnVideoPlayer({
     onEnded: () => void;
     onSeekBlocked: () => void;
     onSaveNotes: (nextNotes: VideoNote[]) => Promise<void>;
+    onCompleteAndContinue?: () => void;
+    onReadingCompleted?: (readingId: string) => void;
 }) {
     const containerRef = useRef<HTMLDivElement | null>(null);
     const activeCueRef = useRef<HTMLButtonElement | null>(null);
@@ -176,6 +194,134 @@ export function LearnVideoPlayer({
     // Personal timestamped notes state
     const [noteDraft, setNoteDraft] = useState('');
     const [savingNote, setSavingNote] = useState(false);
+
+    // End-of-video "Up Next" overlay state
+    const [videoEnded, setVideoEnded] = useState(false);
+
+    // Non-disruptive in-pane / expandable Reading Preview state (keeps <video> mounted at exact timestamp!)
+    const [previewReadingId, setPreviewReadingId] = useState<string | null>(null);
+    const [previewExpanded, setPreviewExpanded] = useState(false);
+    const [previewCache, setPreviewCache] = useState<Record<string, any>>({});
+    const [loadingPreview, setLoadingPreview] = useState(false);
+    const [previewError, setPreviewError] = useState<string | null>(null);
+    const [previewScrollPct, setPreviewScrollPct] = useState(0);
+    const [previewDwellSec, setPreviewDwellSec] = useState(0);
+    const [previewTakeaway, setPreviewTakeaway] = useState('');
+    const [completingPreview, setCompletingPreview] = useState(false);
+    const [previewMsg, setPreviewMsg] = useState<string | null>(null);
+    const [completedReadingIds, setCompletedReadingIds] = useState<Set<string>>(
+        () => new Set(moduleReadings.filter((r) => r.completed).map((r) => r.id)),
+    );
+
+    useEffect(() => {
+        setCompletedReadingIds(new Set(moduleReadings.filter((r) => r.completed).map((r) => r.id)));
+        setPreviewReadingId(null);
+        setPreviewExpanded(false);
+        setVideoEnded(false);
+    }, [moduleReadings, src]);
+
+    // Active dwell tracking while viewing a reading preview inside the video studio
+    useEffect(() => {
+        if (!previewReadingId) return;
+        const activePreview = previewCache[previewReadingId];
+        if (!activePreview || activePreview.progress?.status === 'completed') return;
+        let pendingDelta = 0;
+        const tick = window.setInterval(() => {
+            if (document.visibilityState !== 'visible') return;
+            pendingDelta += 1;
+            setPreviewDwellSec((prev) => prev + 1);
+            if (pendingDelta >= 30) {
+                const toSend = pendingDelta;
+                pendingDelta = 0;
+                learnApi('lms/progress-heartbeat', {
+                    method: 'POST',
+                    body: {
+                        lessonId: activePreview.lesson.id,
+                        scrollPct: Math.max(previewScrollPct, 50),
+                        dwellDeltaSeconds: toSend,
+                    },
+                }).catch(() => {});
+            }
+        }, 1000);
+        return () => window.clearInterval(tick);
+    }, [previewReadingId, previewCache, previewScrollPct]);
+
+    const openReadingPreview = async (reading: ModuleReadingItem) => {
+        // Pause video cleanly without unmounting so exact timestamp stays preserved
+        if (videoRef.current && !videoRef.current.paused) {
+            videoRef.current.pause();
+        }
+        setPreviewReadingId(reading.id);
+        setPreviewError(null);
+        setPreviewMsg(null);
+        setPreviewScrollPct(0);
+
+        const cached = previewCache[reading.id];
+        if (cached) {
+            setPreviewDwellSec(cached.progress?.active_dwell_seconds || 0);
+            setPreviewScrollPct(cached.progress?.scroll_depth_pct || 0);
+            setPreviewTakeaway(cached.progress?.key_takeaway || '');
+            return;
+        }
+
+        setLoadingPreview(true);
+        try {
+            const res = await learnApi(`lms/lesson?id=${encodeURIComponent(reading.slug || reading.id)}`);
+            setPreviewCache((prev) => ({ ...prev, [reading.id]: res }));
+            setPreviewDwellSec(res.progress?.active_dwell_seconds || 0);
+            setPreviewScrollPct(res.progress?.scroll_depth_pct || 0);
+            setPreviewTakeaway(res.progress?.key_takeaway || '');
+        } catch (err: any) {
+            setPreviewError(err?.message || 'Unable to load reading preview.');
+        } finally {
+            setLoadingPreview(false);
+        }
+    };
+
+    const handleCompletePreviewReading = async () => {
+        if (!previewReadingId) return;
+        const active = previewCache[previewReadingId];
+        if (!active?.lesson?.id) return;
+        setCompletingPreview(true);
+        setPreviewError(null);
+        setPreviewMsg(null);
+        try {
+            // Flush final scroll + dwell before completing
+            await learnApi('lms/progress-heartbeat', {
+                method: 'POST',
+                body: {
+                    lessonId: active.lesson.id,
+                    scrollPct: Math.max(previewScrollPct, 100),
+                    dwellDeltaSeconds: Math.min(90, Math.max(10, previewDwellSec - (active.progress?.active_dwell_seconds || 0))),
+                },
+            }).catch(() => {});
+
+            const res = await learnApi('lms/progress-complete', {
+                method: 'POST',
+                body: {
+                    lessonId: active.lesson.id,
+                    keyTakeaway: previewTakeaway.trim() || undefined,
+                },
+            });
+            setPreviewCache((prev) => ({
+                ...prev,
+                [previewReadingId]: { ...prev[previewReadingId], progress: res.progress },
+            }));
+            setCompletedReadingIds((prev) => new Set([...prev, previewReadingId]));
+            onReadingCompleted?.(previewReadingId);
+            setPreviewMsg('Reading marked complete!');
+        } catch (err: any) {
+            setPreviewError(err?.message || 'Keep reading a little longer or add your 30-character takeaway first.');
+        } finally {
+            setCompletingPreview(false);
+        }
+    };
+
+    const resumeVideoFromPreview = () => {
+        setPreviewExpanded(false);
+        setPreviewReadingId(null);
+        videoRef.current?.play().catch(() => {});
+    };
 
     // Subtle drifting forensic watermark index (rotates every 18s while playing)
     const [watermarkPosIdx, setWatermarkPosIdx] = useState(0);
@@ -516,6 +662,7 @@ export function LearnVideoPlayer({
                         }}
                         onPlay={() => {
                             setPlaying(true);
+                            setVideoEnded(false);
                             onPlay();
                         }}
                         onPause={() => {
@@ -524,6 +671,7 @@ export function LearnVideoPlayer({
                         }}
                         onEnded={() => {
                             setPlaying(false);
+                            setVideoEnded(true);
                             onEnded();
                         }}
                         className={`w-full cursor-pointer object-contain ${
@@ -564,8 +712,8 @@ export function LearnVideoPlayer({
                         </div>
                     </div>
 
-                    {/* Center Play Button Overlay when paused */}
-                    {!playing && (
+                    {/* Center Play Button Overlay when paused (hidden when End-Screen Up Next card is visible) */}
+                    {!playing && !videoEnded && (
                         <button
                             type="button"
                             onClick={togglePlay}
@@ -574,6 +722,48 @@ export function LearnVideoPlayer({
                         >
                             <Play className="w-6 h-6 sm:w-7 sm:h-7 fill-current ml-0.5" />
                         </button>
+                    )}
+
+                    {/* Video End-Screen "Up Next" 1-Click Continue Overlay */}
+                    {videoEnded && (
+                        <div className="absolute inset-0 z-25 bg-[#030213]/85 backdrop-blur-sm flex items-center justify-center p-4">
+                            <div className="max-w-md w-full bg-white text-neutral-950 border border-neutral-200 p-5 sm:p-6 space-y-4 text-left shadow-2xl">
+                                <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-500">
+                                    {nextLesson ? 'Up Next' : 'Video Finished'}
+                                </div>
+                                <div className="text-base sm:text-lg font-semibold text-neutral-950 leading-snug">
+                                    {nextLesson ? nextLesson.title : title}
+                                </div>
+                                <div className="flex flex-wrap gap-2 pt-1">
+                                    {(canComplete || isCompleted) && onCompleteAndContinue && (
+                                        <button
+                                            type="button"
+                                            disabled={completing}
+                                            onClick={onCompleteAndContinue}
+                                            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#030213] hover:bg-neutral-800 disabled:opacity-50 text-white text-xs font-bold uppercase tracking-[0.15em]"
+                                        >
+                                            {completing ? (
+                                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                            ) : (
+                                                <ArrowRight className="w-3.5 h-3.5" />
+                                            )}
+                                            {isCompleted ? 'Continue to Next' : 'Complete & Continue'}
+                                        </button>
+                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setVideoEnded(false);
+                                            seekToTime(0);
+                                            videoRef.current?.play().catch(() => {});
+                                        }}
+                                        className="px-4 py-2.5 bg-white border border-neutral-300 hover:border-neutral-950 text-neutral-900 text-xs font-bold uppercase tracking-[0.14em]"
+                                    >
+                                        Replay
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     )}
 
                     {/* Synced Closed Captions Overlay */}
@@ -1041,52 +1231,211 @@ export function LearnVideoPlayer({
                                         )}
                                     </div>
                                 )}
-                                {/* TAB 4: MODULE SUPPORTING READINGS (FILES) */}
-                                {activeTab === 'readings' && (
-                                    <div className="flex-1 overflow-y-auto p-3 space-y-2 text-left">
-                                        {moduleReadings.length === 0 ? (
-                                            <p className="text-xs text-neutral-500 py-4 leading-relaxed">
-                                                No supporting readings are attached to this module.
-                                            </p>
-                                        ) : (
-                                            <>
-                                                <p className="text-[11px] text-neutral-500 leading-relaxed pb-1">
-                                                    All supporting readings for this module are unlocked alongside the video. Open in a new tab to read while watching.
-                                                </p>
-                                                {moduleReadings.map((r) => (
-                                                    <div
-                                                        key={r.id}
-                                                        className="p-2.5 bg-neutral-50 border border-neutral-200 hover:border-neutral-400 transition flex items-start justify-between gap-2"
+                                {/* TAB 4: MODULE SUPPORTING READINGS (IN-PANE PREVIEW + FULL-PAGE OPTION) */}
+                                {activeTab === 'readings' && (() => {
+                                    const activeReadingIdx = previewReadingId
+                                        ? moduleReadings.findIndex((r) => r.id === previewReadingId)
+                                        : -1;
+                                    const activeReadingMeta = activeReadingIdx >= 0 ? moduleReadings[activeReadingIdx] : null;
+                                    const activePreviewData = previewReadingId ? previewCache[previewReadingId] : null;
+                                    const isPreviewDone = Boolean(
+                                        (previewReadingId && completedReadingIds.has(previewReadingId)) ||
+                                            activePreviewData?.progress?.status === 'completed',
+                                    );
+                                    const fullPageHref = activeReadingMeta
+                                        ? `/lesson/${activeReadingMeta.slug || activeReadingMeta.id}?fromVideo=${encodeURIComponent(lessonSlug)}&t=${Math.floor(currentTime)}`
+                                        : '#';
+
+                                    if (activeReadingMeta) {
+                                        return (
+                                            <div className="flex-1 flex flex-col min-h-0 text-left">
+                                                {/* Preview Toolbar */}
+                                                <div className="px-3 py-2 bg-neutral-50 border-b border-neutral-200 flex items-center justify-between gap-1.5 shrink-0">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setPreviewReadingId(null)}
+                                                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-neutral-700 hover:text-neutral-950"
                                                     >
-                                                        <Link to={`/lesson/${r.id}`} className="min-w-0 flex-1 space-y-0.5">
-                                                            <div className="text-xs font-medium text-neutral-950 hover:underline leading-snug break-words flex items-start gap-1.5">
-                                                                {r.completed ? (
-                                                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
-                                                                ) : (
-                                                                    <BookOpen className="w-3.5 h-3.5 text-neutral-400 shrink-0 mt-0.5" />
-                                                                )}
-                                                                <span>{r.title}</span>
-                                                            </div>
-                                                            <div className="text-[10px] text-neutral-500 pl-5">
-                                                                {r.estimated_minutes} min read{r.completed ? ' · Completed' : ''}
-                                                            </div>
-                                                        </Link>
-                                                        <Link
-                                                            to={`/lesson/${r.id}`}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            title="Open reading in new tab"
-                                                            aria-label={`Open ${r.title} in new tab`}
-                                                            className="p-1 text-neutral-400 hover:text-neutral-950 shrink-0"
+                                                        <ArrowLeft className="w-3.5 h-3.5" /> List
+                                                    </button>
+                                                    <div className="inline-flex items-center gap-1.5">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setPreviewExpanded(true)}
+                                                            title="Expand reading overlay"
+                                                            className="inline-flex items-center gap-1 px-2 py-1 bg-white border border-neutral-300 hover:border-neutral-950 text-[10px] font-bold uppercase tracking-wider text-neutral-800"
                                                         >
-                                                            <ExternalLink className="w-3.5 h-3.5" />
+                                                            <Expand className="w-3 h-3" /> Expand
+                                                        </button>
+                                                        <Link
+                                                            to={fullPageHref}
+                                                            title="Open on full page (with Return to Video button)"
+                                                            className="inline-flex items-center gap-1 px-2 py-1 bg-white border border-neutral-300 hover:border-neutral-950 text-[10px] font-bold uppercase tracking-wider text-neutral-800"
+                                                        >
+                                                            Full <ExternalLink className="w-3 h-3" />
                                                         </Link>
                                                     </div>
-                                                ))}
-                                            </>
-                                        )}
-                                    </div>
-                                )}
+                                                </div>
+
+                                                {/* Scrollable Reading Preview Content */}
+                                                <div
+                                                    onScroll={(e) => {
+                                                        const el = e.currentTarget;
+                                                        const maxScroll = el.scrollHeight - el.clientHeight;
+                                                        const pct =
+                                                            maxScroll <= 10 ? 100 : Math.min(100, Math.round((el.scrollTop / maxScroll) * 100));
+                                                        setPreviewScrollPct((prev) => Math.max(prev, pct));
+                                                    }}
+                                                    className="flex-1 overflow-y-auto p-3.5 space-y-3"
+                                                >
+                                                    <div className="flex items-start justify-between gap-2">
+                                                        <h4 className="text-xs font-semibold text-neutral-950 leading-snug">
+                                                            {activeReadingMeta.title}
+                                                        </h4>
+                                                        {isPreviewDone && (
+                                                            <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase bg-emerald-100 text-emerald-800 shrink-0">
+                                                                Done ✓
+                                                            </span>
+                                                        )}
+                                                    </div>
+
+                                                    {loadingPreview ? (
+                                                        <div className="py-8 flex items-center justify-center gap-2 text-xs text-neutral-500">
+                                                            <Loader2 className="w-4 h-4 animate-spin text-neutral-900" />
+                                                            Loading reading...
+                                                        </div>
+                                                    ) : previewError ? (
+                                                        <div className="p-2.5 bg-red-50 border border-red-200 text-xs text-red-700">
+                                                            {previewError}
+                                                        </div>
+                                                    ) : activePreviewData?.lesson?.content_html ? (
+                                                        <article
+                                                            className="prose prose-xs prose-neutral max-w-none prose-headings:text-neutral-950 prose-p:text-neutral-800 prose-img:rounded break-words"
+                                                            dangerouslySetInnerHTML={{
+                                                                __html: sanitizeReadingHtml(activePreviewData.lesson.content_html),
+                                                            }}
+                                                        />
+                                                    ) : null}
+
+                                                    {/* Compact In-Preview Completion Box */}
+                                                    {activePreviewData?.lesson && (
+                                                        <div className="pt-3 border-t border-neutral-200 space-y-2">
+                                                            {previewMsg && (
+                                                                <div className="p-2 bg-emerald-50 border border-emerald-200 text-[11px] text-emerald-900 font-medium">
+                                                                    {previewMsg}
+                                                                </div>
+                                                            )}
+                                                            <textarea
+                                                                rows={2}
+                                                                value={previewTakeaway}
+                                                                onChange={(e) => setPreviewTakeaway(e.target.value)}
+                                                                placeholder="1-sentence key takeaway (min 30 chars)..."
+                                                                className="w-full bg-neutral-50 border border-neutral-300 p-2 text-xs text-neutral-950 focus:outline-none focus:border-neutral-950"
+                                                            />
+                                                            <div className="flex items-center justify-between gap-2">
+                                                                <span className="text-[10px] text-neutral-500">
+                                                                    {previewTakeaway.trim().length}/30 chars · {previewDwellSec}s
+                                                                </span>
+                                                                <button
+                                                                    type="button"
+                                                                    disabled={completingPreview}
+                                                                    onClick={handleCompletePreviewReading}
+                                                                    className="px-3 py-1.5 bg-[#030213] hover:bg-neutral-800 disabled:opacity-50 text-white text-[10px] font-bold uppercase tracking-wider"
+                                                                >
+                                                                    {completingPreview
+                                                                        ? 'Saving...'
+                                                                        : isPreviewDone
+                                                                          ? 'Update Note'
+                                                                          : 'Mark Complete'}
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Bottom Nav: Resume Video + Prev/Next Reading */}
+                                                <div className="px-3 py-2 bg-neutral-50 border-t border-neutral-200 flex items-center justify-between gap-2 shrink-0">
+                                                    <button
+                                                        type="button"
+                                                        onClick={resumeVideoFromPreview}
+                                                        className="inline-flex items-center gap-1 text-[11px] font-bold text-neutral-950 hover:underline"
+                                                    >
+                                                        <Play className="w-3 h-3 fill-current" /> Resume ({formatDuration(currentTime)})
+                                                    </button>
+                                                    <div className="inline-flex items-center gap-1">
+                                                        <button
+                                                            type="button"
+                                                            disabled={activeReadingIdx <= 0}
+                                                            onClick={() => openReadingPreview(moduleReadings[activeReadingIdx - 1])}
+                                                            className="px-2 py-1 border border-neutral-300 bg-white disabled:opacity-35 text-[10px] font-bold"
+                                                        >
+                                                            Prev
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            disabled={activeReadingIdx >= moduleReadings.length - 1}
+                                                            onClick={() => openReadingPreview(moduleReadings[activeReadingIdx + 1])}
+                                                            className="px-2 py-1 border border-neutral-300 bg-white disabled:opacity-35 text-[10px] font-bold"
+                                                        >
+                                                            Next
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    }
+
+                                    return (
+                                        <div className="flex-1 overflow-y-auto p-3 space-y-2 text-left">
+                                            {moduleReadings.length === 0 ? (
+                                                <p className="text-xs text-neutral-500 py-4 leading-relaxed">
+                                                    No supporting readings are attached to this module.
+                                                </p>
+                                            ) : (
+                                                <>
+                                                    <p className="text-[11px] text-neutral-500 leading-relaxed pb-1">
+                                                        Click any reading to preview right here without losing your video spot, or open full page.
+                                                    </p>
+                                                    {moduleReadings.map((r) => {
+                                                        const done = completedReadingIds.has(r.id);
+                                                        return (
+                                                            <div
+                                                                key={r.id}
+                                                                className="p-2.5 bg-neutral-50 border border-neutral-200 hover:border-neutral-400 transition flex items-start justify-between gap-2"
+                                                            >
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => openReadingPreview(r)}
+                                                                    className="min-w-0 flex-1 text-left space-y-0.5"
+                                                                >
+                                                                    <div className="text-xs font-medium text-neutral-950 hover:underline leading-snug break-words flex items-start gap-1.5">
+                                                                        {done ? (
+                                                                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                                                                        ) : (
+                                                                            <BookOpen className="w-3.5 h-3.5 text-neutral-400 shrink-0 mt-0.5" />
+                                                                        )}
+                                                                        <span>{r.title}</span>
+                                                                    </div>
+                                                                    <div className="text-[10px] text-neutral-500 pl-5">
+                                                                        {r.estimated_minutes} min · Preview here{done ? ' · Completed' : ''}
+                                                                    </div>
+                                                                </button>
+                                                                <Link
+                                                                    to={`/lesson/${r.slug || r.id}?fromVideo=${encodeURIComponent(lessonSlug)}&t=${Math.floor(currentTime)}`}
+                                                                    title="Open full page (preserves video position)"
+                                                                    aria-label={`Open ${r.title} on full page`}
+                                                                    className="p-1 text-neutral-400 hover:text-neutral-950 shrink-0"
+                                                                >
+                                                                    <ExternalLink className="w-3.5 h-3.5" />
+                                                                </Link>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </>
+                                            )}
+                                        </div>
+                                    );
+                                })()}
                             </div>
                         )}
 
@@ -1120,6 +1469,137 @@ export function LearnVideoPlayer({
                     </>
                 )}
             </div>
+
+            {/* Expandable Wide Reading Preview Modal Overlay (keeps <video> mounted cleanly underneath!) */}
+            {previewExpanded && previewReadingId && (() => {
+                const activeIdx = moduleReadings.findIndex((r) => r.id === previewReadingId);
+                const meta = activeIdx >= 0 ? moduleReadings[activeIdx] : null;
+                const activeData = previewCache[previewReadingId];
+                const isDone = Boolean(completedReadingIds.has(previewReadingId) || activeData?.progress?.status === 'completed');
+                if (!meta) return null;
+                return (
+                    <div
+                        role="dialog"
+                        aria-modal="true"
+                        className="fixed inset-0 z-50 bg-black/65 backdrop-blur-[2px] flex items-center justify-center p-3 sm:p-6"
+                    >
+                        <div className="bg-white border border-neutral-300 w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl text-left">
+                            <div className="px-4 sm:px-6 py-3.5 border-b border-neutral-200 flex flex-wrap items-center justify-between gap-3 shrink-0">
+                                <div className="min-w-0">
+                                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-neutral-500">
+                                        Reading Preview · Video paused at {formatDuration(currentTime)}
+                                    </div>
+                                    <h3 className="text-sm sm:text-base font-semibold text-neutral-950 truncate">{meta.title}</h3>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <Link
+                                        to={`/lesson/${meta.slug || meta.id}?fromVideo=${encodeURIComponent(lessonSlug)}&t=${Math.floor(currentTime)}`}
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-neutral-300 hover:border-neutral-950 text-[11px] font-bold uppercase tracking-wider text-neutral-800"
+                                    >
+                                        Open Full Page <ExternalLink className="w-3.5 h-3.5" />
+                                    </Link>
+                                    <button
+                                        type="button"
+                                        onClick={() => setPreviewExpanded(false)}
+                                        aria-label="Close expanded reading"
+                                        className="p-1.5 border border-neutral-300 hover:border-neutral-950 text-neutral-800"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div
+                                onScroll={(e) => {
+                                    const el = e.currentTarget;
+                                    const maxScroll = el.scrollHeight - el.clientHeight;
+                                    const pct = maxScroll <= 10 ? 100 : Math.min(100, Math.round((el.scrollTop / maxScroll) * 100));
+                                    setPreviewScrollPct((prev) => Math.max(prev, pct));
+                                }}
+                                className="flex-1 overflow-y-auto p-5 sm:p-8 space-y-6"
+                            >
+                                {loadingPreview ? (
+                                    <div className="py-12 flex items-center justify-center gap-2 text-xs text-neutral-500">
+                                        <Loader2 className="w-4 h-4 animate-spin text-neutral-900" />
+                                        Loading reading...
+                                    </div>
+                                ) : activeData?.lesson?.content_html ? (
+                                    <article
+                                        className="prose prose-sm sm:prose-base prose-neutral max-w-none prose-headings:text-neutral-950 prose-p:text-neutral-800 prose-p:leading-relaxed break-words"
+                                        dangerouslySetInnerHTML={{
+                                            __html: sanitizeReadingHtml(activeData.lesson.content_html),
+                                        }}
+                                    />
+                                ) : null}
+
+                                {activeData?.lesson && (
+                                    <div className="p-4 bg-neutral-50 border border-neutral-200 space-y-3">
+                                        {previewError && (
+                                            <div className="p-2.5 bg-red-50 border border-red-200 text-xs text-red-700">{previewError}</div>
+                                        )}
+                                        {previewMsg && (
+                                            <div className="p-2.5 bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 font-medium">
+                                                {previewMsg}
+                                            </div>
+                                        )}
+                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-neutral-900">
+                                            Key Takeaway (min 30 characters to mark complete)
+                                        </label>
+                                        <textarea
+                                            rows={2}
+                                            value={previewTakeaway}
+                                            onChange={(e) => setPreviewTakeaway(e.target.value)}
+                                            placeholder="One thing I learned from this reading..."
+                                            className="w-full bg-white border border-neutral-300 p-2.5 text-sm text-neutral-950 focus:outline-none focus:border-neutral-950"
+                                        />
+                                        <div className="flex flex-wrap items-center justify-between gap-2">
+                                            <span className="text-xs text-neutral-500">
+                                                {previewTakeaway.trim().length}/30 chars · Scrolled {previewScrollPct}% · {previewDwellSec}s
+                                            </span>
+                                            <button
+                                                type="button"
+                                                disabled={completingPreview}
+                                                onClick={handleCompletePreviewReading}
+                                                className="px-4 py-2 bg-[#030213] hover:bg-neutral-800 disabled:opacity-50 text-white text-xs font-bold uppercase tracking-[0.14em]"
+                                            >
+                                                {completingPreview ? 'Saving...' : isDone ? 'Update Note' : 'Mark Reading Complete'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="px-4 sm:px-6 py-3 bg-neutral-50 border-t border-neutral-200 flex flex-wrap items-center justify-between gap-2 shrink-0">
+                                <button
+                                    type="button"
+                                    onClick={resumeVideoFromPreview}
+                                    className="inline-flex items-center gap-2 px-4 py-2 bg-[#030213] hover:bg-neutral-800 text-white text-xs font-bold uppercase tracking-[0.15em]"
+                                >
+                                    <Play className="w-3.5 h-3.5 fill-current" /> Back to Video ({formatDuration(currentTime)})
+                                </button>
+                                <div className="inline-flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        disabled={activeIdx <= 0}
+                                        onClick={() => openReadingPreview(moduleReadings[activeIdx - 1])}
+                                        className="px-3 py-2 border border-neutral-300 bg-white hover:border-neutral-950 disabled:opacity-35 text-xs font-bold uppercase tracking-wider"
+                                    >
+                                        ← Prev Reading
+                                    </button>
+                                    <button
+                                        type="button"
+                                        disabled={activeIdx >= moduleReadings.length - 1}
+                                        onClick={() => openReadingPreview(moduleReadings[activeIdx + 1])}
+                                        className="px-3 py-2 border border-neutral-300 bg-white hover:border-neutral-950 disabled:opacity-35 text-xs font-bold uppercase tracking-wider"
+                                    >
+                                        Next Reading →
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
         </div>
     );
 }

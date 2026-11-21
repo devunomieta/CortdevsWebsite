@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabase } from '../../_lib/supabase.js';
-import { evaluateLessonAccess, isValidUuid, requireLmsMember, sanitizeQuizForClient } from '../../_lib/lmsGate.js';
+import { evaluateLessonAccess, isValidLessonIdentifier, requireLmsMember, sanitizeQuizForClient } from '../../_lib/lmsGate.js';
 import { isR2Configured, resolveReadingHtmlImages, signLessonVideoUrl, signR2AssetUrl } from '../../_lib/lmsR2.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -12,8 +12,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!member) return;
 
     const lessonId = String(req.query?.id || '').trim();
-    if (!isValidUuid(lessonId)) {
-        return res.status(400).json({ error: 'Valid lesson id required' });
+    if (!isValidLessonIdentifier(lessonId)) {
+        return res.status(400).json({ error: 'Valid lesson slug or id required' });
     }
 
     try {
@@ -36,6 +36,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 reason: access.reason,
                 unlocksAt: access.unlocksAt,
                 prerequisiteLessonId: access.prerequisiteLessonId,
+                prerequisiteLessonSlug: access.prerequisiteLessonSlug,
                 prerequisiteTitle: access.prerequisiteTitle,
             });
         }
@@ -60,12 +61,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 .maybeSingle(),
             supabase
                 .from('lms_lessons')
-                .select('id, title, lesson_type')
+                .select('id, slug, title, lesson_type')
                 .eq('global_order', lesson.global_order - 1)
                 .maybeSingle(),
             supabase
                 .from('lms_lessons')
-                .select('id, title, lesson_type')
+                .select('id, slug, title, lesson_type')
                 .eq('global_order', lesson.global_order + 1)
                 .maybeSingle(),
             lesson.lesson_type === 'quiz'
@@ -90,11 +91,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ]);
 
         // For video lessons, load the module's supporting readings so they appear in the video player's Readings tab
-        let moduleReadings: Array<{ id: string; title: string; estimated_minutes: number; completed: boolean }> = [];
+        let moduleReadings: Array<{ id: string; slug: string; title: string; estimated_minutes: number; completed: boolean }> = [];
         if (lesson.lesson_type === 'video' && lesson.module_id) {
             const { data: readingRows } = await supabase
                 .from('lms_lessons')
-                .select('id, title, estimated_minutes, order_index')
+                .select('id, slug, title, estimated_minutes, order_index')
                 .eq('module_id', lesson.module_id)
                 .eq('lesson_type', 'reading')
                 .order('order_index', { ascending: true });
@@ -112,6 +113,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 const doneSet = new Set((doneReadings || []).map((d: any) => d.lesson_id));
                 moduleReadings = readingRows.map((r: any) => ({
                     id: r.id,
+                    slug: r.slug,
                     title: r.title,
                     estimated_minutes: r.estimated_minutes || 5,
                     completed: doneSet.has(r.id),
@@ -178,6 +180,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(200).json({
             lesson: {
                 id: lesson.id,
+                slug: lesson.slug,
                 module_id: lesson.module_id,
                 module_title: mod?.title || '',
                 course_title: mod?.lms_courses?.title || '',
