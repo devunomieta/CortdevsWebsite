@@ -15,24 +15,88 @@ import {
 } from 'lucide-react';
 import { learnApi } from '../lib/api';
 import { CortDevsLearnLogo, CortDevsSealStamp } from '../components/BrandLogos';
+import { useConfig } from '../../app/context/ConfigContext';
 
-async function loadImageAsDataUrl(src: string): Promise<string | null> {
+const CORTDEVS_SEAL_SVG_MARKUP = `<svg width="480" height="480" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <path id="cdSealTopArcPdf" d="M 19,60 A 41,41 0 1,1 101,60" />
+    <path id="cdSealBottomArcPdf" d="M 13.5,60 A 46.5,46.5 0 0,0 106.5,60" />
+  </defs>
+  <circle cx="60" cy="60" r="56" stroke="#030213" stroke-width="2.2" stroke-dasharray="3 2.2" fill="#fafafa" />
+  <circle cx="60" cy="60" r="51" stroke="#030213" stroke-width="1.5" fill="none" />
+  <circle cx="60" cy="60" r="32" stroke="#030213" stroke-width="1.2" fill="#030213" />
+  <circle cx="60" cy="60" r="28" stroke="#ffffff" stroke-width="0.7" stroke-opacity="0.4" fill="none" />
+  <text fill="#030213" font-size="7.4" font-weight="700" letter-spacing="2.2" font-family="Inter, Arial, Helvetica, sans-serif">
+    <textPath href="#cdSealTopArcPdf" startOffset="50%" text-anchor="middle">CORTDEVS · VERIFIED</textPath>
+  </text>
+  <text fill="#030213" font-size="7.2" font-weight="700" letter-spacing="2.2" font-family="Inter, Arial, Helvetica, sans-serif">
+    <textPath href="#cdSealBottomArcPdf" startOffset="50%" text-anchor="middle">OFFICIAL SEAL</textPath>
+  </text>
+  <text x="60" y="67" text-anchor="middle" fill="#ffffff" font-size="24" font-weight="700" letter-spacing="1.5" font-family="Georgia, 'Times New Roman', serif">CD</text>
+</svg>`;
+
+interface LoadedRasterImage {
+    dataUrl: string;
+    width: number;
+    height: number;
+}
+
+async function rasterizeImageUrlToPng(src: string, scale = 2): Promise<LoadedRasterImage | null> {
+    if (!src) return null;
+    let objectUrl: string | null = null;
     try {
-        const res = await fetch(src);
+        // Fetch as blob first so CORS/SVG/WebP assets convert cleanly to PNG on canvas
+        const res = await fetch(src, { mode: 'cors' });
         if (!res.ok) return null;
         const blob = await res.blob();
-        return await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(String(reader.result || ''));
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
+        objectUrl = URL.createObjectURL(blob);
+
+        const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+            const el = new Image();
+            el.onload = () => resolve(el);
+            el.onerror = reject;
+            el.src = objectUrl!;
         });
+
+        const natW = img.naturalWidth || img.width || 240;
+        const natH = img.naturalHeight || img.height || 80;
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(natW * scale));
+        canvas.height = Math.max(1, Math.round(natH * scale));
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return null;
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        return { dataUrl: canvas.toDataURL('image/png'), width: natW, height: natH };
+    } catch {
+        return null;
+    } finally {
+        if (objectUrl) URL.revokeObjectURL(objectUrl);
+    }
+}
+
+async function rasterizeSvgMarkupToPng(svgMarkup: string, pxSize = 480): Promise<string | null> {
+    try {
+        const encoded = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgMarkup)}`;
+        const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+            const el = new Image();
+            el.onload = () => resolve(el);
+            el.onerror = reject;
+            el.src = encoded;
+        });
+        const canvas = document.createElement('canvas');
+        canvas.width = pxSize;
+        canvas.height = pxSize;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return null;
+        ctx.drawImage(img, 0, 0, pxSize, pxSize);
+        return canvas.toDataURL('image/png');
     } catch {
         return null;
     }
 }
 
 export function LearnCertificate() {
+    const { config } = useConfig();
     const [loading, setLoading] = useState(true);
     const [data, setData] = useState<any | null>(null);
     const [recipientName, setRecipientName] = useState('');
@@ -122,15 +186,21 @@ export function LearnCertificate() {
         if (!cert) return;
         setDownloading(true);
         try {
-            const [{ default: jsPDF }, sigDataUrl, pdfQrDataUrl] = await Promise.all([
+            const logoUrl =
+                config.headerLogo && config.headerLogo !== '/logo-dark.svg' ? config.headerLogo : '';
+
+            const [{ default: jsPDF }, logoImg, sigImg, sealPng, pdfQrDataUrl] = await Promise.all([
                 import('jspdf'),
-                loadImageAsDataUrl('/learn-ju-sign.png'),
+                logoUrl ? rasterizeImageUrlToPng(logoUrl, 3) : Promise.resolve(null),
+                rasterizeImageUrlToPng('/learn-ju-sign.png', 2),
+                rasterizeSvgMarkupToPng(CORTDEVS_SEAL_SVG_MARKUP, 480),
                 qrDataUrl
                     ? Promise.resolve(qrDataUrl)
                     : QRCode.toDataURL(cert.verify_url, {
                           width: 240,
                           margin: 1,
                           color: { dark: '#030213', light: '#ffffff' },
+                          errorCorrectionLevel: 'M',
                       }),
             ]);
 
@@ -138,32 +208,65 @@ export function LearnCertificate() {
             const w = doc.internal.pageSize.getWidth(); // 297mm
             const h = doc.internal.pageSize.getHeight(); // 210mm
 
-            // Background + CortDevs double obsidian border
+            // 1. White canvas + Preview-matched crisp double frame (dark outer, subtle gray inner)
             doc.setFillColor(255, 255, 255);
             doc.rect(0, 0, w, h, 'F');
             doc.setDrawColor(3, 2, 19);
-            doc.setLineWidth(2.2);
-            doc.rect(10, 10, w - 20, h - 20);
-            doc.setLineWidth(0.4);
-            doc.setDrawColor(161, 161, 170);
-            doc.rect(14, 14, w - 28, h - 28);
+            doc.setLineWidth(1.5);
+            doc.rect(9, 9, w - 18, h - 18);
+            doc.setDrawColor(212, 212, 216);
+            doc.setLineWidth(0.35);
+            doc.rect(12, 12, w - 24, h - 24);
 
-            // Top dark obsidian header strip
-            doc.setFillColor(3, 2, 19);
-            doc.rect(14, 14, w - 28, 20, 'F');
-            doc.setTextColor(255, 255, 255);
+            // 2. Clean White Header (CortDevs logo | LEARN on left, monospace ID on right + bottom divider)
+            const contentLeft = 24;
+            const contentRight = w - 24;
+            const headerBaselineY = 26.5;
+
+            let learnDividerX = contentLeft + 27;
+            if (logoImg) {
+                const targetLogoH = 7.4;
+                const targetLogoW = Math.min(44, (logoImg.width / Math.max(1, logoImg.height)) * targetLogoH);
+                doc.addImage(logoImg.dataUrl, 'PNG', contentLeft, headerBaselineY - targetLogoH + 1.4, targetLogoW, targetLogoH);
+                learnDividerX = contentLeft + targetLogoW + 3.5;
+            } else {
+                doc.setTextColor(3, 2, 19);
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(16);
+                doc.text('Cort', contentLeft, headerBaselineY);
+                const cortW = doc.getTextWidth('Cort');
+                doc.setFont('helvetica', 'bolditalic');
+                doc.text('Devs', contentLeft + cortW, headerBaselineY);
+                learnDividerX = contentLeft + cortW + doc.getTextWidth('Devs') + 3.5;
+            }
+
+            doc.setDrawColor(212, 212, 216);
+            doc.setLineWidth(0.3);
+            doc.line(learnDividerX, headerBaselineY - 4.4, learnDividerX, headerBaselineY + 1.0);
+
+            doc.setTextColor(115, 115, 115);
             doc.setFont('helvetica', 'bold');
-            doc.setFontSize(11);
-            doc.text('CORTDEVS  ·  LEARN', 24, 26.2);
-            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(7.5);
+            doc.text('LEARN', learnDividerX + 3.5, headerBaselineY - 0.8, { charSpace: 1.8 });
+
+            doc.setTextColor(115, 115, 115);
+            doc.setFont('courier', 'normal');
             doc.setFontSize(8.5);
-            doc.text(`ID: ${cert.certificate_code}`, w - 24, 26.2, { align: 'right' });
+            doc.text(`ID: ${cert.certificate_code}`, contentRight, headerBaselineY - 0.6, { align: 'right' });
 
-            // Certificate Headline
-            doc.setTextColor(113, 113, 122);
+            // Subtle header divider line
+            doc.setDrawColor(229, 229, 229);
+            doc.setLineWidth(0.3);
+            doc.line(contentLeft, 33.5, contentRight, 33.5);
+
+            // 3. Certificate Title Block (mathematically centered tracked heading)
+            const subtitle = 'CERTIFICATE OF COMPLETION';
+            const subtitleTrack = 1.4;
+            doc.setTextColor(115, 115, 115);
             doc.setFont('helvetica', 'bold');
-            doc.setFontSize(9.5);
-            doc.text('CERTIFICATE OF COMPLETION', w / 2, 50, { align: 'center' });
+            doc.setFontSize(8.5);
+            const subtitleTotalW = doc.getTextWidth(subtitle) + (subtitle.length - 1) * subtitleTrack;
+            doc.text(subtitle, w / 2 - subtitleTotalW / 2, 48, { charSpace: subtitleTrack });
 
             const cleanTitle = String(cert.program_title || 'AI Product Management')
                 .replace(/\s*Training\s*Cohort\s*$/i, '')
@@ -171,123 +274,150 @@ export function LearnCertificate() {
 
             doc.setTextColor(3, 2, 19);
             doc.setFont('helvetica', 'bold');
-            doc.setFontSize(23);
-            doc.text(cleanTitle, w / 2, 62, { align: 'center' });
+            doc.setFontSize(20.5);
+            doc.text(cleanTitle, w / 2, 59.5, { align: 'center' });
 
-            // Recipient block
-            doc.setTextColor(113, 113, 122);
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(10.5);
-            doc.text('This certifies that', w / 2, 76, { align: 'center' });
-
-            doc.setTextColor(3, 2, 19);
-            doc.setFont('times', 'bolditalic');
-            doc.setFontSize(34);
-            doc.text(cert.recipient_name, w / 2, 92, { align: 'center' });
-
-            doc.setDrawColor(212, 212, 216);
-            doc.setLineWidth(0.5);
-            doc.line(w / 2 - 55, 98, w / 2 + 55, 98);
-
-            // Attribution body
-            doc.setTextColor(63, 63, 70);
+            // 4. Recipient Block
+            doc.setTextColor(115, 115, 115);
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(9.8);
-            const bodyLines = doc.splitTextToSize(
-                `has successfully completed the 12-week CortDevs AI Product Management program (${cert.total_lessons} lessons · ${cert.total_projects} applied product projects${cert.avg_quiz_score ? ` · ${cert.avg_quiz_score}% avg assessment score` : ''}), guided by Microsoft AI Product Manager study materials and independently managed, tracked, and verified by CortDevs.`,
-                216,
-            );
-            doc.text(bodyLines, w / 2, 108, { align: 'center', lineHeightFactor: 1.5 });
+            doc.text('This certifies that', w / 2, 73, { align: 'center' });
 
-            // === 3-COLUMN EXECUTIVE FOOTER ===
+            const nameStr = String(cert.recipient_name || '').trim();
+            doc.setTextColor(3, 2, 19);
+            doc.setFont('times', 'bolditalic');
+            const nameFontSize = nameStr.length > 34 ? 24 : nameStr.length > 26 ? 28 : 33;
+            doc.setFontSize(nameFontSize);
+            doc.text(nameStr, w / 2, 88.5, { align: 'center' });
+
+            // Short centered subtle divider under name (matches preview w-40)
+            doc.setDrawColor(212, 212, 216);
+            doc.setLineWidth(0.35);
+            doc.line(w / 2 - 22, 95, w / 2 + 22, 95);
+
+            // 5. Attribution Body (exact same text as preview)
+            const attributionCopy =
+                cert.attribution_note ||
+                `Completed the 12-week CortDevs AI Product Management program guided by Microsoft AI Product Manager study materials (covering Enterprise Product Management, Market Research, AI Product Strategy & Roadmapping, UX/UI Design, and Post-Launch AI Operations), independently managed, tracked, and verified by CortDevs.`;
+
+            doc.setTextColor(82, 82, 82);
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(10);
+            const bodyLines = doc.splitTextToSize(attributionCopy, 196);
+            doc.text(bodyLines, w / 2, 106, { align: 'center', lineHeightFactor: 1.6 });
+
+            // 6. Balanced 3-Column Executive Footer (matching preview exactly)
             const lineY = 160;
+            const colRuleHalfW = 29; // 58mm wide horizontal rule per side column
 
             // Column 1 (Left): Program Manager Handwritten Signature
-            const leftCenterX = 64;
-            if (sigDataUrl) {
-                // JU-Sign.png aspect ratio is 471x529 (~0.89 w/h) -> 20mm x 22.5mm centered nicely over line
-                doc.addImage(sigDataUrl, 'PNG', leftCenterX - 10, lineY - 22, 20, 22.5);
+            const leftCenterX = 65;
+            if (sigImg) {
+                const sigH = 18;
+                const sigW = (sigImg.width / Math.max(1, sigImg.height)) * sigH;
+                doc.addImage(sigImg.dataUrl, 'PNG', leftCenterX - sigW / 2, lineY - sigH - 1.5, sigW, sigH);
             } else {
                 doc.setTextColor(3, 2, 19);
                 doc.setFont('times', 'italic');
                 doc.setFontSize(15);
                 doc.text(cert.issued_by_name || 'Joseph Unomieta', leftCenterX, lineY - 4, { align: 'center' });
             }
-            doc.setDrawColor(3, 2, 19);
-            doc.setLineWidth(0.4);
-            doc.line(28, lineY, 100, lineY);
+            doc.setDrawColor(163, 163, 163);
+            doc.setLineWidth(0.35);
+            doc.line(leftCenterX - colRuleHalfW, lineY, leftCenterX + colRuleHalfW, lineY);
             doc.setTextColor(3, 2, 19);
             doc.setFont('helvetica', 'bold');
-            doc.setFontSize(9.5);
-            doc.text(cert.issued_by_name || 'Joseph Unomieta', leftCenterX, lineY + 6, { align: 'center' });
+            doc.setFontSize(9.2);
+            doc.text(cert.issued_by_name || 'Joseph Unomieta', leftCenterX, lineY + 5.6, { align: 'center' });
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(8.2);
-            doc.setTextColor(113, 113, 122);
-            doc.text(cert.issued_by_title || 'Program Manager, CortDevs', leftCenterX, lineY + 11, { align: 'center' });
+            doc.setTextColor(115, 115, 115);
+            doc.text(cert.issued_by_title || 'Program Manager, CortDevs', leftCenterX, lineY + 10.6, { align: 'center' });
 
-            // Column 2 (Center): Official CD Seal Stamp
-            const sealX = w / 2;
-            const sealY = 154;
-            doc.setDrawColor(3, 2, 19);
-            doc.setLineWidth(0.7);
-            doc.circle(sealX, sealY, 16.5, 'S');
-            doc.setLineWidth(0.35);
-            doc.circle(sealX, sealY, 14.5, 'S');
-            doc.setFillColor(3, 2, 19);
-            doc.circle(sealX, sealY, 9.8, 'F');
-            doc.setDrawColor(255, 255, 255);
-            doc.setLineWidth(0.25);
-            doc.circle(sealX, sealY, 8.6, 'S');
-            doc.setTextColor(255, 255, 255);
-            doc.setFont('times', 'bold');
-            doc.setFontSize(14);
-            doc.text('CD', sealX, sealY + 1.8, { align: 'center' });
-            doc.setTextColor(3, 2, 19);
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(6.2);
-            doc.text('CORTDEVS VERIFIED SEAL', sealX, sealY + 21, { align: 'center' });
+            // Column 2 (Center): Exact CortDevs Curved-Text Official CD Seal
+            const sealSizeMm = 30.5;
+            const sealCenterX = w / 2;
+            const sealCenterY = lineY - 4;
+            if (sealPng) {
+                doc.addImage(
+                    sealPng,
+                    'PNG',
+                    sealCenterX - sealSizeMm / 2,
+                    sealCenterY - sealSizeMm / 2,
+                    sealSizeMm,
+                    sealSizeMm,
+                );
+            } else {
+                doc.setDrawColor(3, 2, 19);
+                doc.setLineWidth(0.7);
+                doc.circle(sealCenterX, sealCenterY, 14.5, 'S');
+                doc.setFillColor(3, 2, 19);
+                doc.circle(sealCenterX, sealCenterY, 8.8, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFont('times', 'bold');
+                doc.setFontSize(13);
+                doc.text('CD', sealCenterX, sealCenterY + 1.6, { align: 'center' });
+            }
 
-            // Column 3 (Right): Date Issued + Scannable QR Code
-            const rightBlockLeft = w - 102;
+            // Column 3 (Right): QR Code (left) + Date Issued (right) above rule, Code & URL below rule
+            const rightCenterX = w - 65;
+            const qrBoxSize = 18.5;
+            const qrX = rightCenterX - 24;
+            const qrY = lineY - qrBoxSize - 3;
+
+            if (pdfQrDataUrl) {
+                doc.setDrawColor(229, 229, 229);
+                doc.setLineWidth(0.3);
+                doc.setFillColor(255, 255, 255);
+                doc.rect(qrX, qrY, qrBoxSize, qrBoxSize, 'FD');
+                doc.addImage(pdfQrDataUrl, 'PNG', qrX + 0.7, qrY + 0.7, qrBoxSize - 1.4, qrBoxSize - 1.4);
+            }
+
+            const dateTextX = qrX + qrBoxSize + 3.8;
             const issuedStr = new Date(cert.issued_at).toLocaleDateString('en-US', {
                 year: 'numeric',
-                month: 'long',
+                month: 'short',
                 day: 'numeric',
             });
-            if (pdfQrDataUrl) {
-                doc.addImage(pdfQrDataUrl, 'PNG', w - 50, lineY - 22, 24, 24);
-            }
+            doc.setTextColor(115, 115, 115);
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(7.2);
+            doc.text('DATE ISSUED', dateTextX, qrY + 5.2, { charSpace: 0.4 });
             doc.setTextColor(3, 2, 19);
             doc.setFont('helvetica', 'bold');
-            doc.setFontSize(9.5);
-            doc.text(issuedStr, rightBlockLeft, lineY - 8);
+            doc.setFontSize(9.2);
+            doc.text(issuedStr, dateTextX, qrY + 10.4);
+            doc.setTextColor(115, 115, 115);
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(7.5);
+            doc.text('Scan QR to verify', dateTextX, qrY + 15.2);
+
+            doc.setDrawColor(163, 163, 163);
+            doc.setLineWidth(0.35);
+            doc.line(rightCenterX - colRuleHalfW, lineY, rightCenterX + colRuleHalfW, lineY);
+
+            doc.setTextColor(23, 23, 23);
+            doc.setFont('courier', 'bold');
+            doc.setFontSize(8.5);
+            doc.text(cert.certificate_code, rightCenterX, lineY + 5.6, { align: 'center' });
+            doc.setTextColor(115, 115, 115);
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(8);
-            doc.setTextColor(113, 113, 122);
-            doc.text('Date Issued', rightBlockLeft, lineY - 3);
+            doc.text('learn.cortdevs.com/verify', rightCenterX, lineY + 10.6, { align: 'center' });
 
-            doc.setDrawColor(3, 2, 19);
-            doc.setLineWidth(0.4);
-            doc.line(rightBlockLeft, lineY, w - 54, lineY);
+            // 7. Bottom Subtle Divider + Legal Disclaimer
+            doc.setDrawColor(245, 245, 245);
+            doc.setLineWidth(0.3);
+            doc.line(contentLeft, 181, contentRight, 181);
 
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(7.5);
-            doc.setTextColor(3, 2, 19);
-            doc.text('SCAN QR TO VERIFY', w - 38, lineY + 6.5, { align: 'center' });
             doc.setFont('helvetica', 'normal');
-            doc.setFontSize(7.5);
-            doc.setTextColor(113, 113, 122);
-            doc.text(cert.certificate_code, rightBlockLeft, lineY + 6.5);
-            doc.text('learn.cortdevs.com/verify', rightBlockLeft, lineY + 11);
-
-            // Legal disclaimer footer
-            doc.setFontSize(7);
-            doc.setTextColor(140, 140, 150);
+            doc.setFontSize(7.2);
+            doc.setTextColor(163, 163, 163);
             doc.text(
                 cert.disclaimer ||
                     'Issued independently by CortDevs for verified internal cohort completion. Not affiliated with, sponsored by, or officially certified by Microsoft or Coursera.',
                 w / 2,
-                h - 18,
+                188,
                 { align: 'center' },
             );
 
