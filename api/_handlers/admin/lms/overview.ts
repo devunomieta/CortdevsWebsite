@@ -3,6 +3,7 @@ import { supabase } from '../../../_lib/supabase.js';
 import {
     buildCohortWeekSchedule,
     getCohortTotalWeeks,
+    getCurrentCohortWeek,
     getEffectiveStreak,
     isModuleDripUnlocked,
     requireLmsAdmin,
@@ -24,6 +25,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             { data: progress },
             { data: submissions },
             { data: quizAttempts },
+            { data: dripOverrides },
         ] = await Promise.all([
             supabase
                 .from('lms_enrollments')
@@ -48,10 +50,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 .from('lms_quiz_attempts')
                 .select('user_id, score_pct, passed')
                 .eq('cohort_id', cohort.id),
+            supabase
+                .from('lms_overrides')
+                .select('user_id, module_id, override_type')
+                .eq('cohort_id', cohort.id)
+                .eq('override_type', 'unlock_drip'),
         ]);
 
         const allLessons = lessons || [];
         const allModules = modules || [];
+        const moduleWeekById = new Map<string, number>();
+        for (const m of allModules) {
+            moduleWeekById.set(m.id, m.target_week);
+        }
+
+        // Per-user early drip override lookup (supports both week/module-scoped and legacy all-weeks overrides)
+        const userDripModIds = new Map<string, Set<string>>();
+        const userAllWeeksOverride = new Set<string>();
+        for (const ov of dripOverrides || []) {
+            if (!ov.user_id) continue;
+            if (!ov.module_id) {
+                userAllWeeksOverride.add(ov.user_id);
+            } else {
+                if (!userDripModIds.has(ov.user_id)) userDripModIds.set(ov.user_id, new Set());
+                userDripModIds.get(ov.user_id)!.add(ov.module_id);
+            }
+        }
         const lessonsByMod = new Map<string, string[]>();
         for (const l of allLessons) {
             if (!lessonsByMod.has(l.module_id)) lessonsByMod.set(l.module_id, []);
@@ -97,11 +121,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const lastActiveMs = enr.last_active_at ? new Date(enr.last_active_at).getTime() : new Date(enr.created_at).getTime();
             const daysInactive = Math.max(0, Math.floor((Date.now() - lastActiveMs) / 86400000));
 
+            const modOverrideSet = userDripModIds.get(enr.user_id) || new Set<string>();
+            const hasAllWeeksOverride = userAllWeeksOverride.has(enr.user_id);
+            const earlyWeeksSet = new Set<number>();
+            for (const mid of modOverrideSet) {
+                const wk = moduleWeekById.get(mid);
+                if (wk) earlyWeeksSet.add(wk);
+            }
+            const earlyUnlockedWeeks = Array.from(earlyWeeksSet).sort((a, b) => a - b);
+
             const moduleMatrix = allModules.map((m: any) => {
                 const mLessons = lessonsByMod.get(m.id) || [];
                 const done = mLessons.filter((lid) => uMap.get(lid)?.status === 'completed').length;
                 const started = mLessons.some((lid) => uMap.has(lid));
-                const drip = isModuleDripUnlocked(cohort, m.target_week, now, false);
+                const hasModDripOverride = hasAllWeeksOverride || modOverrideSet.has(m.id);
+                const drip = isModuleDripUnlocked(cohort, m.target_week, now, hasModDripOverride);
                 let cellStatus: 'completed' | 'in_progress' | 'not_started' | 'drip_locked' = 'not_started';
                 if (mLessons.length > 0 && done === mLessons.length) cellStatus = 'completed';
                 else if (done > 0 || started) cellStatus = 'in_progress';
@@ -140,6 +174,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 readingMinutes: Math.round(totalDwellSec / 60),
                 avgQuizScore: qStats.attempts > 0 ? Math.round(qStats.sumScore / qStats.attempts) : null,
                 riskStatus,
+                earlyUnlockedWeeks,
+                hasAllWeeksOverride,
                 moduleMatrix,
             };
         });
@@ -150,6 +186,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         return res.status(200).json({
             cohort,
+            currentCalendarWeek: getCurrentCohortWeek(cohort, now),
             totalWeeks: getCohortTotalWeeks(cohort),
             weekSchedule: buildCohortWeekSchedule(cohort),
             summary: {

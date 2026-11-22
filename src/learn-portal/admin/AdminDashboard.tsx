@@ -16,6 +16,7 @@ import {
     FolderCheck,
     KeyRound,
     Loader2,
+    Lock,
     Mail,
     MessageSquare,
     PauseCircle,
@@ -28,6 +29,7 @@ import {
     Unlock,
     UserPlus,
     Users,
+    X,
 } from 'lucide-react';
 import { useLearnAuth } from '../context/LearnAuthContext';
 import { learnApi } from '../lib/api';
@@ -113,6 +115,10 @@ export function LearnAdminDashboard() {
     const [nudgeTarget, setNudgeTarget] = useState<any | null>(null);
     const [nudgeMsg, setNudgeMsg] = useState('');
     const [sendingNudge, setSendingNudge] = useState(false);
+
+    // Per-week Early Access Grant/Revoke Modal state
+    const [earlyAccessUserId, setEarlyAccessUserId] = useState<string | null>(null);
+    const [togglingEarlyKey, setTogglingEarlyKey] = useState<string | null>(null);
 
     const [feedbackMap, setFeedbackMap] = useState<Record<string, string>>({});
 
@@ -494,17 +500,73 @@ export function LearnAdminDashboard() {
         }
     };
 
-    const handleGrantDripOverride = async (targetUserId: string, fullName: string) => {
-        await learnApi('admin/lms/nudge', {
-            method: 'POST',
-            body: {
-                action: 'override',
-                targetUserId,
-                overrideType: 'unlock_drip',
-                reason: 'Admin unlocked upcoming weeks early',
-            },
-        });
-        showToast(`Upcoming weeks unlocked early for ${fullName}.`);
+    const handleToggleWeekEarlyAccess = async (
+        targetUserId: string,
+        fullName: string,
+        targetWeek: number,
+        currentlyUnlocked: boolean,
+    ) => {
+        const key = String(targetWeek);
+        setTogglingEarlyKey(key);
+        try {
+            if (currentlyUnlocked) {
+                await learnApi('admin/lms/nudge', {
+                    method: 'POST',
+                    body: {
+                        action: 'revoke_override',
+                        targetUserId,
+                        targetWeek,
+                    },
+                });
+                await refreshOverview();
+                showToast(`Revoked early Week ${targetWeek} access for ${fullName}.`);
+            } else {
+                await learnApi('admin/lms/nudge', {
+                    method: 'POST',
+                    body: {
+                        action: 'override',
+                        targetUserId,
+                        overrideType: 'unlock_drip',
+                        targetWeek,
+                        reason: `Early access: Week ${targetWeek}`,
+                    },
+                });
+                await refreshOverview();
+                showToast(`Week ${targetWeek} unlocked early for ${fullName}.`);
+            }
+        } catch (err: any) {
+            showToast(err?.message || 'Could not update early week access.');
+        } finally {
+            setTogglingEarlyKey(null);
+        }
+    };
+
+    const handleRevokeEarlyOverrideScope = async (
+        targetUserId: string,
+        fullName: string,
+        scope: 'all_legacy' | 'all',
+    ) => {
+        setTogglingEarlyKey(scope);
+        try {
+            await learnApi('admin/lms/nudge', {
+                method: 'POST',
+                body: {
+                    action: 'revoke_override',
+                    targetUserId,
+                    targetWeek: scope,
+                },
+            });
+            await refreshOverview();
+            showToast(
+                scope === 'all_legacy'
+                    ? `Revoked all-weeks early unlock for ${fullName}.`
+                    : `Revoked all early week overrides for ${fullName}.`,
+            );
+        } catch (err: any) {
+            showToast(err?.message || 'Could not revoke early access.');
+        } finally {
+            setTogglingEarlyKey(null);
+        }
     };
 
     const toggleQuizKey = (qIdx: number, optIdx: number) => {
@@ -765,11 +827,20 @@ export function LearnAdminDashboard() {
                                                 <BellRing className="w-3.5 h-3.5" /> Remind
                                             </button>
                                             <button
-                                                onClick={() => handleGrantDripOverride(l.userId, l.fullName)}
-                                                title="Unlock upcoming weeks early for this person"
-                                                className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-white border border-neutral-300 hover:border-neutral-950 text-neutral-700"
+                                                onClick={() => setEarlyAccessUserId(l.userId)}
+                                                title="Manage per-week early access (grant or revoke)"
+                                                className={`inline-flex items-center gap-1 px-2.5 py-1.5 border text-xs font-semibold transition ${
+                                                    l.hasAllWeeksOverride || (l.earlyUnlockedWeeks?.length || 0) > 0
+                                                        ? 'bg-emerald-50 border-emerald-300 text-emerald-800 hover:border-emerald-700'
+                                                        : 'bg-white border-neutral-300 hover:border-neutral-950 text-neutral-700'
+                                                }`}
                                             >
                                                 <Unlock className="w-3.5 h-3.5" />
+                                                {l.hasAllWeeksOverride
+                                                    ? 'All'
+                                                    : (l.earlyUnlockedWeeks?.length || 0) > 0
+                                                      ? l.earlyUnlockedWeeks.map((w: number) => `W${w}`).join(',')
+                                                      : null}
                                             </button>
                                         </td>
                                     </tr>
@@ -840,10 +911,19 @@ export function LearnAdminDashboard() {
                                         <BellRing className="w-3.5 h-3.5" /> Send Reminder
                                     </button>
                                     <button
-                                        onClick={() => handleGrantDripOverride(l.userId, l.fullName)}
-                                        className="inline-flex items-center justify-center gap-1 px-3 py-2 bg-white border border-neutral-300 text-xs font-semibold text-neutral-800"
+                                        onClick={() => setEarlyAccessUserId(l.userId)}
+                                        className={`inline-flex items-center justify-center gap-1 px-3 py-2 border text-xs font-semibold ${
+                                            l.hasAllWeeksOverride || (l.earlyUnlockedWeeks?.length || 0) > 0
+                                                ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                                                : 'bg-white border-neutral-300 text-neutral-800'
+                                        }`}
                                     >
-                                        <Unlock className="w-3.5 h-3.5" /> Unlock Early
+                                        <Unlock className="w-3.5 h-3.5" />
+                                        {l.hasAllWeeksOverride
+                                            ? 'Early: All'
+                                            : (l.earlyUnlockedWeeks?.length || 0) > 0
+                                              ? `Early: ${l.earlyUnlockedWeeks.map((w: number) => `W${w}`).join(', ')}`
+                                              : 'Early Access'}
                                     </button>
                                 </div>
                             </div>
@@ -1931,6 +2011,144 @@ export function LearnAdminDashboard() {
                     </form>
                 </div>
             )}
+
+            {/* Per-Week Early Access Grant / Revoke Modal */}
+            {earlyAccessUserId && overview && (() => {
+                const learner = (overview.learners || []).find((x: any) => x.userId === earlyAccessUserId);
+                if (!learner) return null;
+                const schedule: any[] = overview.weekSchedule || [];
+                const currentCalWeek = overview.currentCalendarWeek || 1;
+                const isSelfPaced = overview.cohort?.pacing_mode === 'self_paced_sequential';
+                const earlyWeeksSet = new Set<number>(learner.earlyUnlockedWeeks || []);
+
+                return (
+                    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+                        <div className="w-full max-w-lg bg-white border border-neutral-200 shadow-xl flex flex-col max-h-[88vh]">
+                            <div className="px-5 py-4 border-b border-neutral-200 flex items-start justify-between gap-3">
+                                <div className="text-left">
+                                    <h3 className="text-base font-semibold text-neutral-950">
+                                        Early Week Access — {learner.fullName}
+                                    </h3>
+                                    <p className="text-xs text-neutral-500 mt-0.5">
+                                        Applies only to this learner. Sequential completion between modules still applies.
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setEarlyAccessUserId(null)}
+                                    aria-label="Close modal"
+                                    className="p-1 text-neutral-400 hover:text-neutral-950"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </div>
+
+                            <div className="p-5 overflow-y-auto space-y-3 text-left">
+                                {learner.hasAllWeeksOverride && (
+                                    <div className="p-3 bg-amber-50 border border-amber-300 flex flex-wrap items-center justify-between gap-2 text-xs text-amber-950">
+                                        <span>
+                                            <strong>Legacy All-Weeks Unlock Active:</strong> All upcoming weeks are currently unlocked for this learner.
+                                        </span>
+                                        <button
+                                            type="button"
+                                            disabled={togglingEarlyKey !== null}
+                                            onClick={() => handleRevokeEarlyOverrideScope(learner.userId, learner.fullName, 'all_legacy')}
+                                            className="px-3 py-1.5 bg-white border border-red-300 hover:border-red-600 text-red-700 text-[11px] font-bold uppercase tracking-wider disabled:opacity-50"
+                                        >
+                                            {togglingEarlyKey === 'all_legacy' ? 'Revoking...' : 'Revoke All-Weeks'}
+                                        </button>
+                                    </div>
+                                )}
+
+                                <div className="divide-y divide-neutral-200 border border-neutral-200">
+                                    {schedule.map((w: any) => {
+                                        const calendarLive = isSelfPaced || w.week <= currentCalWeek;
+                                        const hasWeekOverride = earlyWeeksSet.has(w.week);
+                                        const isBusy = togglingEarlyKey === String(w.week);
+                                        const modCount = (overview.modules || []).filter((m: any) => m.targetWeek === w.week).length;
+
+                                        return (
+                                            <div
+                                                key={w.week}
+                                                className="px-3.5 py-2.5 flex items-center justify-between gap-3 bg-white"
+                                            >
+                                                <div className="min-w-0">
+                                                    <div className="text-xs font-semibold text-neutral-950 flex items-center gap-2">
+                                                        <span>Week {w.week}</span>
+                                                        <span className="text-[11px] font-normal text-neutral-500">
+                                                            ({modCount} {modCount === 1 ? 'module' : 'modules'})
+                                                        </span>
+                                                    </div>
+                                                    <div className="text-[11px] text-neutral-500">
+                                                        Scheduled unlock: {addDaysIso(w.unlockDate, 0) || w.unlockDate}
+                                                    </div>
+                                                </div>
+
+                                                {calendarLive ? (
+                                                    <span className="px-2.5 py-1 bg-neutral-100 text-neutral-600 text-[10px] font-bold uppercase tracking-wider shrink-0">
+                                                        Calendar Live
+                                                    </span>
+                                                ) : hasWeekOverride ? (
+                                                    <div className="inline-flex items-center gap-2 shrink-0">
+                                                        <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold uppercase tracking-wider">
+                                                            Unlocked
+                                                        </span>
+                                                        <button
+                                                            type="button"
+                                                            disabled={togglingEarlyKey !== null}
+                                                            onClick={() =>
+                                                                handleToggleWeekEarlyAccess(learner.userId, learner.fullName, w.week, true)
+                                                            }
+                                                            className="inline-flex items-center gap-1 px-2.5 py-1 bg-white border border-red-300 hover:border-red-600 text-red-700 text-[11px] font-bold uppercase tracking-wider disabled:opacity-50"
+                                                        >
+                                                            <Lock className="w-3 h-3" />
+                                                            {isBusy ? 'Revoking...' : 'Revoke'}
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <button
+                                                        type="button"
+                                                        disabled={togglingEarlyKey !== null}
+                                                        onClick={() =>
+                                                            handleToggleWeekEarlyAccess(learner.userId, learner.fullName, w.week, false)
+                                                        }
+                                                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-[#030213] hover:bg-neutral-800 text-white text-[11px] font-bold uppercase tracking-wider disabled:opacity-50 shrink-0"
+                                                    >
+                                                        <Unlock className="w-3 h-3" />
+                                                        {isBusy ? 'Granting...' : `Grant W${w.week}`}
+                                                    </button>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            <div className="px-5 py-3 bg-neutral-50 border-t border-neutral-200 flex flex-wrap items-center justify-between gap-2">
+                                {earlyWeeksSet.size > 0 || learner.hasAllWeeksOverride ? (
+                                    <button
+                                        type="button"
+                                        disabled={togglingEarlyKey !== null}
+                                        onClick={() => handleRevokeEarlyOverrideScope(learner.userId, learner.fullName, 'all')}
+                                        className="px-3 py-1.5 bg-white border border-red-300 hover:border-red-600 text-red-700 text-[11px] font-bold uppercase tracking-wider disabled:opacity-50"
+                                    >
+                                        {togglingEarlyKey === 'all' ? 'Revoking...' : 'Revoke All Early Access'}
+                                    </button>
+                                ) : (
+                                    <span className="text-[11px] text-neutral-500">No early overrides active</span>
+                                )}
+                                <button
+                                    type="button"
+                                    onClick={() => setEarlyAccessUserId(null)}
+                                    className="px-4 py-1.5 bg-[#030213] hover:bg-neutral-800 text-white text-xs font-bold uppercase tracking-[0.14em]"
+                                >
+                                    Done
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
 
             {/* Personal Reminder Modal */}
             {nudgeTarget && (
