@@ -13,10 +13,11 @@ const MAX_TURNS = 4; // Strict 4-turn conclusive arc: 1 Clarify -> 2 Trade-Off -
 const MAX_USER_CHARS = 600; // ~150 tokens max per user turn
 const MAX_HISTORY_CHARS = 480;
 const MAX_DAILY_SESSIONS_PER_LEARNER = 6;
-const GEMINI_ATTEMPTS: Array<{ model: string; disableThinking: boolean }> = [
-    { model: 'gemini-2.5-flash-lite', disableThinking: false },
-    { model: 'gemini-2.5-flash', disableThinking: true },
-    { model: 'gemini-2.0-flash', disableThinking: false },
+const DEFAULT_GEMINI_ATTEMPTS: Array<{ model: string; thinkingLevel?: 'MINIMAL' | 'LOW' }> = [
+    { model: 'gemini-3.5-flash-lite', thinkingLevel: 'MINIMAL' },
+    { model: 'gemini-3.8-flash', thinkingLevel: 'MINIMAL' },
+    { model: 'gemini-flash-lite-latest' },
+    { model: 'gemini-flash-latest' },
 ];
 
 interface DialogueTurn {
@@ -102,185 +103,212 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    const member = await requireLmsMember(req, res);
-    if (!member) return;
+    try {
+        const member = await requireLmsMember(req, res);
+        if (!member) return;
 
-    const apiKey = process.env.GEMINI_API_KEY?.trim();
-    if (!apiKey) {
-        return res.status(200).json({
-            aiConfigured: false,
-            error: 'AI Coach is not configured yet (add GEMINI_API_KEY to activate). Use Cohort Scenario Dialogue in the meantime.',
-        });
-    }
-
-    const { moduleId, history, userMessage } = req.body || {};
-    if (!isValidUuid(moduleId)) {
-        return res.status(400).json({ error: 'Valid moduleId is required.' });
-    }
-
-    const isAdmin = member.enrollment.role === 'admin';
-
-    const cleanMsg = sanitizePlainText(userMessage, MAX_USER_CHARS);
-    if (cleanMsg.length < 5) {
-        return res.status(400).json({ error: 'Write at least a short sentence (5+ characters) to continue the dialogue.' });
-    }
-
-    const safeHistory: DialogueTurn[] = Array.isArray(history)
-        ? history
-              .slice(-6)
-              .map((h: any) => ({
-                  role: (h?.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
-                  text: sanitizePlainText(h?.text, MAX_HISTORY_CHARS),
-              }))
-              .filter((h) => h.text.length > 0)
-        : [];
-
-    const userTurnsSoFar = safeHistory.filter((h) => h.role === 'user').length;
-    if (userTurnsSoFar >= MAX_TURNS) {
-        return res.status(400).json({
-            aiConfigured: true,
-            error: 'This 4-turn AI Coach session is already complete. Click "Practice Again" to start a fresh session or share your insight to the cohort.',
-        });
-    }
-
-    const currentTurn = userTurnsSoFar + 1;
-    const isFinalDebrief = currentTurn >= MAX_TURNS;
-
-    // Parallelize gating, module lookup, and Turn-1 daily quota check for lowest latency
-    const sinceIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const [dialogueAccess, modRes, dailyCountRes] = await Promise.all([
-        checkModuleDialogueUnlocked({
-            cohortId: member.cohort.id,
-            userId: member.enrollment.user_id,
-            moduleId,
-            isAdmin,
-        }),
-        supabase
-            .from('lms_modules')
-            .select('id, title, target_week, lms_courses(title)')
-            .eq('id', moduleId)
-            .maybeSingle(),
-        currentTurn === 1 && !isAdmin
-            ? supabase
-                  .from('lms_activity_events')
-                  .select('id', { count: 'exact', head: true })
-                  .eq('cohort_id', member.cohort.id)
-                  .eq('user_id', member.enrollment.user_id)
-                  .eq('event_type', 'ai_dialogue_completed')
-                  .gte('created_at', sinceIso)
-            : Promise.resolve({ count: 0 }),
-    ]);
-
-    if (!dialogueAccess.unlocked) {
-        return res.status(403).json({
-            aiConfigured: true,
-            error: dialogueAccess.reason || 'Complete this module’s quiz/project first to unlock AI Coach.',
-            dialogueAccess,
-        });
-    }
-
-    if (currentTurn === 1 && !isAdmin && (dailyCountRes.count || 0) >= MAX_DAILY_SESSIONS_PER_LEARNER) {
-        return res.status(429).json({
-            aiConfigured: true,
-            error: `Daily AI Coach limit reached (${MAX_DAILY_SESSIONS_PER_LEARNER} sessions/24h). You can continue sharing in Cohort Scenario right away.`,
-        });
-    }
-
-    const mod = modRes.data;
-    if (!mod) {
-        return res.status(404).json({ error: 'Module not found.' });
-    }
-
-    const courseTitle = (mod as any).lms_courses?.title || 'AI Product Management';
-    const scenario = getModuleDialogueScenario(mod.title, courseTitle);
-
-    const systemInstruction = buildTurnInstruction({
-        turn: currentTurn,
-        modTitle: mod.title,
-        courseTitle,
-        learnerName: member.enrollment.full_name,
-        persona: scenario.roleplayPersona,
-        personaRole: scenario.personaRole,
-        scenarioPrompt: scenario.scenarioPrompt,
-    });
-
-    const contents = buildGeminiContents(safeHistory, cleanMsg);
-
-    let lastErrorDetail = '';
-    for (const attempt of GEMINI_ATTEMPTS) {
-        const { model, disableThinking } = attempt;
-        try {
-            const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
-            const genConfig: Record<string, any> = {
-                temperature: 0.6,
-                // Tight yet safe output token caps so responses are concise AND never truncated mid-sentence
-                maxOutputTokens: isFinalDebrief ? 300 : 180,
-            };
-            if (disableThinking) {
-                genConfig.thinkingConfig = { thinkingBudget: 0 };
-            }
-
-            const response = await fetch(endpoint, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    systemInstruction: { parts: [{ text: systemInstruction }] },
-                    contents,
-                    generationConfig: genConfig,
-                }),
-                signal: AbortSignal.timeout(8500),
-            });
-
-            const payload: any = await response.json().catch(() => ({}));
-            if (!response.ok) {
-                lastErrorDetail = payload?.error?.message || `HTTP ${response.status}`;
-                console.error(`[lms/dialogue-coach] ${model} failed (${response.status}):`, lastErrorDetail);
-                if (response.status === 401 || response.status === 403) {
-                    return res.status(502).json({
-                        aiConfigured: true,
-                        error: `Gemini API key rejected (${lastErrorDetail}). Check GEMINI_API_KEY in Vercel/env.`,
-                    });
-                }
-                continue;
-            }
-
-            const replyText =
-                payload?.candidates?.[0]?.content?.parts
-                    ?.filter((p: any) => !p?.thought)
-                    ?.map((p: any) => p?.text || '')
-                    .join('')
-                    .trim() || '';
-
-            if (!replyText) {
-                lastErrorDetail = 'Empty candidate text';
-                console.error(`[lms/dialogue-coach] ${model} returned empty text:`, JSON.stringify(payload).slice(0, 300));
-                continue;
-            }
-
-            if (isFinalDebrief) {
-                await logLmsEvent({
-                    cohortId: member.cohort.id,
-                    userId: member.enrollment.user_id,
-                    eventType: 'ai_dialogue_completed',
-                    metadata: { moduleId: mod.id, moduleTitle: mod.title, turns: currentTurn, model },
-                }).catch(() => {});
-            }
-
+        // Strip accidental surrounding quotes/whitespace from env var
+        const apiKey = (process.env.GEMINI_API_KEY || '').trim().replace(/^["']|["']$/g, '');
+        if (!apiKey) {
             return res.status(200).json({
-                aiConfigured: true,
-                reply: replyText,
-                turn: currentTurn,
-                maxTurns: MAX_TURNS,
-                isFinalDebrief,
+                ok: false,
+                aiConfigured: false,
+                error: 'AI Coach is not configured yet (add GEMINI_API_KEY to activate). Use Cohort Scenario Dialogue in the meantime.',
             });
-        } catch (err: any) {
-            lastErrorDetail = err?.message || 'Network timeout';
-            console.error(`[lms/dialogue-coach] ${model} exception:`, lastErrorDetail);
         }
-    }
 
-    return res.status(502).json({
-        aiConfigured: true,
-        error: `AI Coach could not respond right now (${lastErrorDetail || 'upstream error'}). Please retry or post in Cohort Scenario.`,
-    });
+        const { moduleId, history, userMessage } = req.body || {};
+        if (!isValidUuid(moduleId)) {
+            return res.status(400).json({ error: 'Valid moduleId is required.' });
+        }
+
+        const isAdmin = member.enrollment.role === 'admin';
+
+        const cleanMsg = sanitizePlainText(userMessage, MAX_USER_CHARS);
+        if (cleanMsg.length < 5) {
+            return res.status(400).json({ error: 'Write at least a short sentence (5+ characters) to continue the dialogue.' });
+        }
+
+        const safeHistory: DialogueTurn[] = Array.isArray(history)
+            ? history
+                  .slice(-6)
+                  .map((h: any) => ({
+                      role: (h?.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
+                      text: sanitizePlainText(h?.text, MAX_HISTORY_CHARS),
+                  }))
+                  .filter((h) => h.text.length > 0)
+            : [];
+
+        const userTurnsSoFar = safeHistory.filter((h) => h.role === 'user').length;
+        if (userTurnsSoFar >= MAX_TURNS) {
+            return res.status(200).json({
+                ok: false,
+                aiConfigured: true,
+                error: 'This 4-turn AI Coach session is already complete. Click "Practice Again" to start a fresh session or share your insight to the cohort.',
+            });
+        }
+
+        const currentTurn = userTurnsSoFar + 1;
+        const isFinalDebrief = currentTurn >= MAX_TURNS;
+
+        // Parallelize gating, module lookup, and Turn-1 daily quota check for lowest latency
+        const sinceIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        const [dialogueAccess, modRes, dailyCountRes] = await Promise.all([
+            checkModuleDialogueUnlocked({
+                cohortId: member.cohort.id,
+                userId: member.enrollment.user_id,
+                moduleId,
+                isAdmin,
+            }),
+            supabase
+                .from('lms_modules')
+                .select('id, title, target_week, lms_courses(title)')
+                .eq('id', moduleId)
+                .maybeSingle(),
+            currentTurn === 1 && !isAdmin
+                ? supabase
+                      .from('lms_activity_events')
+                      .select('id', { count: 'exact', head: true })
+                      .eq('cohort_id', member.cohort.id)
+                      .eq('user_id', member.enrollment.user_id)
+                      .eq('event_type', 'ai_dialogue_completed')
+                      .gte('created_at', sinceIso)
+                : Promise.resolve({ count: 0 }),
+        ]);
+
+        if (!dialogueAccess.unlocked) {
+            return res.status(403).json({
+                ok: false,
+                aiConfigured: true,
+                error: dialogueAccess.reason || 'Complete this module’s quiz/project first to unlock AI Coach.',
+                dialogueAccess,
+            });
+        }
+
+        if (currentTurn === 1 && !isAdmin && (dailyCountRes.count || 0) >= MAX_DAILY_SESSIONS_PER_LEARNER) {
+            return res.status(429).json({
+                ok: false,
+                aiConfigured: true,
+                error: `Daily AI Coach limit reached (${MAX_DAILY_SESSIONS_PER_LEARNER} sessions/24h). You can continue sharing in Cohort Scenario right away.`,
+            });
+        }
+
+        const mod = modRes.data;
+        if (!mod) {
+            return res.status(404).json({ error: 'Module not found.' });
+        }
+
+        const courseTitle = (mod as any).lms_courses?.title || 'AI Product Management';
+        const scenario = getModuleDialogueScenario(mod.title, courseTitle);
+
+        const systemInstruction = buildTurnInstruction({
+            turn: currentTurn,
+            modTitle: mod.title,
+            courseTitle,
+            learnerName: member.enrollment.full_name,
+            persona: scenario.roleplayPersona,
+            personaRole: scenario.personaRole,
+            scenarioPrompt: scenario.scenarioPrompt,
+        });
+
+        const contents = buildGeminiContents(safeHistory, cleanMsg);
+
+        const customModel = (process.env.GEMINI_MODEL || '').trim();
+        const attempts = customModel
+            ? [{ model: customModel, thinkingLevel: 'MINIMAL' as const }, ...DEFAULT_GEMINI_ATTEMPTS]
+            : DEFAULT_GEMINI_ATTEMPTS;
+
+        const attemptErrors: string[] = [];
+        for (const attempt of attempts) {
+            const { model, thinkingLevel } = attempt;
+            try {
+                const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
+                const genConfig: Record<string, any> = {
+                    temperature: 0.6,
+                    // Gemini 3.x counts internal thinking tokens inside maxOutputTokens; give safe headroom while prompt enforces concise 2-3 sentence replies
+                    maxOutputTokens: isFinalDebrief ? 900 : 512,
+                };
+                if (thinkingLevel) {
+                    genConfig.thinkingConfig = { thinkingLevel };
+                }
+
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        systemInstruction: { parts: [{ text: systemInstruction }] },
+                        contents,
+                        generationConfig: genConfig,
+                    }),
+                    signal: AbortSignal.timeout(8500),
+                });
+
+                const payload: any = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    const detail = payload?.error?.message || `HTTP ${response.status}`;
+                    attemptErrors.push(`${model}: ${detail}`);
+                    console.error(`[lms/dialogue-coach] ${model} failed (${response.status}):`, detail);
+                    // Return HTTP 200 with ok:false so proxies/CDNs never strip our JSON error message into a generic 502 HTML page
+                    if (response.status === 401 || response.status === 403 || /api key/i.test(detail)) {
+                        return res.status(200).json({
+                            ok: false,
+                            aiConfigured: true,
+                            error: `Gemini API key error: ${detail}. Verify GEMINI_API_KEY in Vercel Environment Variables.`,
+                        });
+                    }
+                    continue;
+                }
+
+                const replyText =
+                    payload?.candidates?.[0]?.content?.parts
+                        ?.filter((p: any) => !p?.thought)
+                        ?.map((p: any) => p?.text || '')
+                        .join('')
+                        .trim() || '';
+
+                if (!replyText) {
+                    const finishReason = payload?.candidates?.[0]?.finishReason || 'empty';
+                    attemptErrors.push(`${model}: empty (${finishReason})`);
+                    console.error(`[lms/dialogue-coach] ${model} empty text (${finishReason})`);
+                    continue;
+                }
+
+                if (isFinalDebrief) {
+                    await logLmsEvent({
+                        cohortId: member.cohort.id,
+                        userId: member.enrollment.user_id,
+                        eventType: 'ai_dialogue_completed',
+                        metadata: { moduleId: mod.id, moduleTitle: mod.title, turns: currentTurn, model },
+                    }).catch(() => {});
+                }
+
+                return res.status(200).json({
+                    ok: true,
+                    aiConfigured: true,
+                    reply: replyText,
+                    turn: currentTurn,
+                    maxTurns: MAX_TURNS,
+                    isFinalDebrief,
+                });
+            } catch (err: any) {
+                const detail = err?.message || 'Timeout';
+                attemptErrors.push(`${model}: ${detail}`);
+                console.error(`[lms/dialogue-coach] ${model} exception:`, detail);
+            }
+        }
+
+        // Return 200 ok:false so edge/CDN proxies NEVER swallow our diagnostic error into an opaque "502"
+        return res.status(200).json({
+            ok: false,
+            aiConfigured: true,
+            error: `AI Coach unavailable (${attemptErrors.slice(0, 2).join(' · ') || 'upstream timeout'}). Please retry or post in Cohort Scenario.`,
+        });
+    } catch (err: any) {
+        console.error('[lms/dialogue-coach] Unhandled error:', err);
+        return res.status(200).json({
+            ok: false,
+            aiConfigured: true,
+            error: `AI Coach error: ${err?.message || 'Unexpected server error.'}`,
+        });
+    }
 }

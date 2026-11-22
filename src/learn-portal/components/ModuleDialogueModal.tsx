@@ -200,6 +200,12 @@ export function ModuleDialogueModal({
                 setAiError(res.error || 'AI Coach is not configured yet.');
                 return;
             }
+            if (res.ok === false || !res.reply) {
+                setTurns((prev) => prev.slice(0, -1));
+                setAiInput(clean);
+                setAiError(res.error || 'AI Coach could not respond right now. Please retry.');
+                return;
+            }
             setTurns((prev) => [
                 ...prev,
                 { role: 'assistant', text: res.reply, isDebrief: Boolean(res.isFinalDebrief) },
