@@ -647,7 +647,7 @@ export function LessonCompanionPanel({
 
                             <p className="text-[10px] text-neutral-400 text-center">
                                 {aiCoachConfigured
-                                    ? 'Includes Cohort Scenario Debate + AI Stakeholder Coach (4 turns)'
+                                    ? 'Includes Cohort Scenario Debate + AI Coach (4 turns)'
                                     : 'Practice with Cohort Scenario Debate · Syncs with Sunday Standup'}
                             </p>
                         </>

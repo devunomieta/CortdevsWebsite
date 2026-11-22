@@ -75,12 +75,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 .select('user_id')
                 .eq('cohort_id', cohort.id)
                 .eq('status', 'completed'),
-            // Lightweight cohort discussion summary for Sunday Standup Prep (open Q&A + dialogue activity)
+            // Lightweight cohort discussion summary for Sunday Standup Prep (only tiny metadata columns, never bodies)
             supabase
                 .from('lms_module_discussions')
-                .select('*')
+                .select('module_id, status, post_type')
                 .eq('cohort_id', cohort.id)
-                .is('parent_id', null),
+                .is('parent_id', null)
+                .then((r) =>
+                    r.error?.code === '42703'
+                        ? supabase
+                              .from('lms_module_discussions')
+                              .select('module_id, status')
+                              .eq('cohort_id', cohort.id)
+                              .is('parent_id', null)
+                        : r,
+                ),
         ]);
 
         const progressMap = new Map<string, any>();

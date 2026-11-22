@@ -23,7 +23,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!apiKey) {
         return res.status(200).json({
             aiConfigured: false,
-            error: 'AI Stakeholder Coach is not configured yet (add GEMINI_API_KEY to activate). Use Cohort Scenario Dialogue in the meantime.',
+            error: 'AI Coach is not configured yet (add GEMINI_API_KEY to activate). Use Cohort Scenario Dialogue in the meantime.',
         });
     }
 

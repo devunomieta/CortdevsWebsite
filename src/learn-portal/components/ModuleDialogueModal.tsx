@@ -301,7 +301,7 @@ export function ModuleDialogueModal({
                         }`}
                     >
                         <Sparkles className="w-3.5 h-3.5" />
-                        AI Stakeholder Coach
+                        AI Coach
                     </button>
                 </div>
 
@@ -495,7 +495,7 @@ export function ModuleDialogueModal({
                                 </div>
                                 <div className="space-y-1 max-w-md mx-auto">
                                     <h3 className="text-sm font-semibold text-neutral-950">
-                                        AI Stakeholder Coach Ready to Activate
+                                        AI Coach Ready to Activate
                                     </h3>
                                     <p className="text-xs text-neutral-600 leading-relaxed">
                                         Add a free-tier <code className="px-1 py-0.5 bg-neutral-100 border border-neutral-200">GEMINI_API_KEY</code> in your environment to enable 4-turn interactive AI roleplay. Meanwhile, you can practice with your teammates in <strong>Cohort Scenario</strong>!
