@@ -479,7 +479,16 @@ export function ModuleDialogueModal({
                             </div>
                             <div className="flex items-center gap-2">
                                 <span className="font-mono text-[11px] text-neutral-500">
-                                    Turn {Math.min(aiTurnCount, 4)}/4
+                                    Turn {Math.min(aiTurnCount, 4)}/4 ·{' '}
+                                    {aiCompleted
+                                        ? 'Concluded'
+                                        : aiTurnCount === 0
+                                          ? 'Clarify'
+                                          : aiTurnCount === 1
+                                            ? 'Trade-Off'
+                                            : aiTurnCount === 2
+                                              ? 'Final Call'
+                                              : 'Wrap-Up'}
                                 </span>
                                 {aiTurnCount > 0 && (
                                     <button
@@ -583,9 +592,14 @@ export function ModuleDialogueModal({
                                             <div className="flex gap-2">
                                                 <input
                                                     type="text"
+                                                    maxLength={550}
                                                     value={aiInput}
                                                     onChange={(e) => setAiInput(e.target.value)}
-                                                    placeholder={`Reply to ${scenario.roleplayPersona}...`}
+                                                    placeholder={
+                                                        aiTurnCount === 3
+                                                            ? `Give your final decision to ${scenario.roleplayPersona} to wrap up...`
+                                                            : `Reply to ${scenario.roleplayPersona}...`
+                                                    }
                                                     className="flex-1 bg-white border border-neutral-300 px-3 py-2.5 text-sm text-neutral-950 focus:outline-none focus:border-neutral-950"
                                                 />
                                                 <button
@@ -593,12 +607,20 @@ export function ModuleDialogueModal({
                                                     disabled={aiLoading || aiInput.trim().length < 5}
                                                     className="px-4 py-2.5 bg-[#030213] hover:bg-neutral-800 disabled:opacity-40 text-white text-xs font-bold uppercase tracking-[0.14em] inline-flex items-center gap-1.5"
                                                 >
-                                                    <Send className="w-3.5 h-3.5" /> Send
+                                                    <Send className="w-3.5 h-3.5" />
+                                                    {aiTurnCount === 3 ? 'Finish' : 'Send'}
                                                 </button>
                                             </div>
-                                            <p className="text-[10px] text-neutral-400">
-                                                AI roleplay is powered by Gemini for practice — don’t share confidential client secrets.
-                                            </p>
+                                            <div className="flex items-center justify-between text-[10px] text-neutral-400">
+                                                <span>
+                                                    AI roleplay is powered by Gemini for practice — don’t share confidential client secrets.
+                                                </span>
+                                                {aiInput.length > 350 && (
+                                                    <span className="font-mono text-neutral-500 shrink-0 ml-2">
+                                                        {aiInput.length}/550
+                                                    </span>
+                                                )}
+                                            </div>
                                         </form>
                                     )}
                                 </div>
