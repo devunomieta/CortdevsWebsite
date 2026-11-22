@@ -4,6 +4,7 @@ import {
     ChevronUp,
     Headphones,
     ListTree,
+    Loader2,
     Pause,
     Play,
     SkipBack,
@@ -11,29 +12,30 @@ import {
     Square,
     Volume2,
 } from 'lucide-react';
+import { learnApi } from '../lib/api';
 import { prepareReadingContent } from '../lib/sessionTimer';
 
 type FontSizeKey = 'sm' | 'md' | 'lg';
+type TtsEngine = 'cloud' | 'browser';
 
 const FONT_SIZE_KEY = 'cortdevs_reading_font_size';
 const TTS_RATE_KEY = 'cortdevs_reading_tts_rate';
 const TTS_RATES = [0.85, 1, 1.25, 1.5, 1.75];
 
-function pickBestEnglishVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | null {
+const CLOUD_ACCENTS = [
+    { id: 'cloud:en', label: 'Cloud Voice (US)' },
+    { id: 'cloud:en-GB', label: 'Cloud Voice (UK)' },
+    { id: 'cloud:en-AU', label: 'Cloud Voice (AU)' },
+];
+
+function pickBestLocalEnglishVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | null {
     if (!voices.length) return null;
-    const enVoices = voices.filter((v) => v.lang.toLowerCase().startsWith('en'));
-    const pool = enVoices.length ? enVoices : voices;
-    const preferredPatterns = [
-        /natural/i,
-        /google us english/i,
-        /google uk english/i,
-        /microsoft.*online/i,
-        /samantha/i,
-        /daniel/i,
-        /karen/i,
-        /aria/i,
-        /jenny/i,
-    ];
+    // Strongly prefer localService voices first so privacy browsers (e.g. Brave) don't fail on blocked remote TTS
+    const localEn = voices.filter((v) => v.localService && v.lang.toLowerCase().startsWith('en'));
+    const allEn = voices.filter((v) => v.lang.toLowerCase().startsWith('en'));
+    const pool = localEn.length ? localEn : allEn.length ? allEn : voices;
+
+    const preferredPatterns = [/natural/i, /samantha/i, /daniel/i, /karen/i, /aria/i, /jenny/i, /english/i];
     for (const pattern of preferredPatterns) {
         const hit = pool.find((v) => pattern.test(v.name));
         if (hit) return hit;
@@ -56,6 +58,12 @@ export function ReadingViewer({
 }) {
     const articleRef = useRef<HTMLElement | null>(null);
     const speechSessionRef = useRef<number>(0);
+    const activeUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+    const activeAudioRef = useRef<HTMLAudioElement | null>(null);
+    const audioCacheRef = useRef<Map<string, string>>(new Map());
+    const pendingFetchesRef = useRef<Map<string, Promise<string>>>(new Map());
+    const onListeningProgressRef = useRef(onListeningProgress);
+    onListeningProgressRef.current = onListeningProgress;
 
     const prepared = useMemo(() => prepareReadingContent(html || '<p>No reading content found.</p>'), [html]);
 
@@ -69,18 +77,19 @@ export function ReadingViewer({
     // Section outline toggle
     const [outlineOpen, setOutlineOpen] = useState(false);
 
-    // Text-to-Speech state
-    const ttsSupported =
+    // Hybrid TTS state (Browser speechSynthesis + automatic Cloud Audio fallback via /api/lms/tts)
+    const browserTtsSupported =
         typeof window !== 'undefined' && 'speechSynthesis' in window && typeof window.SpeechSynthesisUtterance !== 'undefined';
-    const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
-    const [selectedVoiceUri, setSelectedVoiceUri] = useState<string>('');
+    const [browserVoices, setBrowserVoices] = useState<SpeechSynthesisVoice[]>([]);
+    const [selectedVoiceOption, setSelectedVoiceOption] = useState<string>('cloud:en');
     const [ttsRate, setTtsRate] = useState<number>(() => {
         if (typeof window === 'undefined') return 1;
         const saved = Number(window.localStorage.getItem(TTS_RATE_KEY) || '1');
         return TTS_RATES.includes(saved) ? saved : 1;
     });
-    const [ttsState, setTtsState] = useState<'idle' | 'playing' | 'paused'>('idle');
+    const [ttsState, setTtsState] = useState<'idle' | 'loading' | 'playing' | 'paused'>('idle');
     const [activeBlockIdx, setActiveBlockIdx] = useState<number>(-1);
+    const [ttsError, setTtsError] = useState<string | null>(null);
 
     const handleSetFontSize = (next: FontSizeKey) => {
         setFontSize(next);
@@ -91,33 +100,48 @@ export function ReadingViewer({
         }
     };
 
-    const stopSpeech = useCallback(() => {
+    const stopAllPlayback = useCallback(() => {
         speechSessionRef.current += 1;
-        if (ttsSupported) {
+        activeUtteranceRef.current = null;
+        if (activeAudioRef.current) {
             try {
-                window.speechSynthesis.cancel();
+                activeAudioRef.current.pause();
+                activeAudioRef.current.src = '';
+            } catch {
+                // ignore
+            }
+            activeAudioRef.current = null;
+        }
+        if (browserTtsSupported) {
+            try {
+                if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
+                    window.speechSynthesis.cancel();
+                }
             } catch {
                 // ignore
             }
         }
         setTtsState('idle');
         setActiveBlockIdx(-1);
-    }, [ttsSupported]);
+        setTtsError(null);
+    }, [browserTtsSupported]);
 
     // Load available browser TTS voices (Chrome loads voices asynchronously via voiceschanged)
     useEffect(() => {
-        if (!ttsSupported) return;
+        if (!browserTtsSupported) return;
         const syncVoices = () => {
             const list = window.speechSynthesis.getVoices();
             if (!list.length) return;
-            // Prioritize English voices first, then others
             const en = list.filter((v) => v.lang.toLowerCase().startsWith('en'));
             const displayList = en.length ? en : list;
-            setVoices(displayList);
-            setSelectedVoiceUri((prev) => {
-                if (prev && displayList.some((v) => v.voiceURI === prev)) return prev;
-                const best = pickBestEnglishVoice(displayList);
-                return best?.voiceURI || displayList[0]?.voiceURI || '';
+            setBrowserVoices(displayList);
+            // Keep Cloud Voice as reliable default if user hasn't picked one, OR pick a local OS voice if present
+            setSelectedVoiceOption((prev) => {
+                if (prev && (prev.startsWith('cloud:') || displayList.some((v) => `browser:${v.voiceURI}` === prev))) {
+                    return prev;
+                }
+                const bestLocal = pickBestLocalEnglishVoice(displayList);
+                return bestLocal && bestLocal.localService ? `browser:${bestLocal.voiceURI}` : 'cloud:en';
             });
         };
         syncVoices();
@@ -125,17 +149,27 @@ export function ReadingViewer({
         return () => {
             window.speechSynthesis.removeEventListener?.('voiceschanged', syncVoices);
         };
-    }, [ttsSupported]);
+    }, [browserTtsSupported]);
 
-    // Always cancel speech cleanly on lesson switch or unmount
+    // Cancel playback & clear cache cleanly on lesson change or unmount
     useEffect(() => {
-        stopSpeech();
+        stopAllPlayback();
+        audioCacheRef.current.clear();
+        pendingFetchesRef.current.clear();
         setOutlineOpen(false);
-    }, [lessonKey, stopSpeech]);
+    }, [lessonKey, stopAllPlayback]);
 
     useEffect(() => {
         return () => {
             speechSessionRef.current += 1;
+            if (activeAudioRef.current) {
+                try {
+                    activeAudioRef.current.pause();
+                    activeAudioRef.current.src = '';
+                } catch {
+                    // ignore
+                }
+            }
             if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
                 try {
                     window.speechSynthesis.cancel();
@@ -159,75 +193,250 @@ export function ReadingViewer({
         }
     }, [activeBlockIdx, prepared.html]);
 
+    const fetchCloudAudioDataUrl = useCallback(async (blockIdx: number, text: string, lang: string): Promise<string> => {
+        const cacheKey = `${lang}:${blockIdx}`;
+        const cached = audioCacheRef.current.get(cacheKey);
+        if (cached) return cached;
+
+        const inflight = pendingFetchesRef.current.get(cacheKey);
+        if (inflight) return inflight;
+
+        const reqPromise = learnApi('lms/tts', {
+            method: 'POST',
+            body: { text, lang },
+        })
+            .then((res) => {
+                if (!res?.audioBase64) throw new Error('Audio response was empty.');
+                const dataUrl = `data:${res.mimeType || 'audio/mpeg'};base64,${res.audioBase64}`;
+                audioCacheRef.current.set(cacheKey, dataUrl);
+                return dataUrl;
+            })
+            .finally(() => {
+                pendingFetchesRef.current.delete(cacheKey);
+            });
+
+        pendingFetchesRef.current.set(cacheKey, reqPromise);
+        return reqPromise;
+    }, []);
+
     const speakFromIndex = useCallback(
-        (startIdx: number, rateOverride?: number, voiceUriOverride?: string) => {
-            if (!ttsSupported || !prepared.ttsBlocks.length) return;
+        (startIdx: number, rateOverride?: number, voiceOptOverride?: string, forceEngine?: TtsEngine) => {
+            if (!prepared.ttsBlocks.length) return;
             const bounded = Math.max(0, Math.min(prepared.ttsBlocks.length - 1, startIdx));
             const session = ++speechSessionRef.current;
             const rateToUse = rateOverride ?? ttsRate;
-            const voiceUri = voiceUriOverride ?? selectedVoiceUri;
-            const voiceObj = voices.find((v) => v.voiceURI === voiceUri) || pickBestEnglishVoice(voices);
+            const voiceOpt = voiceOptOverride ?? selectedVoiceOption;
 
-            try {
-                window.speechSynthesis.cancel();
-            } catch {
-                // ignore
+            setTtsError(null);
+
+            // Stop any active HTMLAudio element cleanly
+            if (activeAudioRef.current) {
+                try {
+                    activeAudioRef.current.pause();
+                    activeAudioRef.current.src = '';
+                } catch {
+                    // ignore
+                }
+                activeAudioRef.current = null;
             }
 
-            setTtsState('playing');
+            // Decide engine: Cloud Audio (works universally on every browser/OS) or Browser speechSynthesis
+            const useBrowser =
+                forceEngine === 'browser' ||
+                (forceEngine !== 'cloud' &&
+                    voiceOpt.startsWith('browser:') &&
+                    browserTtsSupported &&
+                    browserVoices.length > 0);
 
-            const speakBlock = (idx: number) => {
+            const cloudLang = voiceOpt.startsWith('cloud:') ? voiceOpt.slice('cloud:'.length) : 'en';
+
+            const playCloudBlock = async (idx: number) => {
                 if (speechSessionRef.current !== session) return;
                 if (idx >= prepared.ttsBlocks.length) {
                     setTtsState('idle');
                     setActiveBlockIdx(-1);
-                    onListeningProgress?.(100);
+                    onListeningProgressRef.current?.(100);
                     return;
                 }
 
                 const block = prepared.ttsBlocks[idx];
                 setActiveBlockIdx(idx);
                 const pct = Math.min(100, Math.round(((idx + 1) / prepared.ttsBlocks.length) * 100));
-                onListeningProgress?.(pct);
+                onListeningProgressRef.current?.(pct);
+
+                const cacheKey = `${cloudLang}:${idx}`;
+                if (!audioCacheRef.current.has(cacheKey)) {
+                    setTtsState('loading');
+                }
+
+                try {
+                    const dataUrl = await fetchCloudAudioDataUrl(idx, block.text, cloudLang);
+                    if (speechSessionRef.current !== session) return;
+
+                    // Pre-fetch next block in the background for gapless transitions
+                    if (idx + 1 < prepared.ttsBlocks.length) {
+                        fetchCloudAudioDataUrl(idx + 1, prepared.ttsBlocks[idx + 1].text, cloudLang).catch(() => {});
+                    }
+
+                    const audio = new Audio(dataUrl);
+                    audio.playbackRate = rateToUse;
+                    activeAudioRef.current = audio;
+
+                    audio.onended = () => {
+                        if (speechSessionRef.current !== session) return;
+                        playCloudBlock(idx + 1);
+                    };
+                    audio.onerror = () => {
+                        if (speechSessionRef.current !== session) return;
+                        setTtsState('idle');
+                        setActiveBlockIdx(-1);
+                        setTtsError('Audio playback failed in this browser.');
+                    };
+
+                    setTtsState('playing');
+                    await audio.play();
+                } catch (err: any) {
+                    if (speechSessionRef.current !== session) return;
+                    setTtsState('idle');
+                    setActiveBlockIdx(-1);
+                    setTtsError(err?.message || 'Unable to load audio voice right now. Please try again.');
+                }
+            };
+
+            const playBrowserBlock = (idx: number) => {
+                if (speechSessionRef.current !== session) return;
+                if (idx >= prepared.ttsBlocks.length) {
+                    setTtsState('idle');
+                    setActiveBlockIdx(-1);
+                    onListeningProgressRef.current?.(100);
+                    return;
+                }
+
+                const block = prepared.ttsBlocks[idx];
+                setActiveBlockIdx(idx);
+                setTtsState('playing');
+                const pct = Math.min(100, Math.round(((idx + 1) / prepared.ttsBlocks.length) * 100));
+                onListeningProgressRef.current?.(pct);
+
+                const targetUri = voiceOpt.startsWith('browser:') ? voiceOpt.slice('browser:'.length) : '';
+                const voiceObj =
+                    browserVoices.find((v) => v.voiceURI === targetUri) || pickBestLocalEnglishVoice(browserVoices);
 
                 const utterance = new window.SpeechSynthesisUtterance(block.text);
                 utterance.rate = rateToUse;
-                if (voiceObj) utterance.voice = voiceObj;
-                utterance.lang = voiceObj?.lang || 'en-US';
+                if (voiceObj) {
+                    utterance.voice = voiceObj;
+                    utterance.lang = voiceObj.lang || 'en-US';
+                } else {
+                    utterance.lang = 'en-US';
+                }
 
-                utterance.onend = () => {
+                // Pin ref to prevent Chromium GC from silently dropping onend mid-sentence
+                activeUtteranceRef.current = utterance;
+
+                let started = false;
+                const fallbackToCloud = () => {
                     if (speechSessionRef.current !== session) return;
-                    speakBlock(idx + 1);
+                    try {
+                        window.speechSynthesis.cancel();
+                    } catch {
+                        // ignore
+                    }
+                    setSelectedVoiceOption('cloud:en');
+                    playCloudBlock(idx);
+                };
+
+                // Watchdog: if browser speech engine silently ignores speak() without starting, auto-fallback to Cloud Audio
+                const watchdog = window.setTimeout(() => {
+                    if (!started && speechSessionRef.current === session && !window.speechSynthesis.speaking) {
+                        fallbackToCloud();
+                    }
+                }, 1400);
+
+                utterance.onstart = () => {
+                    started = true;
+                    window.clearTimeout(watchdog);
+                };
+                utterance.onend = () => {
+                    window.clearTimeout(watchdog);
+                    if (speechSessionRef.current !== session) return;
+                    playBrowserBlock(idx + 1);
                 };
                 utterance.onerror = (ev) => {
+                    window.clearTimeout(watchdog);
                     if (speechSessionRef.current !== session) return;
-                    // Ignore intentional cancel/interrupted errors
                     if (ev.error === 'canceled' || ev.error === 'interrupted') return;
-                    setTtsState('idle');
-                    setActiveBlockIdx(-1);
+                    // Auto-fallback to Cloud Audio seamlessly on Linux/Brave or blocked remote voices
+                    fallbackToCloud();
                 };
 
                 window.speechSynthesis.speak(utterance);
             };
 
-            speakBlock(bounded);
+            if (useBrowser) {
+                const needsCancel = browserTtsSupported && (window.speechSynthesis.speaking || window.speechSynthesis.pending);
+                if (needsCancel) {
+                    try {
+                        window.speechSynthesis.cancel();
+                    } catch {
+                        // ignore
+                    }
+                    // Wait 60ms after cancel() so Chromium doesn't abort the new utterance on the same tick
+                    window.setTimeout(() => playBrowserBlock(bounded), 60);
+                } else {
+                    playBrowserBlock(bounded);
+                }
+            } else {
+                if (browserTtsSupported && (window.speechSynthesis.speaking || window.speechSynthesis.pending)) {
+                    try {
+                        window.speechSynthesis.cancel();
+                    } catch {
+                        // ignore
+                    }
+                }
+                playCloudBlock(bounded);
+            }
         },
-        [ttsSupported, prepared.ttsBlocks, ttsRate, selectedVoiceUri, voices, onListeningProgress],
+        [prepared.ttsBlocks, ttsRate, selectedVoiceOption, browserTtsSupported, browserVoices, fetchCloudAudioDataUrl],
     );
 
     const handleTogglePlayPause = () => {
-        if (!ttsSupported || !prepared.ttsBlocks.length) return;
-        if (ttsState === 'playing') {
-            // Cancel & retain current block index for rock-solid pause/resume across all browsers
+        if (!prepared.ttsBlocks.length) return;
+        if (ttsState === 'playing' || ttsState === 'loading') {
             speechSessionRef.current += 1;
-            try {
-                window.speechSynthesis.cancel();
-            } catch {
-                // ignore
+            if (activeAudioRef.current) {
+                try {
+                    activeAudioRef.current.pause();
+                } catch {
+                    // ignore
+                }
+            }
+            if (browserTtsSupported) {
+                try {
+                    if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
+                        window.speechSynthesis.cancel();
+                    }
+                } catch {
+                    // ignore
+                }
             }
             setTtsState('paused');
         } else if (ttsState === 'paused') {
-            speakFromIndex(Math.max(0, activeBlockIdx));
+            // If Cloud audio element is paused mid-paragraph, resume right where it paused!
+            if (activeAudioRef.current && activeAudioRef.current.src && activeAudioRef.current.currentTime > 0 && !activeAudioRef.current.ended) {
+                const resumeSession = ++speechSessionRef.current;
+                const audio = activeAudioRef.current;
+                audio.playbackRate = ttsRate;
+                const currentIdx = Math.max(0, activeBlockIdx);
+                audio.onended = () => {
+                    if (speechSessionRef.current !== resumeSession) return;
+                    speakFromIndex(currentIdx + 1);
+                };
+                setTtsState('playing');
+                audio.play().catch(() => speakFromIndex(currentIdx));
+            } else {
+                speakFromIndex(Math.max(0, activeBlockIdx));
+            }
         } else {
             speakFromIndex(0);
         }
@@ -240,23 +449,25 @@ export function ReadingViewer({
         } catch {
             // ignore
         }
-        if (ttsState === 'playing' && activeBlockIdx >= 0) {
+        // Live speed adjustment on HTML5 Cloud Audio without restarting the sentence!
+        if (activeAudioRef.current && ttsState === 'playing') {
+            activeAudioRef.current.playbackRate = nextRate;
+        } else if (ttsState === 'playing' && activeBlockIdx >= 0) {
             speakFromIndex(activeBlockIdx, nextRate);
         }
     };
 
-    const handleChangeVoice = (nextUri: string) => {
-        setSelectedVoiceUri(nextUri);
+    const handleChangeVoice = (nextOpt: string) => {
+        setSelectedVoiceOption(nextOpt);
         if (ttsState === 'playing' && activeBlockIdx >= 0) {
-            speakFromIndex(activeBlockIdx, undefined, nextUri);
+            speakFromIndex(activeBlockIdx, undefined, nextOpt);
         }
     };
 
     const handleArticleClick = (e: React.MouseEvent<HTMLElement>) => {
-        if (!ttsSupported || ttsState === 'idle') return;
+        if (ttsState === 'idle') return;
         const targetEl = (e.target as HTMLElement | null)?.closest('[data-tts-idx]') as HTMLElement | null;
         if (!targetEl) return;
-        // Do not hijack link clicks
         if ((e.target as HTMLElement | null)?.closest('a')) return;
         const idx = Number(targetEl.getAttribute('data-tts-idx'));
         if (Number.isFinite(idx) && idx >= 0) {
@@ -287,25 +498,29 @@ export function ReadingViewer({
                 </div>
             )}
 
-            {/* Reading Comfort & Text-to-Speech Toolbar */}
+            {/* Reading Comfort & Hybrid Text-to-Speech Toolbar */}
             <div
                 className={`${
                     compact ? 'px-4 py-2.5' : 'sticky top-0 z-10 px-4 sm:px-6 py-2.5'
                 } bg-white/95 backdrop-blur-sm border-b border-neutral-200 flex flex-wrap items-center justify-between gap-2.5`}
             >
                 {/* Left: Listen Mode (TTS) Controls */}
-                {ttsSupported && totalBlocks > 0 ? (
+                {totalBlocks > 0 ? (
                     <div className="flex flex-wrap items-center gap-1.5">
                         <button
                             type="button"
                             onClick={handleTogglePlayPause}
                             className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.12em] transition ${
-                                ttsState === 'playing'
+                                ttsState === 'playing' || ttsState === 'loading'
                                     ? 'bg-blue-700 hover:bg-blue-800 text-white'
                                     : 'bg-[#030213] hover:bg-neutral-800 text-white'
                             }`}
                         >
-                            {ttsState === 'playing' ? (
+                            {ttsState === 'loading' ? (
+                                <>
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading...
+                                </>
+                            ) : ttsState === 'playing' ? (
                                 <>
                                     <Pause className="w-3.5 h-3.5" /> Pause
                                 </>
@@ -344,7 +559,7 @@ export function ReadingViewer({
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={stopSpeech}
+                                    onClick={stopAllPlayback}
                                     title="Stop audio"
                                     aria-label="Stop audio"
                                     className="p-1.5 border border-neutral-300 bg-white hover:border-red-600 hover:text-red-600 text-neutral-700"
@@ -371,24 +586,33 @@ export function ReadingViewer({
                             ))}
                         </select>
 
-                        {/* Voice selector (shown on sm+ when multiple voices exist) */}
-                        {voices.length > 1 && (
-                            <div className="hidden sm:inline-flex items-center gap-1 bg-neutral-50 border border-neutral-300 px-2 py-1">
-                                <Volume2 className="w-3 h-3 text-neutral-500 shrink-0" />
-                                <select
-                                    aria-label="Reading voice"
-                                    value={selectedVoiceUri}
-                                    onChange={(e) => handleChangeVoice(e.target.value)}
-                                    className="bg-transparent text-[11px] text-neutral-700 max-w-[140px] truncate focus:outline-none"
-                                >
-                                    {voices.slice(0, 20).map((v) => (
-                                        <option key={v.voiceURI} value={v.voiceURI}>
-                                            {v.name.replace(/Microsoft |Google /i, '').slice(0, 28)}
+                        {/* Voice selector (Cloud voices always available + Browser OS voices if present) */}
+                        <div className="hidden sm:inline-flex items-center gap-1 bg-neutral-50 border border-neutral-300 px-2 py-1">
+                            <Volume2 className="w-3 h-3 text-neutral-500 shrink-0" />
+                            <select
+                                aria-label="Reading voice"
+                                value={selectedVoiceOption}
+                                onChange={(e) => handleChangeVoice(e.target.value)}
+                                className="bg-transparent text-[11px] text-neutral-700 max-w-[155px] truncate focus:outline-none"
+                            >
+                                <optgroup label="Cloud Audio (Works Everywhere)">
+                                    {CLOUD_ACCENTS.map((c) => (
+                                        <option key={c.id} value={c.id}>
+                                            {c.label}
                                         </option>
                                     ))}
-                                </select>
-                            </div>
-                        )}
+                                </optgroup>
+                                {browserVoices.length > 0 && (
+                                    <optgroup label="Device Voices">
+                                        {browserVoices.slice(0, 15).map((v) => (
+                                            <option key={v.voiceURI} value={`browser:${v.voiceURI}`}>
+                                                {v.name.replace(/Microsoft |Google /i, '').slice(0, 26)}
+                                            </option>
+                                        ))}
+                                    </optgroup>
+                                )}
+                            </select>
+                        </div>
                     </div>
                 ) : (
                     <span className="text-[11px] font-medium text-neutral-500">Reading View</span>
@@ -441,13 +665,20 @@ export function ReadingViewer({
                 </div>
             </div>
 
-            {/* Active TTS helper hint */}
-            {ttsState !== 'idle' && (
+            {/* Active TTS helper hint or error banner */}
+            {ttsError && (
+                <div className="px-4 sm:px-6 py-2 bg-amber-50 border-b border-amber-200 text-xs text-amber-900 text-left">
+                    {ttsError}
+                </div>
+            )}
+            {ttsState !== 'idle' && !ttsError && (
                 <div className="px-4 sm:px-6 py-1.5 bg-blue-50 border-b border-blue-100 text-[11px] text-blue-900 flex items-center justify-between gap-2">
                     <span>
-                        {ttsState === 'playing'
-                            ? 'Reading aloud — click any paragraph below to jump narration there.'
-                            : 'Audio paused — click Resume or tap any paragraph to continue.'}
+                        {ttsState === 'loading'
+                            ? 'Preparing voice audio...'
+                            : ttsState === 'playing'
+                              ? 'Reading aloud — click any paragraph below to jump narration there.'
+                              : 'Audio paused — click Resume or tap any paragraph to continue.'}
                     </span>
                 </div>
             )}
