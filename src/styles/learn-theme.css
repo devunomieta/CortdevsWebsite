@@ -14,3 +14,285 @@ html.learn-force-light body,
 .learn-portal-root option {
     color-scheme: light !important;
 }
+
+/* ============================================================================
+   CortDevs Learn — Editorial Reading Typography (.learn-reading-prose)
+   Restores rich semantic formatting over Tailwind v4 Preflight reset
+   ============================================================================ */
+.learn-reading-prose {
+    color: #1f2937;
+    font-size: 0.975rem;
+    line-height: 1.78;
+    letter-spacing: -0.004em;
+    max-width: 72ch;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+.learn-reading-prose.reading-size-sm {
+    font-size: 0.875rem;
+    line-height: 1.72;
+}
+
+.learn-reading-prose.reading-size-md {
+    font-size: 0.975rem;
+    line-height: 1.78;
+}
+
+.learn-reading-prose.reading-size-lg {
+    font-size: 1.1rem;
+    line-height: 1.84;
+}
+
+.learn-reading-prose.learn-reading-prose-compact {
+    font-size: 0.8125rem;
+    line-height: 1.66;
+    max-width: none;
+}
+
+.learn-reading-prose > :first-child {
+    margin-top: 0 !important;
+}
+
+.learn-reading-prose > :last-child {
+    margin-bottom: 0 !important;
+}
+
+/* Headings */
+.learn-reading-prose h1 {
+    font-size: 1.55em;
+    font-weight: 700;
+    line-height: 1.28;
+    color: #030213;
+    margin: 1.75em 0 0.7em;
+    letter-spacing: -0.02em;
+}
+
+.learn-reading-prose h2 {
+    font-size: 1.28em;
+    font-weight: 700;
+    line-height: 1.32;
+    color: #030213;
+    margin: 1.8em 0 0.65em;
+    padding-bottom: 0.35em;
+    border-bottom: 1px solid #e5e7eb;
+    letter-spacing: -0.015em;
+    scroll-margin-top: 5.5rem;
+}
+
+.learn-reading-prose h3 {
+    font-size: 1.1em;
+    font-weight: 650;
+    line-height: 1.38;
+    color: #0f172a;
+    margin: 1.45em 0 0.5em;
+    scroll-margin-top: 5.5rem;
+}
+
+.learn-reading-prose h4 {
+    font-size: 1em;
+    font-weight: 650;
+    line-height: 1.4;
+    color: #1e293b;
+    margin: 1.2em 0 0.4em;
+}
+
+/* Paragraphs */
+.learn-reading-prose p {
+    margin: 0 0 1.05em;
+    color: #1f2937;
+}
+
+/* Unordered & Ordered Lists */
+.learn-reading-prose ul {
+    list-style-type: disc;
+    padding-left: 1.5rem;
+    margin: 0.65em 0 1.15em;
+}
+
+.learn-reading-prose ul ul {
+    list-style-type: circle;
+    margin: 0.35em 0 0.45em;
+}
+
+.learn-reading-prose ol {
+    list-style-type: decimal;
+    padding-left: 1.6rem;
+    margin: 0.65em 0 1.15em;
+}
+
+.learn-reading-prose ol ol {
+    list-style-type: lower-alpha;
+    margin: 0.35em 0 0.45em;
+}
+
+.learn-reading-prose li {
+    margin: 0.45em 0;
+    padding-left: 0.25rem;
+    line-height: 1.72;
+    color: #1f2937;
+}
+
+.learn-reading-prose li::marker {
+    color: #030213;
+    font-weight: 600;
+}
+
+.learn-reading-prose li > p {
+    margin-bottom: 0.45em;
+}
+
+.learn-reading-prose li > p:last-child {
+    margin-bottom: 0;
+}
+
+/* Emphasis */
+.learn-reading-prose strong,
+.learn-reading-prose b {
+    font-weight: 650;
+    color: #030213;
+}
+
+.learn-reading-prose em,
+.learn-reading-prose i {
+    font-style: italic;
+}
+
+/* Links */
+.learn-reading-prose a {
+    color: #1d4ed8;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    font-weight: 500;
+}
+
+.learn-reading-prose a:hover {
+    color: #1e40af;
+}
+
+/* Callout Boxes & Blockquotes */
+.learn-reading-prose blockquote,
+.learn-reading-prose .reading-callout {
+    margin: 1.2em 0;
+    padding: 0.9rem 1.1rem;
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-left: 3.5px solid #030213;
+    border-radius: 0 4px 4px 0;
+    color: #1e293b;
+}
+
+.learn-reading-prose blockquote p:last-child {
+    margin-bottom: 0;
+}
+
+/* Tables */
+.learn-reading-prose .reading-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+    margin: 1.35em 0;
+    border: 1px solid #e4e4e7;
+    border-radius: 4px;
+}
+
+.learn-reading-prose table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9em;
+    line-height: 1.55;
+    background-color: #ffffff;
+}
+
+.learn-reading-prose thead th,
+.learn-reading-prose tr:first-child th {
+    background-color: #f4f4f5;
+    color: #030213;
+    font-weight: 650;
+    text-align: left;
+    padding: 0.65rem 0.85rem;
+    border-bottom: 1px solid #d4d4d8;
+    border-right: 1px solid #e4e4e7;
+}
+
+.learn-reading-prose td {
+    padding: 0.6rem 0.85rem;
+    border-bottom: 1px solid #e4e4e7;
+    border-right: 1px solid #e4e4e7;
+    vertical-align: top;
+    color: #27272a;
+}
+
+.learn-reading-prose th:last-child,
+.learn-reading-prose td:last-child {
+    border-right: 0;
+}
+
+.learn-reading-prose tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.learn-reading-prose tbody tr:nth-child(even) td {
+    background-color: #fafafa;
+}
+
+/* Code */
+.learn-reading-prose code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.86em;
+    background-color: #f4f4f5;
+    color: #030213;
+    padding: 0.14em 0.4em;
+    border-radius: 3px;
+    border: 1px solid #e4e4e7;
+}
+
+.learn-reading-prose pre {
+    background-color: #0f172a;
+    color: #f8fafc;
+    padding: 1rem 1.15rem;
+    border-radius: 5px;
+    overflow-x: auto;
+    margin: 1.2em 0;
+    font-size: 0.85em;
+    line-height: 1.6;
+}
+
+.learn-reading-prose pre code {
+    background: transparent;
+    color: inherit;
+    padding: 0;
+    border: 0;
+}
+
+/* Images & Dividers */
+.learn-reading-prose img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    margin: 1.35em auto;
+    border-radius: 6px;
+    border: 1px solid #e5e7eb;
+}
+
+.learn-reading-prose hr {
+    border: 0;
+    border-top: 1px solid #e5e7eb;
+    margin: 1.75em 0;
+}
+
+/* Text-to-Speech Active Block Highlight */
+.learn-reading-prose [data-tts-idx] {
+    transition: background-color 160ms ease, box-shadow 160ms ease;
+    border-radius: 4px;
+}
+
+.learn-reading-prose.tts-interactive [data-tts-idx]:hover {
+    background-color: rgba(241, 245, 249, 0.75);
+    cursor: pointer;
+}
+
+.learn-reading-prose [data-tts-active='true'] {
+    background-color: #eff6ff !important;
+    box-shadow: -3px 0 0 0 #1d4ed8, 0 0 0 4px #eff6ff;
+    color: #030213;
+}

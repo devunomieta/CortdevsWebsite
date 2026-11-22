@@ -28,6 +28,7 @@ import {
     X,
 } from 'lucide-react';
 import { CourseraLogo, MicrosoftLogo } from './BrandLogos';
+import { ReadingViewer } from './ReadingViewer';
 import { formatDuration, learnApi } from '../lib/api';
 import { sanitizeReadingHtml } from '../lib/sessionTimer';
 
@@ -136,7 +137,6 @@ export function LearnVideoPlayer({
     onPlay,
     onPause,
     onEnded,
-    onSeekBlocked,
     onSaveNotes,
     onCompleteAndContinue,
     onReadingCompleted,
@@ -162,7 +162,7 @@ export function LearnVideoPlayer({
     onPlay: () => void;
     onPause: () => void;
     onEnded: () => void;
-    onSeekBlocked: () => void;
+    onSeekBlocked?: () => void;
     onSaveNotes: (nextNotes: VideoNote[]) => Promise<void>;
     onCompleteAndContinue?: () => void;
     onReadingCompleted?: (readingId: string) => void;
@@ -316,7 +316,7 @@ export function LearnVideoPlayer({
             onReadingCompleted?.(previewReadingId);
             setPreviewMsg('Reading marked complete!');
         } catch (err: any) {
-            setPreviewError(err?.message || 'Keep reading a little longer or add your 30-character takeaway first.');
+            setPreviewError(err?.message || 'Keep reading a few seconds longer or add your 20-character takeaway first.');
         } finally {
             setCompletingPreview(false);
         }
@@ -339,7 +339,7 @@ export function LearnVideoPlayer({
     }, [watermarkIdentity]);
 
     const pipSupported = typeof document !== 'undefined' && Boolean((document as any).pictureInPictureEnabled);
-    const speedOptions = isAdmin ? [0.75, 1, 1.25, 1.5, 1.75, 2] : [0.75, 1, 1.25, 1.5, 1.75];
+    const speedOptions = [0.75, 1, 1.25, 1.5, 1.75, 2];
 
     // Fetch optional .vtt transcript from private R2 (404 handled cleanly without noise)
     useEffect(() => {
@@ -424,15 +424,10 @@ export function LearnVideoPlayer({
             if (!vid) return;
             const totalDur = vid.duration || duration || 0;
             const clamped = Math.max(0, Math.min(totalDur || targetSec, targetSec));
-            if (!isAdmin && !isCompleted && clamped > maxWatchedSec + 15) {
-                vid.currentTime = maxWatchedSec;
-                onSeekBlocked();
-                return;
-            }
             vid.currentTime = clamped;
             setCurrentTime(clamped);
         },
-        [videoRef, duration, isAdmin, isCompleted, maxWatchedSec, onSeekBlocked],
+        [videoRef, duration],
     );
 
     const togglePlay = useCallback(() => {
@@ -1317,7 +1312,7 @@ export function LearnVideoPlayer({
                                                         </div>
                                                     ) : activePreviewData?.lesson?.content_html ? (
                                                         <article
-                                                            className="prose prose-xs prose-neutral max-w-none prose-headings:text-neutral-950 prose-p:text-neutral-800 prose-img:rounded break-words"
+                                                            className="learn-reading-prose learn-reading-prose-compact"
                                                             dangerouslySetInnerHTML={{
                                                                 __html: sanitizeReadingHtml(activePreviewData.lesson.content_html),
                                                             }}
@@ -1336,12 +1331,12 @@ export function LearnVideoPlayer({
                                                                 rows={2}
                                                                 value={previewTakeaway}
                                                                 onChange={(e) => setPreviewTakeaway(e.target.value)}
-                                                                placeholder="1-sentence key takeaway (min 30 chars)..."
+                                                                placeholder="1-sentence key takeaway (min 20 chars)..."
                                                                 className="w-full bg-neutral-50 border border-neutral-300 p-2 text-xs text-neutral-950 focus:outline-none focus:border-neutral-950"
                                                             />
                                                             <div className="flex items-center justify-between gap-2">
                                                                 <span className="text-[10px] text-neutral-500">
-                                                                    {previewTakeaway.trim().length}/30 chars · {previewDwellSec}s
+                                                                    {previewTakeaway.trim().length}/20 chars · {previewDwellSec}s
                                                                 </span>
                                                                 <button
                                                                     type="button"
@@ -1533,11 +1528,11 @@ export function LearnVideoPlayer({
                                         Loading reading...
                                     </div>
                                 ) : activeData?.lesson?.content_html ? (
-                                    <article
-                                        className="prose prose-sm sm:prose-base prose-neutral max-w-none prose-headings:text-neutral-950 prose-p:text-neutral-800 prose-p:leading-relaxed break-words"
-                                        dangerouslySetInnerHTML={{
-                                            __html: sanitizeReadingHtml(activeData.lesson.content_html),
-                                        }}
+                                    <ReadingViewer
+                                        html={activeData.lesson.content_html}
+                                        lessonKey={activeData.lesson.id}
+                                        compact
+                                        onListeningProgress={(pct) => setPreviewScrollPct((prev) => Math.max(prev, pct))}
                                     />
                                 ) : null}
 
@@ -1552,7 +1547,7 @@ export function LearnVideoPlayer({
                                             </div>
                                         )}
                                         <label className="block text-[11px] font-bold uppercase tracking-wider text-neutral-900">
-                                            Key Takeaway (min 30 characters to mark complete)
+                                            Key Takeaway (min 20 characters to mark complete)
                                         </label>
                                         <textarea
                                             rows={2}
@@ -1563,7 +1558,7 @@ export function LearnVideoPlayer({
                                         />
                                         <div className="flex flex-wrap items-center justify-between gap-2">
                                             <span className="text-xs text-neutral-500">
-                                                {previewTakeaway.trim().length}/30 chars · Scrolled {previewScrollPct}% · {previewDwellSec}s
+                                                {previewTakeaway.trim().length}/20 chars · Scrolled {previewScrollPct}% · {previewDwellSec}s
                                             </span>
                                             <button
                                                 type="button"

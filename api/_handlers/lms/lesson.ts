@@ -1,6 +1,12 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabase } from '../../_lib/supabase.js';
-import { evaluateLessonAccess, isValidLessonIdentifier, requireLmsMember, sanitizeQuizForClient } from '../../_lib/lmsGate.js';
+import {
+    evaluateLessonAccess,
+    getEffectiveReadingMinDwell,
+    isValidLessonIdentifier,
+    requireLmsMember,
+    sanitizeQuizForClient,
+} from '../../_lib/lmsGate.js';
 import { isR2Configured, resolveReadingHtmlImages, signLessonVideoUrl, signR2AssetUrl } from '../../_lib/lmsR2.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -200,6 +206,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 content_html: readingContentHtml,
                 word_count: lesson.word_count,
                 min_dwell_seconds: lesson.min_dwell_seconds,
+                effective_min_dwell_seconds: getEffectiveReadingMinDwell(lesson.min_dwell_seconds),
                 // quiz (answer keys ALWAYS stripped!)
                 quiz_questions: lesson.lesson_type === 'quiz' ? sanitizeQuizForClient(lesson.quiz_questions_json) : [],
                 quiz_keys_verified: lesson.quiz_keys_verified,

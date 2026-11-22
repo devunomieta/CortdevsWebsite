@@ -52,6 +52,16 @@ export function isValidEmail(input: unknown): input is string {
     return typeof input === 'string' && input.trim().length <= 254 && EMAIL_REGEX.test(input.trim());
 }
 
+// Relaxed, non-disruptive pacing guards (balanced to allow scanning/jumping while preventing instant rush clicks)
+export const VIDEO_COMPLETE_MIN_PCT = 70;
+export const READING_COMPLETE_MIN_SCROLL = 65;
+export const READING_TAKEAWAY_MIN_CHARS = 20;
+
+export function getEffectiveReadingMinDwell(rawMinDwell?: number | null): number {
+    const base = Number(rawMinDwell) || 60;
+    return Math.min(45, Math.max(15, Math.round(base * 0.25)));
+}
+
 export interface LmsCohort {
     id: string;
     name: string;

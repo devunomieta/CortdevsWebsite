@@ -2,13 +2,16 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabase } from '../../_lib/supabase.js';
 import {
     evaluateLessonAccess,
+    getEffectiveReadingMinDwell,
     isValidLessonIdentifier,
     isValidUuid,
     mergeWatchedRanges,
+    READING_COMPLETE_MIN_SCROLL,
     requireLmsMember,
     sanitizePlainText,
     sanitizeSingleLine,
     sumWatchedRanges,
+    VIDEO_COMPLETE_MIN_PCT,
     WatchedRange,
 } from '../../_lib/lmsGate.js';
 
@@ -78,11 +81,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const prevRanges: WatchedRange[] = Array.isArray(existing?.watched_ranges_json) ? existing.watched_ranges_json : [];
     let nextRanges = prevRanges;
 
-    // Anti-cheat guard: cap any single heartbeat interval to max 90 seconds (30s heartbeat + 1.75x speed headroom)
+    // Anti-cheat guard: cap any single heartbeat interval to max 105 seconds (30s heartbeat at up to 2.0x speed + headroom)
     if (Array.isArray(watchedRange) && watchedRange.length === 2) {
         const s = Math.max(0, Number(watchedRange[0]) || 0);
         const e = Math.max(s, Number(watchedRange[1]) || s);
-        if (e - s > 0 && e - s <= 95) {
+        if (e - s > 0 && e - s <= 105) {
             nextRanges = mergeWatchedRanges([...prevRanges, [s, e]]);
         }
     }
@@ -149,7 +152,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         watchPct,
         readyToComplete:
             lessonMeta.lesson_type === 'video'
-                ? watchPct >= 90
-                : nextScroll >= 85 && nextDwell >= (lessonMeta.min_dwell_seconds || 30),
+                ? watchPct >= VIDEO_COMPLETE_MIN_PCT
+                : nextScroll >= READING_COMPLETE_MIN_SCROLL &&
+                  nextDwell >= getEffectiveReadingMinDwell(lessonMeta.min_dwell_seconds),
     });
 }

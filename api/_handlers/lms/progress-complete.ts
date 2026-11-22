@@ -2,10 +2,14 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabase } from '../../_lib/supabase.js';
 import {
     evaluateLessonAccess,
+    getEffectiveReadingMinDwell,
     logLmsEvent,
+    READING_COMPLETE_MIN_SCROLL,
+    READING_TAKEAWAY_MIN_CHARS,
     requireLmsMember,
     sanitizePlainText,
     touchLearnerStreak,
+    VIDEO_COMPLETE_MIN_PCT,
 } from '../../_lib/lmsGate.js';
 import { sendLmsModuleCompleted } from '../../_lib/lmsEmail.js';
 
@@ -125,9 +129,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const dur = lesson.duration_seconds || 0;
         const watched = prog?.unique_watched_seconds || 0;
         const pct = dur > 0 ? Math.round((watched / dur) * 100) : 100;
-        if (pct < 90) {
+        if (pct < VIDEO_COMPLETE_MIN_PCT) {
             return res.status(400).json({
-                error: `Watch at least 90% of the video to complete this lesson (currently ${pct}% unique watched).`,
+                error: `Watch at least ${VIDEO_COMPLETE_MIN_PCT}% of the video to complete this lesson (currently ${pct}% unique watched).`,
                 watchPct: pct,
             });
         }
@@ -138,18 +142,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (lesson.lesson_type === 'reading' && !isAdmin) {
         const scrollPct = prog?.scroll_depth_pct || 0;
         const dwell = prog?.active_dwell_seconds || 0;
-        const minDwell = lesson.min_dwell_seconds || 30;
-        if (scrollPct < 85) {
-            return res.status(400).json({ error: `Please scroll through the full reading before completing (${scrollPct}% read).` });
+        const minDwell = getEffectiveReadingMinDwell(lesson.min_dwell_seconds);
+        if (scrollPct < READING_COMPLETE_MIN_SCROLL) {
+            return res.status(400).json({
+                error: `Scroll through at least ${READING_COMPLETE_MIN_SCROLL}% of the reading before completing (${scrollPct}% read).`,
+            });
         }
         if (dwell < minDwell) {
             return res.status(400).json({
-                error: `Please spend at least ${minDwell}s actively reading before marking complete (${dwell}s logged so far).`,
+                error: `Spend at least ${minDwell}s reviewing this reading before marking complete (${dwell}s logged so far).`,
             });
         }
-        if (cleanTakeaway.length < 30) {
+        if (cleanTakeaway.length < READING_TAKEAWAY_MIN_CHARS) {
             return res.status(400).json({
-                error: 'Enter a brief 1-sentence Key Takeaway (at least 30 characters) to lock in what you learned.',
+                error: `Enter a brief 1-sentence Key Takeaway (at least ${READING_TAKEAWAY_MIN_CHARS} characters) to lock in what you learned.`,
             });
         }
     }

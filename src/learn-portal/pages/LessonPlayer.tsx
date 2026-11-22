@@ -1,7 +1,6 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 import {
-    AlertTriangle,
     ArrowLeft,
     ArrowRight,
     BookOpen,
@@ -23,7 +22,7 @@ import { formatDuration, learnApi } from '../lib/api';
 import { useLearnAuth } from '../context/LearnAuthContext';
 import { CoursePartnerStrip } from '../components/BrandLogos';
 import { LearnVideoPlayer, type VideoNote } from '../components/LearnVideoPlayer';
-import { sanitizeReadingHtml } from '../lib/sessionTimer';
+import { ReadingViewer } from '../components/ReadingViewer';
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10 MB cap to protect Supabase Free 1 GB storage
 const HEARTBEAT_INTERVAL_MS = 30000; // 30s heartbeat (cuts free-tier API + DB load by ~89%)
@@ -54,11 +53,11 @@ export function LessonPlayer() {
     const maxWatchedRef = useRef<number>(0);
     const [maxWatchedSec, setMaxWatchedSec] = useState(0);
     const [uniqueWatchedSec, setUniqueWatchedSec] = useState(0);
-    const [seekWarning, setSeekWarning] = useState(false);
     const [videoNotes, setVideoNotes] = useState<VideoNote[]>([]);
 
     // Reading state
     const readingContainerRef = useRef<HTMLDivElement | null>(null);
+    const pendingDwellRef = useRef<number>(0);
     const [scrollPct, setScrollPct] = useState(0);
     const [dwellSec, setDwellSec] = useState(0);
     const [takeaway, setTakeaway] = useState('');
@@ -155,7 +154,7 @@ export function LessonPlayer() {
             if (!lid || !vid) return;
             const cur = Math.floor(vid.currentTime);
             const start = Math.floor(segmentStartRef.current);
-            if (cur > start && cur - start <= 90) {
+            if (cur > start && cur - start <= 105) {
                 segmentStartRef.current = cur;
                 const nextMax = Math.max(maxWatchedRef.current, cur);
                 maxWatchedRef.current = nextMax;
@@ -195,11 +194,7 @@ export function LessonPlayer() {
 
             let targetSec = 0;
             if (resumeParamSec > 0) {
-                const maxAllowed =
-                    isAdmin || activeLessonCompleted
-                        ? resumeParamSec
-                        : Math.min(resumeParamSec, Math.max(maxWatchedRef.current + 15, initialLastPosition));
-                targetSec = dur > 1 ? Math.min(maxAllowed, Math.floor(dur - 1)) : maxAllowed;
+                targetSec = dur > 1 ? Math.min(resumeParamSec, Math.floor(dur - 1)) : resumeParamSec;
             } else if (initialLastPosition > 5 && (dur === 0 || initialLastPosition < dur - 10)) {
                 targetSec = initialLastPosition;
             }
@@ -231,12 +226,12 @@ export function LessonPlayer() {
             if (bannerTimer) window.clearTimeout(bannerTimer);
             window.clearInterval(interval);
         };
-    }, [activeLessonId, activeLessonType, activeLessonCompleted, initialLastPosition, isAdmin, resumeParamSec, flushVideoHeartbeat]);
+    }, [activeLessonId, activeLessonType, activeLessonCompleted, initialLastPosition, resumeParamSec, flushVideoHeartbeat]);
 
-    // Reading active dwell timer (30s heartbeats while tab is visible) + scroll tracking
+    // Reading active dwell timer (30s heartbeats while tab is visible + instant flush on complete) + scroll tracking
     useEffect(() => {
         if (!activeLessonId || activeLessonType !== 'reading') return;
-        let pendingDelta = 0;
+        pendingDwellRef.current = 0;
 
         const handleScroll = () => {
             const docEl = document.documentElement;
@@ -249,12 +244,12 @@ export function LessonPlayer() {
 
         const tick = window.setInterval(() => {
             if (document.visibilityState !== 'visible') return;
-            pendingDelta += 1;
+            pendingDwellRef.current += 1;
             setDwellSec((prev) => prev + 1);
 
-            if (pendingDelta >= 30) {
-                const toSend = pendingDelta;
-                pendingDelta = 0;
+            if (pendingDwellRef.current >= 30) {
+                const toSend = pendingDwellRef.current;
+                pendingDwellRef.current = 0;
                 const docEl = document.documentElement;
                 const total = docEl.scrollHeight - docEl.clientHeight;
                 const curScroll = total <= 10 ? 100 : Math.min(100, Math.round((window.scrollY / total) * 100));
@@ -274,11 +269,6 @@ export function LessonPlayer() {
             window.clearInterval(tick);
         };
     }, [activeLessonId, activeLessonType]);
-
-    const safeReadingHtml = useMemo(
-        () => sanitizeReadingHtml(data?.lesson?.content_html || '<p>No reading content found.</p>'),
-        [data?.lesson?.content_html],
-    );
 
     const handleSaveVideoNotes = useCallback(
         async (nextNotes: VideoNote[]) => {
@@ -301,21 +291,16 @@ export function LessonPlayer() {
 
     const handleVideoSeeking = () => {
         const vid = videoRef.current;
-        if (!vid || isAdmin || data?.progress?.status === 'completed') return;
-        if (vid.currentTime > maxWatchedSec + 15) {
-            vid.currentTime = maxWatchedSec;
-            setSeekWarning(true);
-            window.setTimeout(() => setSeekWarning(false), 3500);
-        } else {
-            segmentStartRef.current = vid.currentTime;
-        }
+        if (!vid) return;
+        // Free scrubbing & chapter jumping: simply reset segment anchor so skipped sections aren't falsely credited
+        segmentStartRef.current = vid.currentTime;
     };
 
     const handleVideoRateChange = () => {
         const vid = videoRef.current;
         if (!vid || isAdmin) return;
-        if (vid.playbackRate > 1.75) {
-            vid.playbackRate = 1.75;
+        if (vid.playbackRate > 2) {
+            vid.playbackRate = 2;
         }
     };
 
@@ -327,9 +312,15 @@ export function LessonPlayer() {
             if (data.lesson.lesson_type === 'video') {
                 await flushVideoHeartbeat(data.lesson.id);
             } else if (data.lesson.lesson_type === 'reading') {
+                const unsentDwell = pendingDwellRef.current;
+                pendingDwellRef.current = 0;
                 await learnApi('lms/progress-heartbeat', {
                     method: 'POST',
-                    body: { lessonId: data.lesson.id, scrollPct: Math.max(scrollPct, 90), dwellDeltaSeconds: 5 },
+                    body: {
+                        lessonId: data.lesson.id,
+                        scrollPct: Math.max(scrollPct, 70),
+                        dwellDeltaSeconds: Math.min(90, Math.max(unsentDwell, 1)),
+                    },
                 }).catch(() => {});
             }
             const res = await learnApi('lms/progress-complete', {
@@ -732,7 +723,7 @@ export function LessonPlayer() {
                                     .filter(Boolean)
                                     .join(' · ')}
                                 nextLesson={navigation.next}
-                                canComplete={isAdmin || isCompleted || watchPct >= 90}
+                                canComplete={isAdmin || isCompleted || watchPct >= 70}
                                 completing={completing}
                                 notes={videoNotes}
                                 isAdmin={isAdmin}
@@ -749,10 +740,7 @@ export function LessonPlayer() {
                                 onEnded={() => {
                                     flushVideoHeartbeat();
                                 }}
-                                onSeekBlocked={() => {
-                                    setSeekWarning(true);
-                                    window.setTimeout(() => setSeekWarning(false), 3500);
-                                }}
+                                onSeekBlocked={() => {}}
                                 onSaveNotes={handleSaveVideoNotes}
                                 onCompleteAndContinue={() => {
                                     if (isCompleted && navigation.next) {
@@ -778,12 +766,6 @@ export function LessonPlayer() {
                                     refreshProfile().catch(() => {});
                                 }}
                             />
-                            {seekWarning && (
-                                <div className="mt-2 bg-amber-50 border border-amber-300 text-amber-950 text-xs font-semibold px-3.5 py-2 flex items-center gap-2">
-                                    <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                                    Forward skipping is disabled until you watch up to that point.
-                                </div>
-                            )}
                         </div>
                     ) : (
                         <div className="bg-neutral-950 border border-neutral-800 text-white aspect-video flex flex-col items-center justify-center p-8 text-center space-y-3">
@@ -810,10 +792,10 @@ export function LessonPlayer() {
                             <div className="flex flex-wrap items-center justify-between gap-3">
                                 <div className="space-y-1">
                                     <div className="text-xs font-semibold text-neutral-900">
-                                        Video Progress: <span className="font-bold">{watchPct}%</span> (watch at least 90% to unlock next)
+                                        Video Progress: <span className="font-bold">{watchPct}%</span> (watch at least 70% to unlock next)
                                     </div>
                                     <div className="text-[11px] text-neutral-500">
-                                        Watched: {formatDuration(uniqueWatchedSec)} / {formatDuration(lesson.duration_seconds)} · Up to 1.75x speed
+                                        Watched: {formatDuration(uniqueWatchedSec)} / {formatDuration(lesson.duration_seconds)} · Up to 2x speed · Free chapter jumping
                                     </div>
                                 </div>
                                 <button
@@ -824,7 +806,7 @@ export function LessonPlayer() {
                                             handleCompleteVideoOrReading('continue');
                                         }
                                     }}
-                                    disabled={completing || (isCompleted && !navigation.next) || (!isCompleted && !isAdmin && watchPct < 90)}
+                                    disabled={completing || (isCompleted && !navigation.next) || (!isCompleted && !isAdmin && watchPct < 70)}
                                     className="w-full sm:w-auto px-4 py-2.5 bg-[#030213] hover:bg-neutral-800 disabled:opacity-35 disabled:cursor-not-allowed text-white text-xs font-bold uppercase tracking-[0.14em] inline-flex items-center justify-center gap-2 transition"
                                 >
                                     {completing ? (
@@ -846,7 +828,7 @@ export function LessonPlayer() {
 
                             <div className="h-2 w-full bg-neutral-200 overflow-hidden">
                                 <div
-                                    className={`h-full transition-all duration-300 ${watchPct >= 90 ? 'bg-emerald-600' : 'bg-[#030213]'}`}
+                                    className={`h-full transition-all duration-300 ${watchPct >= 70 ? 'bg-emerald-600' : 'bg-[#030213]'}`}
                                     style={{ width: `${watchPct}%` }}
                                 />
                             </div>
@@ -854,7 +836,11 @@ export function LessonPlayer() {
                     )}
 
                     {/* 2. READING LESSON */}
-                    {lesson.lesson_type === 'reading' && (
+                    {lesson.lesson_type === 'reading' && (() => {
+                        const effectiveMinDwell =
+                            lesson.effective_min_dwell_seconds ||
+                            Math.min(45, Math.max(15, Math.round((lesson.min_dwell_seconds || 60) * 0.25)));
+                        return (
                         <div ref={readingContainerRef} className="bg-white border border-neutral-200 overflow-hidden">
                             <div className="px-4 sm:px-6 py-3.5 bg-neutral-50 border-b border-neutral-200 flex flex-wrap items-center justify-between gap-3 text-xs text-neutral-600">
                                 <span className="inline-flex items-center gap-1.5 font-medium">
@@ -862,27 +848,27 @@ export function LessonPlayer() {
                                     {lesson.word_count?.toLocaleString() || 0} words · About {lesson.estimated_minutes} min read
                                 </span>
                                 <span className="inline-flex items-center gap-3">
-                                    <span>Scrolled: <strong className="text-neutral-950">{scrollPct}%</strong></span>
+                                    <span>Progress: <strong className="text-neutral-950">{scrollPct}%</strong></span>
                                     <span className="inline-flex items-center gap-1">
                                         <Clock className="w-3.5 h-3.5" />
-                                        Reading Time: <strong className="text-neutral-950">{dwellSec}s</strong> / {lesson.min_dwell_seconds}s
+                                        Time: <strong className="text-neutral-950">{dwellSec}s</strong> / {effectiveMinDwell}s
                                     </span>
                                 </span>
                             </div>
 
-                            <div className="overflow-x-auto">
-                                <article
-                                    className="p-4 sm:p-8 prose prose-sm sm:prose-base prose-neutral max-w-none prose-headings:text-neutral-950 prose-p:text-neutral-800 prose-p:leading-relaxed prose-li:text-neutral-800 prose-strong:text-neutral-950 break-words"
-                                    dangerouslySetInnerHTML={{ __html: safeReadingHtml }}
-                                />
-                            </div>
+                            <ReadingViewer
+                                html={lesson.content_html || '<p>No reading content found.</p>'}
+                                lessonKey={lesson.id}
+                                scrollPct={scrollPct}
+                                onListeningProgress={(pct) => setScrollPct((prev) => Math.max(prev, pct))}
+                            />
 
                             <div className="p-4 sm:p-6 bg-neutral-50 border-t border-neutral-200 space-y-3">
                                 <label className="block text-xs font-bold uppercase tracking-[0.16em] text-neutral-900">
                                     What Did You Learn? (Required to unlock next lesson)
                                 </label>
                                 <p className="text-xs text-neutral-500">
-                                    Write 1–2 short sentences on one thing you learned from this reading (at least 30 characters). Your teammates can see it in Team Notes.
+                                    Write a short sentence on one thing that stood out (at least 20 characters). Your teammates can see it in Team Notes.
                                 </p>
                                 <textarea
                                     rows={3}
@@ -892,7 +878,14 @@ export function LessonPlayer() {
                                     className="w-full bg-white border border-neutral-300 p-3.5 text-base sm:text-sm text-neutral-950 focus:outline-none focus:border-neutral-950"
                                 />
                                 <div className="flex flex-wrap items-center justify-between gap-3">
-                                    <span className="text-xs text-neutral-500">{takeaway.trim().length} / 30 characters minimum</span>
+                                    <span className="text-xs text-neutral-500">
+                                        {takeaway.trim().length} / 20 characters minimum
+                                        {!isCompleted && !isAdmin && dwellSec < effectiveMinDwell && (
+                                            <span className="ml-2 text-neutral-400">
+                                                · {effectiveMinDwell - dwellSec}s left
+                                            </span>
+                                        )}
+                                    </span>
                                     <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                                         {isCompleted ? (
                                             <>
@@ -958,7 +951,8 @@ export function LessonPlayer() {
                                 </div>
                             </div>
                         </div>
-                    )}
+                        );
+                    })()}
 
                     {/* 3. PRACTICE QUIZ */}
                     {lesson.lesson_type === 'quiz' && (
