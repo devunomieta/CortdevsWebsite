@@ -797,7 +797,7 @@ export function LessonPlayer() {
                                     What Did You Learn? (Required to unlock next lesson)
                                 </label>
                                 <p className="text-xs text-neutral-500">
-                                    Write a short sentence on one thing that stood out (at least 20 characters). Your teammates can see it in Team Notes.
+                                    Write a short sentence on one thing that stood out (at least 20 characters). Your teammates in this module can see it in Module Team Notes once they share theirs.
                                 </p>
                                 <textarea
                                     rows={3}

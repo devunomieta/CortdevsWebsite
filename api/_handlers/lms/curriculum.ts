@@ -29,7 +29,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             { data: progressRows },
             { data: submissions },
             { data: overrides },
-            { data: recentTakeaways },
             { data: cohortMembers },
             { data: cohortCompletedRows },
             { data: cohortDiscussionRows },
@@ -55,14 +54,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 .select('*')
                 .eq('cohort_id', cohort.id)
                 .or(`user_id.is.null,user_id.eq.${enrollment.user_id}`),
-            supabase
-                .from('lms_lesson_progress')
-                .select('key_takeaway, completed_at, user_id, lms_lessons(title)')
-                .eq('cohort_id', cohort.id)
-                .not('key_takeaway', 'is', null)
-                .order('completed_at', { ascending: false })
-                .limit(12),
-            // Active cohort roster (safe non-PII fields only: name, role, study pod, streak)
+            // Active cohort roster (safe non-PII fields only: name, role, study group, streak)
             supabase
                 .from('lms_enrollments')
                 .select('user_id, full_name, job_role, role, study_group_name, peer_buddy_user_id, current_streak, longest_streak, last_streak_date, last_active_at')
@@ -250,25 +242,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             };
         });
 
-        // Resolve names for team takeaway feed
-        const takeawayUserIds = [...new Set((recentTakeaways || []).map((t: any) => t.user_id))];
-        const nameMap = new Map<string, string>();
-        if (takeawayUserIds.length > 0) {
-            const { data: members } = await supabase
-                .from('lms_enrollments')
-                .select('user_id, full_name')
-                .eq('cohort_id', cohort.id)
-                .in('user_id', takeawayUserIds);
-            for (const m of members || []) nameMap.set(m.user_id, m.full_name);
-        }
-
-        const teamFeed = (recentTakeaways || []).map((t: any) => ({
-            learnerName: nameMap.get(t.user_id) || 'Teammate',
-            lessonTitle: t.lms_lessons?.title || 'Lesson',
-            takeaway: t.key_takeaway,
-            completedAt: t.completed_at,
-        }));
-
         const totalLessons = allLessons.length;
         const completedLessons = completedSet.size;
         const progressPct = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
@@ -438,7 +411,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             weekSchedule,
             nextUpLesson,
             courses: tree,
-            teamFeed,
         });
     } catch (err: any) {
         console.error('[lms/curriculum] Error:', err);

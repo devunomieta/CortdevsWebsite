@@ -11,7 +11,6 @@ import {
     FolderKanban,
     Loader2,
     Lock,
-    MessageSquareQuote,
     Play,
     PlayCircle,
     Sparkles,
@@ -80,7 +79,7 @@ export function RoadmapDashboard() {
         );
     }
 
-    const { stats, nextUpLesson, courses, teamFeed, cohort, weeklyLead, standupAgenda, myStudyGroup, teamPairings } = data;
+    const { stats, nextUpLesson, courses, cohort, weeklyLead, standupAgenda, myStudyGroup, teamPairings } = data;
     const paceDelta = stats.progressPct - stats.targetPct;
 
     return (
@@ -593,36 +592,6 @@ export function RoadmapDashboard() {
                             </div>
                         </div>
                     )}
-
-                    <div className="space-y-4">
-                        <div className="flex items-center gap-2">
-                            <MessageSquareQuote className="w-4 h-4 text-neutral-900" />
-                            <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-neutral-900">
-                                Team Notes
-                            </h2>
-                        </div>
-
-                        <div className="bg-white border border-neutral-200 p-4 space-y-3">
-                            {teamFeed.length === 0 ? (
-                                <p className="text-xs text-neutral-500 py-2 text-left leading-relaxed">
-                                    Short notes teammates write after finishing a reading or project show up here.
-                                </p>
-                            ) : (
-                                teamFeed.map((item: any, idx: number) => (
-                                    <div key={idx} className="p-3 bg-neutral-50 border border-neutral-200 space-y-1.5 text-left">
-                                        <div className="flex items-center justify-between gap-2 text-[11px]">
-                                            <span className="font-semibold text-neutral-950 truncate">{item.learnerName}</span>
-                                            <span className="text-neutral-400 shrink-0">
-                                                {item.completedAt ? new Date(item.completedAt).toLocaleDateString() : ''}
-                                            </span>
-                                        </div>
-                                        <div className="text-[11px] text-neutral-500 break-words">{item.lessonTitle}</div>
-                                        <p className="text-xs text-neutral-700 leading-relaxed break-words">“{item.takeaway}”</p>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>

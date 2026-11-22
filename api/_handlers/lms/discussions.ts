@@ -34,7 +34,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const [
             { data: rows, error },
             modMetaRes,
-            peerTakeawaysRes,
+            modLessonsRes,
         ] = await Promise.all([
             query,
             scope !== 'all' && isValidUuid(moduleId)
@@ -44,29 +44,44 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                       .eq('id', moduleId)
                       .maybeSingle()
                 : Promise.resolve({ data: null }),
-            scope !== 'all' && isValidUuid(lessonId)
+            scope !== 'all' && isValidUuid(moduleId)
                 ? supabase
-                      .from('lms_lesson_progress')
-                      .select('user_id, key_takeaway, completed_at')
-                      .eq('cohort_id', member.cohort.id)
-                      .eq('lesson_id', lessonId)
-                      .not('key_takeaway', 'is', null)
-                      .order('completed_at', { ascending: false })
-                      .limit(40)
+                      .from('lms_lessons')
+                      .select('id, title, order_index')
+                      .eq('module_id', moduleId)
+                      .order('order_index', { ascending: true })
                 : Promise.resolve({ data: [] }),
         ]);
 
         if (error) return res.status(500).json({ error: error.message });
 
-        const peerRows = (peerTakeawaysRes?.data || []).filter(
-            (r: any) => typeof r.key_takeaway === 'string' && r.key_takeaway.trim().length > 0,
-        );
+        // Fetch Team Notes strictly scoped to THIS module's lessons (never leaks notes from other courses/modules)
+        const modLessonsList = (modLessonsRes?.data || []) as Array<{ id: string; title: string; order_index: number }>;
+        const lessonTitleById = new Map<string, string>();
+        for (const ml of modLessonsList) lessonTitleById.set(ml.id, ml.title);
+        const modLessonIds = modLessonsList.map((ml) => ml.id);
+
+        let modulePeerRows: any[] = [];
+        if (scope !== 'all' && modLessonIds.length > 0) {
+            const { data: progNotes } = await supabase
+                .from('lms_lesson_progress')
+                .select('lesson_id, user_id, key_takeaway, completed_at')
+                .eq('cohort_id', member.cohort.id)
+                .in('lesson_id', modLessonIds)
+                .not('key_takeaway', 'is', null)
+                .order('completed_at', { ascending: false })
+                .limit(60);
+
+            modulePeerRows = (progNotes || []).filter(
+                (r: any) => typeof r.key_takeaway === 'string' && r.key_takeaway.trim().length > 0,
+            );
+        }
 
         const userIds = [
             ...new Set([
                 ...(rows || []).map((r: any) => r.user_id),
                 ...(rows || []).map((r: any) => r.answered_by).filter(Boolean),
-                ...peerRows.map((p: any) => p.user_id),
+                ...modulePeerRows.map((p: any) => p.user_id),
             ]),
         ];
 
@@ -126,20 +141,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         const isAdmin = member.enrollment.role === 'admin';
-        const viewerHasOwnTakeaway = peerRows.some((p: any) => p.user_id === member.enrollment.user_id);
-        const reflectionsUnlocked = isAdmin || viewerHasOwnTakeaway;
+        const viewerUnlockedLessonIds = new Set<string>(
+            modulePeerRows
+                .filter((p: any) => p.user_id === member.enrollment.user_id)
+                .map((p: any) => p.lesson_id),
+        );
 
-        const peerReflections = reflectionsUnlocked
-            ? peerRows.map((p: any) => ({
-                  userId: p.user_id,
-                  isCurrentUser: p.user_id === member.enrollment.user_id,
-                  authorName: authorMap.get(p.user_id)?.full_name || 'Teammate',
-                  authorRole: authorMap.get(p.user_id)?.role || 'learner',
-                  studyGroup: authorMap.get(p.user_id)?.study_group_name || null,
-                  takeaway: p.key_takeaway,
-                  completedAt: p.completed_at,
-              }))
+        const thisLessonRows = isValidUuid(lessonId)
+            ? modulePeerRows.filter((p: any) => p.lesson_id === lessonId)
             : [];
+        const reflectionsUnlocked = isAdmin || (isValidUuid(lessonId) && viewerUnlockedLessonIds.has(lessonId));
+
+        const formatNoteItem = (p: any) => ({
+            lessonId: p.lesson_id,
+            lessonTitle: lessonTitleById.get(p.lesson_id) || 'Lesson',
+            userId: p.user_id,
+            isCurrentUser: p.user_id === member.enrollment.user_id,
+            authorName: authorMap.get(p.user_id)?.full_name || 'Teammate',
+            authorRole: authorMap.get(p.user_id)?.role || 'learner',
+            studyGroup: authorMap.get(p.user_id)?.study_group_name || null,
+            takeaway: p.key_takeaway,
+            completedAt: p.completed_at,
+        });
+
+        const peerReflections = reflectionsUnlocked ? thisLessonRows.map(formatNoteItem) : [];
+
+        // Module-scoped Team Notes: only notes from THIS module's lessons that the viewer has already contributed to (or all for Admins)
+        const moduleVisibleNotes = modulePeerRows
+            .filter((p: any) => isAdmin || viewerUnlockedLessonIds.has(p.lesson_id))
+            .map(formatNoteItem);
 
         const modMeta = modMetaRes?.data as any;
         const dialogueScenario = modMeta
@@ -159,8 +189,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             aiCoachConfigured: Boolean(process.env.GEMINI_API_KEY?.trim()),
             reflections: {
                 unlocked: reflectionsUnlocked,
-                totalCount: peerRows.length,
+                totalCount: thisLessonRows.length,
                 items: peerReflections,
+                moduleTotalCount: modulePeerRows.length,
+                moduleItems: moduleVisibleNotes,
                 replies: reflectionReplies,
             },
         });
