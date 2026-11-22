@@ -83,11 +83,9 @@ export function ModuleDialogueModal({
         if (open) {
             setCohortError(null);
             setAiError(null);
-            if (turns.length === 0) {
-                setTurns([{ role: 'assistant', text: scenario.openingMessage }]);
-            }
+            setTurns((prev) => (prev.length === 0 ? [{ role: 'assistant', text: scenario.openingMessage }] : prev));
         }
-    }, [open, scenario.openingMessage, turns.length]);
+    }, [open, scenario.openingMessage]);
 
     // Reset AI conversation when switching modules
     useEffect(() => {

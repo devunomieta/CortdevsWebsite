@@ -13,7 +13,11 @@ const MAX_TURNS = 4; // Strict 4-turn conclusive arc: 1 Clarify -> 2 Trade-Off -
 const MAX_USER_CHARS = 600; // ~150 tokens max per user turn
 const MAX_HISTORY_CHARS = 480;
 const MAX_DAILY_SESSIONS_PER_LEARNER = 6;
-const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash'];
+const GEMINI_ATTEMPTS: Array<{ model: string; disableThinking: boolean }> = [
+    { model: 'gemini-2.5-flash-lite', disableThinking: false },
+    { model: 'gemini-2.5-flash', disableThinking: true },
+    { model: 'gemini-2.0-flash', disableThinking: false },
+];
 
 interface DialogueTurn {
     role: 'assistant' | 'user';
@@ -116,21 +120,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const isAdmin = member.enrollment.role === 'admin';
 
-    // Strict end-of-module gating (also protects Gemini free-tier quota)
-    const dialogueAccess = await checkModuleDialogueUnlocked({
-        cohortId: member.cohort.id,
-        userId: member.enrollment.user_id,
-        moduleId,
-        isAdmin,
-    });
-    if (!dialogueAccess.unlocked) {
-        return res.status(403).json({
-            aiConfigured: true,
-            error: dialogueAccess.reason || 'Complete this module’s quiz/project first to unlock AI Coach.',
-            dialogueAccess,
-        });
-    }
-
     const cleanMsg = sanitizePlainText(userMessage, MAX_USER_CHARS);
     if (cleanMsg.length < 5) {
         return res.status(400).json({ error: 'Write at least a short sentence (5+ characters) to continue the dialogue.' });
@@ -157,31 +146,47 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const currentTurn = userTurnsSoFar + 1;
     const isFinalDebrief = currentTurn >= MAX_TURNS;
 
-    // Soft per-learner daily session cap checked only on Turn 1 (protects free-tier Gemini quota)
-    if (currentTurn === 1 && !isAdmin) {
-        const sinceIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-        const { count } = await supabase
-            .from('lms_activity_events')
-            .select('id', { count: 'exact', head: true })
-            .eq('cohort_id', member.cohort.id)
-            .eq('user_id', member.enrollment.user_id)
-            .eq('event_type', 'ai_dialogue_completed')
-            .gte('created_at', sinceIso);
+    // Parallelize gating, module lookup, and Turn-1 daily quota check for lowest latency
+    const sinceIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const [dialogueAccess, modRes, dailyCountRes] = await Promise.all([
+        checkModuleDialogueUnlocked({
+            cohortId: member.cohort.id,
+            userId: member.enrollment.user_id,
+            moduleId,
+            isAdmin,
+        }),
+        supabase
+            .from('lms_modules')
+            .select('id, title, target_week, lms_courses(title)')
+            .eq('id', moduleId)
+            .maybeSingle(),
+        currentTurn === 1 && !isAdmin
+            ? supabase
+                  .from('lms_activity_events')
+                  .select('id', { count: 'exact', head: true })
+                  .eq('cohort_id', member.cohort.id)
+                  .eq('user_id', member.enrollment.user_id)
+                  .eq('event_type', 'ai_dialogue_completed')
+                  .gte('created_at', sinceIso)
+            : Promise.resolve({ count: 0 }),
+    ]);
 
-        if ((count || 0) >= MAX_DAILY_SESSIONS_PER_LEARNER) {
-            return res.status(429).json({
-                aiConfigured: true,
-                error: `Daily AI Coach limit reached (${MAX_DAILY_SESSIONS_PER_LEARNER} sessions/24h). You can continue sharing in Cohort Scenario right away.`,
-            });
-        }
+    if (!dialogueAccess.unlocked) {
+        return res.status(403).json({
+            aiConfigured: true,
+            error: dialogueAccess.reason || 'Complete this module’s quiz/project first to unlock AI Coach.',
+            dialogueAccess,
+        });
     }
 
-    const { data: mod } = await supabase
-        .from('lms_modules')
-        .select('id, title, target_week, lms_courses(title)')
-        .eq('id', moduleId)
-        .maybeSingle();
+    if (currentTurn === 1 && !isAdmin && (dailyCountRes.count || 0) >= MAX_DAILY_SESSIONS_PER_LEARNER) {
+        return res.status(429).json({
+            aiConfigured: true,
+            error: `Daily AI Coach limit reached (${MAX_DAILY_SESSIONS_PER_LEARNER} sessions/24h). You can continue sharing in Cohort Scenario right away.`,
+        });
+    }
 
+    const mod = modRes.data;
     if (!mod) {
         return res.status(404).json({ error: 'Module not found.' });
     }
@@ -202,7 +207,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const contents = buildGeminiContents(safeHistory, cleanMsg);
 
     let lastErrorDetail = '';
-    for (const model of GEMINI_MODELS) {
+    for (const attempt of GEMINI_ATTEMPTS) {
+        const { model, disableThinking } = attempt;
         try {
             const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
             const genConfig: Record<string, any> = {
@@ -210,7 +216,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 // Tight yet safe output token caps so responses are concise AND never truncated mid-sentence
                 maxOutputTokens: isFinalDebrief ? 300 : 180,
             };
-            if (model.startsWith('gemini-2.5')) {
+            if (disableThinking) {
                 genConfig.thinkingConfig = { thinkingBudget: 0 };
             }
 
@@ -222,7 +228,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     contents,
                     generationConfig: genConfig,
                 }),
-                signal: AbortSignal.timeout(15000),
+                signal: AbortSignal.timeout(8500),
             });
 
             const payload: any = await response.json().catch(() => ({}));
