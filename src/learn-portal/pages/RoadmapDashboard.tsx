@@ -14,6 +14,7 @@ import {
     MessageSquareQuote,
     Play,
     PlayCircle,
+    Sparkles,
     Star,
     Target,
     Users,
@@ -79,7 +80,7 @@ export function RoadmapDashboard() {
         );
     }
 
-    const { stats, nextUpLesson, courses, teamFeed, cohort, weeklyLead, myStudyGroup, teamPairings } = data;
+    const { stats, nextUpLesson, courses, teamFeed, cohort, weeklyLead, standupAgenda, myStudyGroup, teamPairings } = data;
     const paceDelta = stats.progressPct - stats.targetPct;
 
     return (
@@ -399,6 +400,68 @@ export function RoadmapDashboard() {
                                         ? 'You are coordinating this week’s check-ins, Q&A agenda, and team accountability.'
                                         : 'Coordinating this week’s check-ins, Q&A agenda, and group accountability.'}
                                 </p>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Sunday Standup Prep (Auto-Synced from This Week's Dialogues & Q&A) */}
+                    {standupAgenda && standupAgenda.topics?.length > 0 && (
+                        <div className="space-y-3">
+                            <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2">
+                                    <Sparkles className="w-4 h-4 text-neutral-900" />
+                                    <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-neutral-900">
+                                        Sunday Standup Prep
+                                    </h2>
+                                </div>
+                                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 bg-neutral-100 border border-neutral-200 text-neutral-700">
+                                    Week {standupAgenda.week}
+                                </span>
+                            </div>
+
+                            <div className="bg-white border border-neutral-200 p-4 space-y-3 text-left">
+                                <div className="flex items-center justify-between text-[11px] text-neutral-600 pb-2 border-b border-neutral-100">
+                                    <span>
+                                        Open Q&amp;A: <strong className="text-neutral-950">{standupAgenda.openQuestionsCount}</strong>
+                                    </span>
+                                    <span>
+                                        Dialogue Takes:{' '}
+                                        <strong className="text-neutral-950">{standupAgenda.totalDialogueResponses}</strong>
+                                    </span>
+                                </div>
+
+                                <div className="space-y-2.5">
+                                    {standupAgenda.topics.map((topic: any) => (
+                                        <div
+                                            key={topic.moduleId}
+                                            className="p-3 bg-neutral-50 border border-neutral-200 space-y-1.5"
+                                        >
+                                            <div className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 truncate">
+                                                {topic.moduleTitle}
+                                            </div>
+                                            <div className="text-xs font-semibold text-neutral-950 leading-snug">
+                                                {topic.dialogueTitle}
+                                            </div>
+                                            <p className="text-[11px] text-neutral-600 leading-relaxed">
+                                                {topic.debateHook}
+                                            </p>
+                                            <div className="flex items-center justify-between pt-1">
+                                                <span className="text-[10px] text-neutral-500">
+                                                    {topic.dialogueResponses}{' '}
+                                                    {topic.dialogueResponses === 1 ? 'teammate' : 'teammates'} shared
+                                                </span>
+                                                {topic.entryLessonSlug && (
+                                                    <Link
+                                                        to={`/lesson/${topic.entryLessonSlug}?openDialogue=1`}
+                                                        className="text-[11px] font-bold text-neutral-950 hover:underline"
+                                                    >
+                                                        Join Dialogue →
+                                                    </Link>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         </div>
                     )}

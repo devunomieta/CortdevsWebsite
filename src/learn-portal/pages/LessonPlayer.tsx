@@ -6,6 +6,8 @@ import {
     BookOpen,
     CalendarClock,
     CheckCircle2,
+    ChevronDown,
+    ChevronUp,
     Clock,
     Download,
     ExternalLink,
@@ -13,9 +15,8 @@ import {
     FolderKanban,
     Loader2,
     Lock,
-    MessageSquare,
+    MessageSquareQuote,
     PlayCircle,
-    Send,
     UploadCloud,
 } from 'lucide-react';
 import { formatDuration, learnApi } from '../lib/api';
@@ -23,6 +24,8 @@ import { useLearnAuth } from '../context/LearnAuthContext';
 import { CoursePartnerStrip } from '../components/BrandLogos';
 import { LearnVideoPlayer, type VideoNote } from '../components/LearnVideoPlayer';
 import { ReadingViewer } from '../components/ReadingViewer';
+import { LessonCompanionPanel, type PeerReflectionsPayload } from '../components/LessonCompanionPanel';
+import { ModuleDialogueModal, type DialogueScenarioData } from '../components/ModuleDialogueModal';
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10 MB cap to protect Supabase Free 1 GB storage
 const HEARTBEAT_INTERVAL_MS = 30000; // 30s heartbeat (cuts free-tier API + DB load by ~89%)
@@ -73,19 +76,32 @@ export function LessonPlayer() {
     const [reflection, setReflection] = useState('');
     const [submittingProject, setSubmittingProject] = useState(false);
 
-    // Completion & Q&A state
+    // Completion, Companion (Q&A, Reflect, Dialogue) state
     const [completing, setCompleting] = useState(false);
     const [actionMsg, setActionMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const [comments, setComments] = useState<any[]>([]);
-    const [newComment, setNewComment] = useState('');
-    const [postingComment, setPostingComment] = useState(false);
-    const [replyingToId, setReplyingToId] = useState<string | null>(null);
-    const [replyBody, setReplyBody] = useState('');
-    const [answeringId, setAnsweringId] = useState<string | null>(null);
-    const [officialAnswerDraft, setOfficialAnswerDraft] = useState('');
-    const [savingAnswer, setSavingAnswer] = useState(false);
-    const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
-    const [editingCommentBody, setEditingCommentBody] = useState('');
+    const [dialoguePosts, setDialoguePosts] = useState<any[]>([]);
+    const [dialogueScenario, setDialogueScenario] = useState<DialogueScenarioData | null>(null);
+    const [aiCoachConfigured, setAiCoachConfigured] = useState(false);
+    const [peerReflections, setPeerReflections] = useState<PeerReflectionsPayload | null>(null);
+    const [showInlineReflections, setShowInlineReflections] = useState(false);
+    const [dialogueModalOpen, setDialogueModalOpen] = useState(false);
+
+    const openDialogueParam = searchParams.get('openDialogue') === '1';
+
+    const fetchCompanionData = useCallback((modId: string, lesId?: string) => {
+        const qs = new URLSearchParams({ moduleId: modId });
+        if (lesId) qs.set('lessonId', lesId);
+        learnApi(`lms/discussions?${qs.toString()}`)
+            .then((d) => {
+                setComments(d.comments || []);
+                setDialoguePosts(d.dialoguePosts || []);
+                setDialogueScenario(d.dialogueScenario || null);
+                setAiCoachConfigured(Boolean(d.aiCoachConfigured));
+                setPeerReflections(d.reflections || null);
+            })
+            .catch(() => {});
+    }, []);
 
     const loadLesson = useCallback(async () => {
         if (!lessonId) return;
@@ -123,9 +139,10 @@ export function LessonPlayer() {
             }
 
             if (res.lesson?.module_id) {
-                learnApi(`lms/discussions?moduleId=${encodeURIComponent(res.lesson.module_id)}`)
-                    .then((d) => setComments(d.comments || []))
-                    .catch(() => {});
+                fetchCompanionData(res.lesson.module_id, res.lesson.id);
+                if (openDialogueParam) {
+                    setDialogueModalOpen(true);
+                }
             }
         } catch (err: any) {
             if (err.status === 403 && err.payload) {
@@ -136,7 +153,7 @@ export function LessonPlayer() {
         } finally {
             setLoading(false);
         }
-    }, [lessonId, location.search, navigate]);
+    }, [lessonId, location.search, navigate, fetchCompanionData, openDialogueParam]);
 
     useEffect(() => {
         loadLesson();
@@ -332,6 +349,9 @@ export function LessonPlayer() {
             });
             setData((prev: any) => ({ ...prev, progress: res.progress }));
             refreshProfile().catch(() => {});
+            if (data.lesson.module_id && data.lesson.lesson_type === 'reading') {
+                fetchCompanionData(data.lesson.module_id, data.lesson.id);
+            }
 
             if (afterAction === 'return_video' && fromVideo) {
                 navigate(`/lesson/${fromVideo}${resumeParamSec > 0 ? `?t=${resumeParamSec}` : ''}`);
@@ -454,97 +474,6 @@ export function LessonPlayer() {
             setActionMsg({ type: 'error', text: err?.message || 'Project submission failed.' });
         } finally {
             setSubmittingProject(false);
-        }
-    };
-
-    const handlePostComment = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!data?.lesson?.module_id || !newComment.trim()) return;
-        setPostingComment(true);
-        try {
-            const res = await learnApi('lms/discussions', {
-                method: 'POST',
-                body: { moduleId: data.lesson.module_id, body: newComment.trim() },
-            });
-            setComments((prev) => [...prev, res.comment]);
-            setNewComment('');
-        } catch (err: any) {
-            setActionMsg({ type: 'error', text: err?.message || 'Could not post question.' });
-        } finally {
-            setPostingComment(false);
-        }
-    };
-
-    const handlePostReply = async (e: React.FormEvent, parentId: string) => {
-        e.preventDefault();
-        if (!data?.lesson?.module_id || !replyBody.trim()) return;
-        setPostingComment(true);
-        try {
-            const res = await learnApi('lms/discussions', {
-                method: 'POST',
-                body: { moduleId: data.lesson.module_id, parentId, body: replyBody.trim() },
-            });
-            setComments((prev) => [...prev, res.comment]);
-            setReplyBody('');
-            setReplyingToId(null);
-        } catch (err: any) {
-            setActionMsg({ type: 'error', text: err?.message || 'Could not post reply.' });
-        } finally {
-            setPostingComment(false);
-        }
-    };
-
-    const handleSaveOfficialAnswer = async (questionId: string) => {
-        if (!officialAnswerDraft.trim()) return;
-        setSavingAnswer(true);
-        try {
-            const res = await learnApi('lms/discussions', {
-                method: 'PATCH',
-                body: { questionId, status: 'answered', officialAnswer: officialAnswerDraft.trim() },
-            });
-            setComments((prev) => prev.map((c) => (c.id === questionId ? { ...c, ...res.comment } : c)));
-            setAnsweringId(null);
-            setOfficialAnswerDraft('');
-        } catch (err: any) {
-            setActionMsg({ type: 'error', text: err?.message || 'Could not save session answer.' });
-        } finally {
-            setSavingAnswer(false);
-        }
-    };
-
-    const canModifyPost = (post: any): boolean => {
-        if (isAdmin) return true;
-        if (!user?.id || post.user_id !== user.id) return false;
-        const createdMs = new Date(post.created_at).getTime();
-        return Number.isFinite(createdMs) && Date.now() - createdMs <= 15 * 60 * 1000;
-    };
-
-    const handleSaveCommentEdit = async (e: React.FormEvent, commentId: string) => {
-        e.preventDefault();
-        if (editingCommentBody.trim().length < 3) return;
-        setPostingComment(true);
-        try {
-            const res = await learnApi('lms/discussions', {
-                method: 'PATCH',
-                body: { action: 'edit_body', commentId, body: editingCommentBody.trim() },
-            });
-            setComments((prev) => prev.map((c) => (c.id === commentId ? { ...c, body: res.comment.body } : c)));
-            setEditingCommentId(null);
-            setEditingCommentBody('');
-        } catch (err: any) {
-            setActionMsg({ type: 'error', text: err?.message || 'Could not edit post.' });
-        } finally {
-            setPostingComment(false);
-        }
-    };
-
-    const handleDeleteComment = async (commentId: string) => {
-        if (!window.confirm('Delete this post?')) return;
-        try {
-            await learnApi(`lms/discussions?id=${encodeURIComponent(commentId)}`, { method: 'DELETE' });
-            setComments((prev) => prev.filter((c) => c.id !== commentId && c.parent_id !== commentId));
-        } catch (err: any) {
-            setActionMsg({ type: 'error', text: err?.message || 'Could not delete post.' });
         }
     };
 
@@ -949,6 +878,62 @@ export function LessonPlayer() {
                                         )}
                                     </div>
                                 </div>
+
+                                {/* Compact Post-to-Reveal Teammate Reflections right in context (collapsed by default) */}
+                                {peerReflections && peerReflections.totalCount > 0 && (
+                                    <div className="pt-3 border-t border-neutral-200 space-y-2.5 text-left">
+                                        {!peerReflections.unlocked ? (
+                                            <div className="flex items-center gap-2 text-xs text-neutral-600">
+                                                <Lock className="w-3.5 h-3.5 text-neutral-500 shrink-0" />
+                                                <span>
+                                                    Share your takeaway above to unlock{' '}
+                                                    <strong>{peerReflections.totalCount}</strong> teammate{' '}
+                                                    {peerReflections.totalCount === 1 ? 'reflection' : 'reflections'} on this reading.
+                                                </span>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowInlineReflections((s) => !s)}
+                                                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-neutral-800 hover:text-neutral-950"
+                                                >
+                                                    <MessageSquareQuote className="w-3.5 h-3.5" />
+                                                    <span>
+                                                        Teammate Reflections on This Reading ({peerReflections.items.length})
+                                                    </span>
+                                                    {showInlineReflections ? (
+                                                        <ChevronUp className="w-3.5 h-3.5" />
+                                                    ) : (
+                                                        <ChevronDown className="w-3.5 h-3.5" />
+                                                    )}
+                                                </button>
+                                                {showInlineReflections && (
+                                                    <div className="grid sm:grid-cols-2 gap-2.5 pt-1">
+                                                        {peerReflections.items.map((item, idx) => (
+                                                            <div
+                                                                key={idx}
+                                                                className="p-3 bg-white border border-neutral-200 space-y-1 text-left"
+                                                            >
+                                                                <div className="flex items-center gap-1.5 text-[11px] font-semibold text-neutral-950">
+                                                                    <span>{item.authorName}</span>
+                                                                    {item.studyGroup && (
+                                                                        <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase bg-neutral-100 text-neutral-600">
+                                                                            {item.studyGroup}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                                <p className="text-xs text-neutral-700 leading-relaxed">
+                                                                    “{item.takeaway}”
+                                                                </p>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         </div>
                         );
@@ -1218,266 +1203,48 @@ export function LessonPlayer() {
                     )}
                 </div>
 
-                {/* Right Sidebar: Module Questions & Session Answers */}
-                <div className="min-w-0 bg-white border border-neutral-200 p-4 sm:p-5 space-y-4">
-                    <div className="space-y-1">
-                        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-neutral-900">
-                            <MessageSquare className="w-4 h-4" />
-                            <span>Questions &amp; Session Answers</span>
-                        </div>
-                        <p className="text-[11px] text-neutral-500 text-left">
-                            Ask questions for the next team session, reply to help teammates, and see the agreed answers once resolved.
-                        </p>
-                    </div>
-
-                    <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
-                        {comments.filter((c) => !c.parent_id).length === 0 ? (
-                            <p className="text-xs text-neutral-500 py-2 text-left leading-relaxed">
-                                No questions asked on this module yet. Drop a question below and we will cover it in the next team session.
-                            </p>
-                        ) : (
-                            comments
-                                .filter((c) => !c.parent_id)
-                                .map((q) => {
-                                    const replies = comments.filter((r) => r.parent_id === q.id);
-                                    const isAnswered = q.status === 'answered';
-                                    return (
-                                        <div key={q.id} className="p-3 bg-neutral-50 border border-neutral-200 space-y-2 text-left">
-                                            <div className="flex items-center justify-between gap-2 text-[11px]">
-                                                <span className="font-semibold text-neutral-950 truncate">
-                                                    {q.author_name}
-                                                    {q.author_role === 'admin' && (
-                                                        <span className="ml-1.5 text-[9px] uppercase tracking-wider px-1.5 py-0.5 bg-[#030213] text-white">
-                                                            Admin
-                                                        </span>
-                                                    )}
-                                                </span>
-                                                <span
-                                                    className={`px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider shrink-0 ${
-                                                        isAnswered
-                                                            ? 'bg-emerald-100 text-emerald-800'
-                                                            : 'bg-amber-100 text-amber-800'
-                                                    }`}
-                                                >
-                                                    {isAnswered ? 'Answered ✓' : 'For Next Session'}
-                                                </span>
-                                            </div>
-
-                                            {editingCommentId === q.id ? (
-                                                <form onSubmit={(e) => handleSaveCommentEdit(e, q.id)} className="space-y-2">
-                                                    <textarea
-                                                        rows={2}
-                                                        value={editingCommentBody}
-                                                        onChange={(e) => setEditingCommentBody(e.target.value)}
-                                                        className="w-full bg-white border border-neutral-300 p-2 text-base sm:text-xs text-neutral-950 focus:outline-none focus:border-neutral-950"
-                                                    />
-                                                    <div className="flex gap-2">
-                                                        <button
-                                                            type="submit"
-                                                            disabled={postingComment || editingCommentBody.trim().length < 3}
-                                                            className="px-2.5 py-1 bg-[#030213] text-white text-[11px] font-semibold disabled:opacity-40"
-                                                        >
-                                                            Save
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setEditingCommentId(null)}
-                                                            className="px-2.5 py-1 border border-neutral-300 text-[11px] text-neutral-600"
-                                                        >
-                                                            Cancel
-                                                        </button>
-                                                    </div>
-                                                </form>
-                                            ) : (
-                                                <p className="text-xs text-neutral-800 whitespace-pre-wrap break-words leading-relaxed">
-                                                    {q.body}
-                                                </p>
-                                            )}
-
-                                            {/* Pinned Agreed Session Answer */}
-                                            {isAnswered && q.official_answer && (
-                                                <div className="p-2.5 bg-emerald-50 border-l-2 border-emerald-600 text-xs text-emerald-950 space-y-1">
-                                                    <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">
-                                                        Agreed Session Answer {q.answered_by_name ? `· ${q.answered_by_name}` : ''}
-                                                    </div>
-                                                    <p className="whitespace-pre-wrap break-words">{q.official_answer}</p>
-                                                </div>
-                                            )}
-
-                                            {/* Threaded Replies */}
-                                            {replies.length > 0 && (
-                                                <div className="pl-3 border-l-2 border-neutral-200 space-y-1.5 pt-1">
-                                                    {replies.map((r) => (
-                                                        <div key={r.id} className="text-[11px] bg-white border border-neutral-200 p-2 space-y-1">
-                                                            <div className="flex items-center justify-between gap-2">
-                                                                <span className="font-semibold text-neutral-900">{r.author_name}</span>
-                                                                {canModifyPost(r) && (
-                                                                    <div className="inline-flex items-center gap-2 text-[10px]">
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() => {
-                                                                                setEditingCommentId(r.id);
-                                                                                setEditingCommentBody(r.body);
-                                                                            }}
-                                                                            className="text-neutral-500 hover:text-neutral-950 font-semibold"
-                                                                        >
-                                                                            Edit
-                                                                        </button>
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() => handleDeleteComment(r.id)}
-                                                                            className="text-red-600 hover:text-red-800 font-semibold"
-                                                                        >
-                                                                            Delete
-                                                                        </button>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                            {editingCommentId === r.id ? (
-                                                                <form onSubmit={(e) => handleSaveCommentEdit(e, r.id)} className="flex gap-1.5">
-                                                                    <input
-                                                                        type="text"
-                                                                        value={editingCommentBody}
-                                                                        onChange={(e) => setEditingCommentBody(e.target.value)}
-                                                                        className="flex-1 bg-neutral-50 border border-neutral-300 px-2 py-1 text-xs text-neutral-950"
-                                                                    />
-                                                                    <button
-                                                                        type="submit"
-                                                                        className="px-2 py-1 bg-[#030213] text-white text-[10px] font-semibold"
-                                                                    >
-                                                                        Save
-                                                                    </button>
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => setEditingCommentId(null)}
-                                                                        className="px-2 py-1 border border-neutral-300 text-[10px] text-neutral-600"
-                                                                    >
-                                                                        Cancel
-                                                                    </button>
-                                                                </form>
-                                                            ) : (
-                                                                <p className="text-neutral-700 whitespace-pre-wrap break-words">{r.body}</p>
-                                                            )}
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-
-                                            {/* Action Links: Reply + Edit/Delete (15m window or Admin) + Admin Mark Answered */}
-                                            <div className="flex flex-wrap items-center gap-3 pt-1 text-[11px]">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                        setReplyingToId(replyingToId === q.id ? null : q.id);
-                                                        setReplyBody('');
-                                                    }}
-                                                    className="font-semibold text-neutral-600 hover:text-neutral-950"
-                                                >
-                                                    {replyingToId === q.id ? 'Cancel Reply' : `Reply${replies.length ? ` (${replies.length})` : ''}`}
-                                                </button>
-                                                {canModifyPost(q) && (
-                                                    <>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => {
-                                                                setEditingCommentId(editingCommentId === q.id ? null : q.id);
-                                                                setEditingCommentBody(q.body);
-                                                            }}
-                                                            className="font-semibold text-neutral-500 hover:text-neutral-950"
-                                                        >
-                                                            Edit
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleDeleteComment(q.id)}
-                                                            className="font-semibold text-red-600 hover:text-red-800"
-                                                        >
-                                                            Delete
-                                                        </button>
-                                                    </>
-                                                )}
-                                                {isAdmin && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setAnsweringId(answeringId === q.id ? null : q.id);
-                                                            setOfficialAnswerDraft(q.official_answer || '');
-                                                        }}
-                                                        className="font-semibold text-emerald-700 hover:text-emerald-900"
-                                                    >
-                                                        {answeringId === q.id
-                                                            ? 'Cancel'
-                                                            : isAnswered
-                                                              ? 'Edit Agreed Answer'
-                                                              : 'Add Agreed Answer'}
-                                                    </button>
-                                                )}
-                                            </div>
-
-                                            {/* Inline Reply Box */}
-                                            {replyingToId === q.id && (
-                                                <form onSubmit={(e) => handlePostReply(e, q.id)} className="flex gap-1.5 pt-1">
-                                                    <input
-                                                        type="text"
-                                                        value={replyBody}
-                                                        onChange={(e) => setReplyBody(e.target.value)}
-                                                        placeholder="Write a reply..."
-                                                        className="flex-1 bg-white border border-neutral-300 px-2.5 py-1.5 text-base sm:text-xs text-neutral-950 focus:outline-none focus:border-neutral-950"
-                                                    />
-                                                    <button
-                                                        type="submit"
-                                                        disabled={postingComment || !replyBody.trim()}
-                                                        className="px-2.5 py-1.5 bg-[#030213] text-white text-xs font-semibold disabled:opacity-40"
-                                                    >
-                                                        Reply
-                                                    </button>
-                                                </form>
-                                            )}
-
-                                            {/* Admin Agreed Answer Box */}
-                                            {isAdmin && answeringId === q.id && (
-                                                <div className="space-y-2 pt-1">
-                                                    <textarea
-                                                        rows={3}
-                                                        value={officialAnswerDraft}
-                                                        onChange={(e) => setOfficialAnswerDraft(e.target.value)}
-                                                        placeholder="Enter the agreed answer from the live team session..."
-                                                        className="w-full bg-white border border-neutral-300 p-2 text-base sm:text-xs text-neutral-950 focus:outline-none focus:border-neutral-950"
-                                                    />
-                                                    <button
-                                                        type="button"
-                                                        disabled={savingAnswer || officialAnswerDraft.trim().length < 5}
-                                                        onClick={() => handleSaveOfficialAnswer(q.id)}
-                                                        className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-40 text-white text-[11px] font-bold uppercase tracking-wider"
-                                                    >
-                                                        {savingAnswer ? 'Saving...' : 'Save & Mark Answered'}
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </div>
-                                    );
-                                })
-                        )}
-                    </div>
-
-                    <form onSubmit={handlePostComment} className="flex gap-2 pt-2 border-t border-neutral-200">
-                        <input
-                            type="text"
-                            value={newComment}
-                            onChange={(e) => setNewComment(e.target.value)}
-                            placeholder="Ask a question for the team session..."
-                            className="flex-1 min-w-0 bg-white border border-neutral-300 px-3 py-2 text-base sm:text-xs text-neutral-950 focus:outline-none focus:border-neutral-950"
-                        />
-                        <button
-                            type="submit"
-                            disabled={postingComment || !newComment.trim()}
-                            className="px-3 py-2 bg-[#030213] hover:bg-neutral-800 disabled:opacity-40 text-white shrink-0"
-                        >
-                            <Send className="w-3.5 h-3.5" />
-                        </button>
-                    </form>
-                </div>
+                {/* Right Sidebar: Distraction-Free 3-Tab Module Companion (Q&A · Reflect · Dialogue) */}
+                <LessonCompanionPanel
+                    moduleId={lesson.module_id}
+                    lessonId={lesson.id}
+                    isReading={lesson.lesson_type === 'reading'}
+                    isAdmin={isAdmin}
+                    currentUserId={user?.id}
+                    comments={comments}
+                    setComments={setComments}
+                    dialoguePosts={dialoguePosts}
+                    dialogueScenario={dialogueScenario}
+                    aiCoachConfigured={aiCoachConfigured}
+                    reflections={peerReflections}
+                    onOpenDialogue={() => setDialogueModalOpen(true)}
+                    onError={(msg) => setActionMsg({ type: 'error', text: msg })}
+                />
             </div>
+
+            {/* Centered Focus Modal for Module Dialogue (Cohort Scenario + Optional AI Stakeholder Coach) */}
+            {dialogueScenario && (
+                <ModuleDialogueModal
+                    open={dialogueModalOpen}
+                    onClose={() => setDialogueModalOpen(false)}
+                    moduleId={lesson.module_id}
+                    moduleTitle={lesson.module_title || 'Current Module'}
+                    scenario={dialogueScenario}
+                    dialoguePosts={dialoguePosts}
+                    aiCoachConfigured={aiCoachConfigured}
+                    currentUserId={user?.id}
+                    isAdmin={isAdmin}
+                    onPostCreated={(post) => setDialoguePosts((prev) => [...prev, post])}
+                    onHelpfulToggled={(commentId, count, viewerMarked) =>
+                        setDialoguePosts((prev) =>
+                            prev.map((p) =>
+                                p.id === commentId
+                                    ? { ...p, helpful_count: count, viewer_marked_helpful: viewerMarked }
+                                    : p,
+                            ),
+                        )
+                    }
+                />
+            )}
         </div>
     );
 }

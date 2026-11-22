@@ -9,6 +9,7 @@ import {
     normalizeWeeklyLeads,
     requireLmsMember,
 } from '../../_lib/lmsGate.js';
+import { getModuleDialogueScenario } from '../../_lib/moduleDialogues.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'GET') {
@@ -31,6 +32,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             { data: recentTakeaways },
             { data: cohortMembers },
             { data: cohortCompletedRows },
+            { data: cohortDiscussionRows },
         ] = await Promise.all([
             supabase.from('lms_courses').select('*').order('order_index', { ascending: true }),
             supabase.from('lms_modules').select('*').order('global_order', { ascending: true }),
@@ -73,6 +75,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 .select('user_id')
                 .eq('cohort_id', cohort.id)
                 .eq('status', 'completed'),
+            // Lightweight cohort discussion summary for Sunday Standup Prep (open Q&A + dialogue activity)
+            supabase
+                .from('lms_module_discussions')
+                .select('*')
+                .eq('cohort_id', cohort.id)
+                .is('parent_id', null),
         ]);
 
         const progressMap = new Map<string, any>();
@@ -351,6 +359,46 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               }
             : null;
 
+        // Build Sunday Standup Prep summary for the active calendar week (0 extra DB queries)
+        const activeWeekModules = (modules || []).filter((m: any) => m.target_week === currentWeek);
+        const activeWeekModIds = new Set(activeWeekModules.map((m: any) => m.id));
+        const courseTitleById = new Map<string, string>();
+        for (const c of courses || []) courseTitleById.set(c.id, c.title);
+
+        let openQuestionsCount = 0;
+        const dialogueCountByMod = new Map<string, number>();
+        for (const d of cohortDiscussionRows || []) {
+            if (!activeWeekModIds.has(d.module_id)) continue;
+            const pType = (d as any).post_type || 'question';
+            if (pType === 'dialogue') {
+                dialogueCountByMod.set(d.module_id, (dialogueCountByMod.get(d.module_id) || 0) + 1);
+            } else if (d.status === 'open') {
+                openQuestionsCount += 1;
+            }
+        }
+
+        const standupTopics = activeWeekModules.map((m: any) => {
+            const cTitle = courseTitleById.get(m.course_id) || '';
+            const scenario = getModuleDialogueScenario(m.title, cTitle);
+            const modLessonList = rawLessonsByMod.get(m.id) || [];
+            const firstLesson = modLessonList[0] || null;
+            return {
+                moduleId: m.id,
+                moduleTitle: m.title,
+                dialogueTitle: scenario.title,
+                debateHook: scenario.standupDebateHook,
+                dialogueResponses: dialogueCountByMod.get(m.id) || 0,
+                entryLessonSlug: firstLesson?.slug || firstLesson?.id || null,
+            };
+        });
+
+        const standupAgenda = {
+            week: currentWeek,
+            openQuestionsCount,
+            totalDialogueResponses: Array.from(dialogueCountByMod.values()).reduce((a, b) => a + b, 0),
+            topics: standupTopics,
+        };
+
         return res.status(200).json({
             cohort,
             enrollment: {
@@ -372,6 +420,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 longestStreak: enrollment.longest_streak || 0,
             },
             weeklyLead,
+            standupAgenda,
             myStudyGroup,
             teamPairings: {
                 groups,

@@ -41,6 +41,7 @@ import lmsProjectSubmitHandler from './_handlers/lms/project-submit.js';
 import lmsDiscussionsHandler from './_handlers/lms/discussions.js';
 import lmsCertificateHandler from './_handlers/lms/certificate.js';
 import lmsTtsHandler from './_handlers/lms/tts.js';
+import lmsDialogueCoachHandler from './_handlers/lms/dialogue-coach.js';
 
 import adminLmsOverviewHandler from './_handlers/admin/lms/overview.js';
 import adminLmsCohortsHandler from './_handlers/admin/lms/cohorts.js';
@@ -195,6 +196,7 @@ const routes: Record<string, (req: VercelRequest, res: VercelResponse) => any> =
   'lms/discussions': lmsDiscussionsHandler,
   'lms/certificate': lmsCertificateHandler,
   'lms/tts': lmsTtsHandler,
+  'lms/dialogue-coach': lmsDialogueCoachHandler,
   'admin/lms/overview': adminLmsOverviewHandler,
   'admin/lms/cohorts': adminLmsCohortsHandler,
   'admin/lms/members': adminLmsMembersHandler,
