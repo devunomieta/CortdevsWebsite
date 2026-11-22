@@ -10,11 +10,43 @@ import {
 import { BAFOS_CONTEXT, getModuleDialogueScenario } from '../../_lib/bafosPracticum.js';
 
 const MAX_TURNS = 4; // 4 user turns -> final turn produces a crisp 3-bullet PM Coach Debrief
-const GEMINI_MODEL = 'gemini-2.5-flash';
+const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash'];
 
 interface DialogueTurn {
     role: 'assistant' | 'user';
     text: string;
+}
+
+/**
+ * Ensures Gemini's strict turn-alternation contract:
+ *  - First item MUST have role 'user' (never 'model')
+ *  - Consecutive turns with the same role are merged cleanly
+ */
+function buildGeminiContents(history: DialogueTurn[], latestUserMsg: string): Array<{ role: 'user' | 'model'; parts: Array<{ text: string }> }> {
+    const raw: Array<{ role: 'user' | 'model'; text: string }> = [
+        ...history.map((h) => ({
+            role: (h.role === 'user' ? 'user' : 'model') as 'user' | 'model',
+            text: h.text,
+        })),
+        { role: 'user', text: latestUserMsg },
+    ];
+
+    // If the conversation opens with the AI stakeholder's greeting ('model'), prepend a clean 'user' opener
+    if (raw.length > 0 && raw[0].role === 'model') {
+        raw.unshift({ role: 'user', text: 'Hi, I am ready to discuss this BAFOS scenario with you.' });
+    }
+
+    // Merge consecutive same-role messages so Gemini never throws an alternation 400
+    const normalized: Array<{ role: 'user' | 'model'; parts: Array<{ text: string }> }> = [];
+    for (const item of raw) {
+        const prev = normalized[normalized.length - 1];
+        if (prev && prev.role === item.role) {
+            prev.parts[0].text = `${prev.parts[0].text}\n\n${item.text}`;
+        } else {
+            normalized.push({ role: item.role, parts: [{ text: item.text }] });
+        }
+    }
+    return normalized;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -104,77 +136,83 @@ Rules:
 3. Keep your reply concise: 2 to 4 sentences max (under 85 words). Never lecture or output textbook bullet lists.
 4. This is turn ${currentTurn} of ${MAX_TURNS}.`;
 
-    const contents = [
-        ...safeHistory.map((h) => ({
-            role: h.role === 'user' ? 'user' : 'model',
-            parts: [{ text: h.text }],
-        })),
-        {
-            role: 'user',
-            parts: [{ text: cleanMsg }],
-        },
-    ];
+    const contents = buildGeminiContents(safeHistory, cleanMsg);
 
-    try {
-        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`;
-        const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                system_instruction: { parts: [{ text: systemInstruction }] },
-                contents,
-                generationConfig: {
-                    temperature: 0.65,
-                    maxOutputTokens: isFinalDebrief ? 320 : 200,
-                },
-            }),
-            signal: AbortSignal.timeout(15000),
-        });
+    let lastErrorDetail = '';
+    for (const model of GEMINI_MODELS) {
+        try {
+            const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
+            const genConfig: Record<string, any> = {
+                temperature: 0.65,
+                maxOutputTokens: isFinalDebrief ? 650 : 400,
+            };
+            // Disable thinking token burn on Gemini 2.5 models for instant conversational roleplay
+            if (model.startsWith('gemini-2.5')) {
+                genConfig.thinkingConfig = { thinkingBudget: 0 };
+            }
 
-        const payload: any = await response.json().catch(() => ({}));
-        if (!response.ok) {
-            const errText = payload?.error?.message || `Gemini API returned ${response.status}`;
-            console.error('[lms/dialogue-coach] Gemini error:', errText);
-            return res.status(502).json({
-                aiConfigured: true,
-                error: 'AI Coach is temporarily busy. You can retry or post directly to Cohort Scenario Dialogue.',
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    systemInstruction: { parts: [{ text: systemInstruction }] },
+                    contents,
+                    generationConfig: genConfig,
+                }),
+                signal: AbortSignal.timeout(15000),
             });
-        }
 
-        const replyText =
-            payload?.candidates?.[0]?.content?.parts
-                ?.map((p: any) => p?.text || '')
-                .join('')
-                .trim() || '';
+            const payload: any = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                lastErrorDetail = payload?.error?.message || `HTTP ${response.status}`;
+                console.error(`[lms/dialogue-coach] ${model} failed (${response.status}):`, lastErrorDetail);
+                // If API key itself is invalid/unauthorized, stop retrying other models
+                if (response.status === 401 || response.status === 403) {
+                    return res.status(502).json({
+                        aiConfigured: true,
+                        error: `Gemini API key rejected (${lastErrorDetail}). Check GEMINI_API_KEY in Vercel/env.`,
+                    });
+                }
+                continue;
+            }
 
-        if (!replyText) {
-            return res.status(502).json({
+            const replyText =
+                payload?.candidates?.[0]?.content?.parts
+                    ?.filter((p: any) => !p?.thought)
+                    ?.map((p: any) => p?.text || '')
+                    .join('')
+                    .trim() || '';
+
+            if (!replyText) {
+                lastErrorDetail = 'Empty candidate text';
+                console.error(`[lms/dialogue-coach] ${model} returned empty text:`, JSON.stringify(payload).slice(0, 300));
+                continue;
+            }
+
+            if (isFinalDebrief) {
+                await logLmsEvent({
+                    cohortId: member.cohort.id,
+                    userId: member.enrollment.user_id,
+                    eventType: 'ai_dialogue_completed',
+                    metadata: { moduleId: mod.id, moduleTitle: mod.title, turns: currentTurn, model },
+                }).catch(() => {});
+            }
+
+            return res.status(200).json({
                 aiConfigured: true,
-                error: 'AI Coach returned an empty response. Please try sending your reply again.',
+                reply: replyText,
+                turn: currentTurn,
+                maxTurns: MAX_TURNS,
+                isFinalDebrief,
             });
+        } catch (err: any) {
+            lastErrorDetail = err?.message || 'Network timeout';
+            console.error(`[lms/dialogue-coach] ${model} exception:`, lastErrorDetail);
         }
-
-        if (isFinalDebrief) {
-            await logLmsEvent({
-                cohortId: member.cohort.id,
-                userId: member.enrollment.user_id,
-                eventType: 'ai_dialogue_completed',
-                metadata: { moduleId: mod.id, moduleTitle: mod.title, turns: currentTurn },
-            }).catch(() => {});
-        }
-
-        return res.status(200).json({
-            aiConfigured: true,
-            reply: replyText,
-            turn: currentTurn,
-            maxTurns: MAX_TURNS,
-            isFinalDebrief,
-        });
-    } catch (err: any) {
-        console.error('[lms/dialogue-coach] Fetch failed:', err?.message || err);
-        return res.status(503).json({
-            aiConfigured: true,
-            error: 'Could not reach AI Coach right now. Please retry in a moment.',
-        });
     }
+
+    return res.status(502).json({
+        aiConfigured: true,
+        error: `AI Coach could not respond right now (${lastErrorDetail || 'upstream error'}). Please retry or post in Cohort Scenario.`,
+    });
 }

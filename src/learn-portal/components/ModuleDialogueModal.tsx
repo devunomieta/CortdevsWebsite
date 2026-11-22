@@ -197,6 +197,8 @@ export function ModuleDialogueModal({
             });
             if (res.aiConfigured === false) {
                 setAiAvailable(false);
+                setTurns((prev) => prev.slice(0, -1));
+                setAiInput(clean);
                 setAiError(res.error || 'AI Coach is not configured yet.');
                 return;
             }
@@ -209,6 +211,9 @@ export function ModuleDialogueModal({
                 setAiCompleted(true);
             }
         } catch (err: any) {
+            // Roll back the optimistic user turn & restore input so retrying stays cleanly alternating
+            setTurns((prev) => prev.slice(0, -1));
+            setAiInput(clean);
             setAiError(err?.message || 'Could not reach AI Coach. Try again or use Cohort Scenario.');
         } finally {
             setAiLoading(false);
