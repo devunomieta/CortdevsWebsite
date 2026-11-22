@@ -9,7 +9,7 @@ import {
     normalizeWeeklyLeads,
     requireLmsMember,
 } from '../../_lib/lmsGate.js';
-import { getModuleDialogueScenario } from '../../_lib/moduleDialogues.js';
+import { getModuleDialogueScenario, getWeeklyStandupQuestions } from '../../_lib/bafosPracticum.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'GET') {
@@ -341,8 +341,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               }
             : null;
 
-        // Build Sunday Standup Prep summary for the active calendar week (0 extra DB queries)
-        const activeWeekModules = (modules || []).filter((m: any) => m.target_week === currentWeek);
+        // Build Sunday Standup Prep summary strictly for the active calendar week's unlocked & accessed modules
+        const weeklyStandupGuide = getWeeklyStandupQuestions(currentWeek);
+        const activeWeekModules = (modules || []).filter((m: any) => {
+            if (m.target_week !== currentWeek) return false;
+            const hasModDripOverride = (overrides || []).some(
+                (o: any) => o.override_type === 'unlock_drip' && (!o.module_id || o.module_id === m.id),
+            );
+            const drip = isModuleDripUnlocked(cohort, m.target_week, now, hasModDripOverride || isAdmin);
+            return drip.unlocked;
+        });
         const activeWeekModIds = new Set(activeWeekModules.map((m: any) => m.id));
         const courseTitleById = new Map<string, string>();
         for (const c of courses || []) courseTitleById.set(c.id, c.title);
@@ -359,26 +367,47 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
         }
 
-        const standupTopics = activeWeekModules.map((m: any) => {
-            const cTitle = courseTitleById.get(m.course_id) || '';
-            const scenario = getModuleDialogueScenario(m.title, cTitle);
-            const modLessonList = rawLessonsByMod.get(m.id) || [];
-            const firstLesson = modLessonList[0] || null;
-            return {
-                moduleId: m.id,
-                moduleTitle: m.title,
-                dialogueTitle: scenario.title,
-                debateHook: scenario.standupDebateHook,
-                dialogueResponses: dialogueCountByMod.get(m.id) || 0,
-                entryLessonSlug: firstLesson?.slug || firstLesson?.id || null,
-            };
-        });
+        // Only surface modules in this week that the learner has actually accessed/started (or all for Admin)
+        const accessedTopics = activeWeekModules
+            .map((m: any) => {
+                const modLessonList = rawLessonsByMod.get(m.id) || [];
+                const completedInMod = modLessonList.filter((l: any) => completedSet.has(l.id)).length;
+                const startedInMod = modLessonList.some((l: any) => progressMap.has(l.id));
+                if (!isAdmin && !startedInMod && completedInMod === 0) return null;
+
+                const cTitle = courseTitleById.get(m.course_id) || '';
+                const scenario = getModuleDialogueScenario(m.title, cTitle);
+
+                const assessmentLessons = modLessonList.filter(
+                    (l: any) => l.lesson_type === 'quiz' || l.lesson_type === 'project',
+                );
+                const gateLessons = assessmentLessons.length > 0 ? assessmentLessons : modLessonList;
+                const dialogueUnlocked = isAdmin || gateLessons.every((l: any) => completedSet.has(l.id));
+                const entryLesson =
+                    (dialogueUnlocked ? gateLessons[gateLessons.length - 1] : modLessonList.find((l: any) => !completedSet.has(l.id))) ||
+                    modLessonList[0] ||
+                    null;
+
+                return {
+                    moduleId: m.id,
+                    moduleTitle: m.title,
+                    dialogueTitle: scenario.title,
+                    dialogueResponses: dialogueCountByMod.get(m.id) || 0,
+                    completedLessons: completedInMod,
+                    totalLessons: modLessonList.length,
+                    dialogueUnlocked,
+                    entryLessonSlug: entryLesson?.slug || entryLesson?.id || null,
+                };
+            })
+            .filter(Boolean);
 
         const standupAgenda = {
             week: currentWeek,
+            theme: weeklyStandupGuide.theme,
+            questions: weeklyStandupGuide.questions,
             openQuestionsCount,
             totalDialogueResponses: Array.from(dialogueCountByMod.values()).reduce((a, b) => a + b, 0),
-            topics: standupTopics,
+            topics: accessedTopics,
         };
 
         return res.status(200).json({

@@ -62,6 +62,78 @@ export function getEffectiveReadingMinDwell(rawMinDwell?: number | null): number
     return Math.min(45, Math.max(15, Math.round(base * 0.25)));
 }
 
+export interface DialogueAccessResult {
+    unlocked: boolean;
+    reason: string | null;
+    gateLessonSlug: string | null;
+    gateLessonTitle: string | null;
+}
+
+/**
+ * Checks whether Module Dialogue & AI Coach are unlocked for a learner in a given module:
+ *  - Admins always have preview access.
+ *  - If the module has quizzes and/or projects, ALL quizzes & projects in that module must be completed first.
+ *  - Otherwise (e.g., Course 0 Orientation), all lessons in that module must be completed first.
+ */
+export async function checkModuleDialogueUnlocked(params: {
+    cohortId: string;
+    userId: string;
+    moduleId: string;
+    isAdmin: boolean;
+}): Promise<DialogueAccessResult> {
+    if (params.isAdmin) {
+        return { unlocked: true, reason: null, gateLessonSlug: null, gateLessonTitle: null };
+    }
+
+    const { data: modLessons } = await supabase
+        .from('lms_lessons')
+        .select('id, slug, title, lesson_type, order_index')
+        .eq('module_id', params.moduleId)
+        .order('order_index', { ascending: true });
+
+    const all = modLessons || [];
+    if (!all.length) {
+        return { unlocked: true, reason: null, gateLessonSlug: null, gateLessonTitle: null };
+    }
+
+    const assessmentLessons = all.filter((l: any) => l.lesson_type === 'quiz' || l.lesson_type === 'project');
+    const gateLessons = assessmentLessons.length > 0 ? assessmentLessons : all;
+    const gateIds = gateLessons.map((l: any) => l.id);
+
+    const { data: doneRows } = await supabase
+        .from('lms_lesson_progress')
+        .select('lesson_id')
+        .eq('cohort_id', params.cohortId)
+        .eq('user_id', params.userId)
+        .eq('status', 'completed')
+        .in('lesson_id', gateIds);
+
+    const doneSet = new Set<string>((doneRows || []).map((r: any) => r.lesson_id));
+    const firstMissing = gateLessons.find((l: any) => !doneSet.has(l.id));
+
+    if (!firstMissing) {
+        return { unlocked: true, reason: null, gateLessonSlug: null, gateLessonTitle: null };
+    }
+
+    const hasProject = assessmentLessons.some((l: any) => l.lesson_type === 'project');
+    const hasQuiz = assessmentLessons.some((l: any) => l.lesson_type === 'quiz');
+    const gateDesc =
+        hasQuiz && hasProject
+            ? 'this module’s quizzes and project'
+            : hasProject
+              ? 'this module’s project'
+              : hasQuiz
+                ? 'this module’s quiz'
+                : 'this module’s lesson';
+
+    return {
+        unlocked: false,
+        reason: `Complete ${gateDesc} first to unlock the BAFOS Module Dialogue & AI Coach.`,
+        gateLessonSlug: firstMissing.slug || firstMissing.id,
+        gateLessonTitle: firstMissing.title,
+    };
+}
+
 export interface LmsCohort {
     id: string;
     name: string;

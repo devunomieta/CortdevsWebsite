@@ -3,9 +3,11 @@ import { Link } from 'react-router';
 import {
     BookOpen,
     CalendarClock,
+    Check,
     CheckCircle2,
     ChevronDown,
     ChevronRight,
+    Copy,
     FileQuestion,
     Flame,
     FolderKanban,
@@ -40,6 +42,7 @@ export function RoadmapDashboard() {
     const [error, setError] = useState<string | null>(null);
     const [openCourses, setOpenCourses] = useState<Record<string, boolean>>({});
     const [openModules, setOpenModules] = useState<Record<string, boolean>>({});
+    const [copiedAgenda, setCopiedAgenda] = useState(false);
 
     useEffect(() => {
         learnApi('lms/curriculum')
@@ -403,8 +406,8 @@ export function RoadmapDashboard() {
                         </div>
                     )}
 
-                    {/* Sunday Standup Prep (Auto-Synced from This Week's Dialogues & Q&A) */}
-                    {standupAgenda && standupAgenda.topics?.length > 0 && (
+                    {/* Sunday Standup Prep (Strictly Active Week's 3 BAFOS Questions + Accessed Modules Only) */}
+                    {standupAgenda && (
                         <div className="space-y-3">
                             <div className="flex items-center justify-between gap-2">
                                 <div className="flex items-center gap-2">
@@ -418,8 +421,39 @@ export function RoadmapDashboard() {
                                 </span>
                             </div>
 
-                            <div className="bg-white border border-neutral-200 p-4 space-y-3 text-left">
-                                <div className="flex items-center justify-between text-[11px] text-neutral-600 pb-2 border-b border-neutral-100">
+                            <div className="bg-white border border-neutral-200 p-4 space-y-3.5 text-left">
+                                <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-neutral-100">
+                                    <div>
+                                        <div className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">
+                                            BAFOS Weekly Focus
+                                        </div>
+                                        <div className="text-xs font-semibold text-neutral-950">{standupAgenda.theme}</div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const lines = [
+                                                `CortDevs Learn — Week ${standupAgenda.week} Sunday Standup Agenda`,
+                                                `Theme: ${standupAgenda.theme}`,
+                                                weeklyLead ? `Weekly Lead: ${weeklyLead.fullName}` : null,
+                                                `Open Q&A: ${standupAgenda.openQuestionsCount} | Dialogue Takes: ${standupAgenda.totalDialogueResponses}`,
+                                                '',
+                                                'BAFOS Discussion Questions:',
+                                                ...(standupAgenda.questions || []).map((q: string, i: number) => `${i + 1}. ${q}`),
+                                            ].filter((l) => l !== null);
+                                            navigator.clipboard?.writeText(lines.join('\n')).then(() => {
+                                                setCopiedAgenda(true);
+                                                window.setTimeout(() => setCopiedAgenda(false), 2500);
+                                            });
+                                        }}
+                                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-neutral-50 border border-neutral-300 hover:border-neutral-950 text-[10px] font-bold uppercase tracking-wider text-neutral-800 shrink-0"
+                                    >
+                                        {copiedAgenda ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                                        {copiedAgenda ? 'Copied' : 'Copy Agenda'}
+                                    </button>
+                                </div>
+
+                                <div className="flex items-center justify-between text-[11px] text-neutral-600">
                                     <span>
                                         Open Q&amp;A: <strong className="text-neutral-950">{standupAgenda.openQuestionsCount}</strong>
                                     </span>
@@ -429,38 +463,56 @@ export function RoadmapDashboard() {
                                     </span>
                                 </div>
 
-                                <div className="space-y-2.5">
-                                    {standupAgenda.topics.map((topic: any) => (
-                                        <div
-                                            key={topic.moduleId}
-                                            className="p-3 bg-neutral-50 border border-neutral-200 space-y-1.5"
-                                        >
-                                            <div className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 truncate">
-                                                {topic.moduleTitle}
-                                            </div>
-                                            <div className="text-xs font-semibold text-neutral-950 leading-snug">
-                                                {topic.dialogueTitle}
-                                            </div>
-                                            <p className="text-[11px] text-neutral-600 leading-relaxed">
-                                                {topic.debateHook}
-                                            </p>
-                                            <div className="flex items-center justify-between pt-1">
-                                                <span className="text-[10px] text-neutral-500">
-                                                    {topic.dialogueResponses}{' '}
-                                                    {topic.dialogueResponses === 1 ? 'teammate' : 'teammates'} shared
-                                                </span>
-                                                {topic.entryLessonSlug && (
+                                {/* 3 Relatable Weekly BAFOS Standup Questions */}
+                                <ol className="space-y-2 text-xs text-neutral-700 leading-relaxed">
+                                    {(standupAgenda.questions || []).map((q: string, idx: number) => (
+                                        <li key={idx} className="p-2.5 bg-neutral-50 border border-neutral-200 flex items-start gap-2">
+                                            <span className="font-mono text-[10px] font-bold text-neutral-500 mt-0.5 shrink-0">
+                                                Q{idx + 1}
+                                            </span>
+                                            <span>{q}</span>
+                                        </li>
+                                    ))}
+                                </ol>
+
+                                {/* Accessed Week Modules Only */}
+                                {(standupAgenda.topics || []).length > 0 && (
+                                    <div className="pt-2 border-t border-neutral-100 space-y-2">
+                                        <div className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">
+                                            Your Accessed Week {standupAgenda.week} Modules
+                                        </div>
+                                        {(standupAgenda.topics || []).map((topic: any) => (
+                                            <div
+                                                key={topic.moduleId}
+                                                className="p-2.5 bg-neutral-50 border border-neutral-200 flex items-center justify-between gap-2"
+                                            >
+                                                <div className="min-w-0">
+                                                    <div className="text-[11px] font-semibold text-neutral-950 truncate">
+                                                        {topic.moduleTitle}
+                                                    </div>
+                                                    <div className="text-[10px] text-neutral-500">
+                                                        {topic.completedLessons}/{topic.totalLessons} lessons · {topic.dialogueResponses} takes
+                                                    </div>
+                                                </div>
+                                                {topic.dialogueUnlocked && topic.entryLessonSlug ? (
                                                     <Link
                                                         to={`/lesson/${topic.entryLessonSlug}?openDialogue=1`}
-                                                        className="text-[11px] font-bold text-neutral-950 hover:underline"
+                                                        className="px-2.5 py-1 bg-[#030213] hover:bg-neutral-800 text-white text-[10px] font-bold uppercase tracking-wider shrink-0"
                                                     >
-                                                        Join Dialogue →
+                                                        Dialogue →
                                                     </Link>
+                                                ) : (
+                                                    <span
+                                                        title="Complete this module’s quiz/project to unlock Dialogue & AI Coach"
+                                                        className="inline-flex items-center gap-1 px-2 py-1 bg-white border border-neutral-200 text-[10px] font-medium text-neutral-500 shrink-0"
+                                                    >
+                                                        <Lock className="w-3 h-3" /> Finish Quiz
+                                                    </span>
                                                 )}
                                             </div>
-                                        </div>
-                                    ))}
-                                </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}

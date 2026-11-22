@@ -115,6 +115,72 @@ function parseWebVtt(raw: string): VttCue[] {
     return cues;
 }
 
+const CHAPTER_STOP_WORDS = new Set([
+    'the', 'and', 'for', 'with', 'from', 'that', 'this', 'your', 'into', 'how', 'what', 'why',
+    'product', 'management', 'manager', 'microsoft', 'course', 'module', 'lesson', 'reading',
+    'activity', 'guide', 'overview', 'introduction', 'using', 'about', 'part',
+]);
+
+function extractTopicWords(title: string): string[] {
+    return title
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .split(/\s+/)
+        .filter((w) => w.length >= 3 && !CHAPTER_STOP_WORDS.has(w));
+}
+
+function pairReadingsToChapters(
+    chapters: VideoChapter[],
+    readings: ModuleReadingItem[],
+): {
+    byChapterIdx: Map<number, ModuleReadingItem[]>;
+    chapterForReadingId: Map<string, { chapterIdx: number; chapter: VideoChapter }>;
+} {
+    const byChapterIdx = new Map<number, ModuleReadingItem[]>();
+    const chapterForReadingId = new Map<string, { chapterIdx: number; chapter: VideoChapter }>();
+    if (!chapters.length || !readings.length) return { byChapterIdx, chapterForReadingId };
+
+    const chapterTokens = chapters.map((ch) => new Set(extractTopicWords(ch.title)));
+
+    readings.forEach((reading, rIdx) => {
+        const rTokens = extractTopicWords(reading.title);
+        let bestIdx = -1;
+        let bestScore = 0;
+
+        for (let cIdx = 0; cIdx < chapters.length; cIdx++) {
+            let score = 0;
+            for (const tok of rTokens) {
+                if (chapterTokens[cIdx].has(tok)) score += 2;
+                else {
+                    // Partial prefix match (e.g. "competencies" vs "competency", "roadmap" vs "roadmapping")
+                    for (const cTok of chapterTokens[cIdx]) {
+                        if (tok.length >= 5 && cTok.length >= 5 && (tok.startsWith(cTok.slice(0, 5)) || cTok.startsWith(tok.slice(0, 5)))) {
+                            score += 1;
+                            break;
+                        }
+                    }
+                }
+            }
+            if (score > bestScore) {
+                bestScore = score;
+                bestIdx = cIdx;
+            }
+        }
+
+        // Chronological proportional fallback when titles don't share specific keywords
+        if (bestIdx === -1) {
+            bestIdx = Math.min(chapters.length - 1, Math.floor((rIdx / Math.max(1, readings.length)) * chapters.length));
+        }
+
+        const list = byChapterIdx.get(bestIdx) || [];
+        list.push(reading);
+        byChapterIdx.set(bestIdx, list);
+        chapterForReadingId.set(reading.id, { chapterIdx: bestIdx, chapter: chapters[bestIdx] });
+    });
+
+    return { byChapterIdx, chapterForReadingId };
+}
+
 export function LearnVideoPlayer({
     videoRef,
     src,
@@ -202,6 +268,9 @@ export function LearnVideoPlayer({
 
     // End-of-video "Up Next" overlay state
     const [videoEnded, setVideoEnded] = useState(false);
+
+    // Dismissed companion-reading cue chapters (for this video session)
+    const [dismissedCueChapters, setDismissedCueChapters] = useState<Set<number>>(() => new Set());
 
     // Non-disruptive in-pane / expandable Reading Preview state (keeps <video> mounted at exact timestamp!)
     const [previewReadingId, setPreviewReadingId] = useState<string | null>(null);
@@ -544,6 +613,26 @@ export function LearnVideoPlayer({
         return current;
     }, [chapters, currentTime]);
 
+    const activeChapterIdx = useMemo(() => {
+        if (!chapters.length) return -1;
+        let idx = 0;
+        for (let i = 0; i < chapters.length; i++) {
+            if (currentTime >= chapters[i].startSec) idx = i;
+        }
+        return idx;
+    }, [chapters, currentTime]);
+
+    const { byChapterIdx: readingsByChapterIdx, chapterForReadingId } = useMemo(
+        () => pairReadingsToChapters(chapters, moduleReadings),
+        [chapters, moduleReadings],
+    );
+
+    const activeCompanionReading = useMemo(() => {
+        if (activeChapterIdx < 0 || dismissedCueChapters.has(activeChapterIdx) || previewReadingId) return null;
+        const paired = readingsByChapterIdx.get(activeChapterIdx) || [];
+        return paired.find((r) => !completedReadingIds.has(r.id)) || null;
+    }, [activeChapterIdx, dismissedCueChapters, previewReadingId, readingsByChapterIdx, completedReadingIds]);
+
     // Auto-scroll active transcript cue cleanly into view
     useEffect(() => {
         if (autoScrollTranscript && activeTab === 'transcript' && panelOpen && activeCueRef.current) {
@@ -762,6 +851,47 @@ export function LearnVideoPlayer({
                                         Replay
                                     </button>
                                 </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Non-Intrusive "Related Reading for This Section" Pill (never auto-pauses) */}
+                    {activeCompanionReading && !videoEnded && (
+                        <div
+                            className={`absolute left-3 right-3 sm:right-auto sm:max-w-md z-25 transition-all duration-200 ${
+                                controlsVisible || !playing ? 'bottom-16 sm:bottom-20' : 'bottom-4'
+                            }`}
+                        >
+                            <div className="bg-[#030213]/92 backdrop-blur-sm border border-white/20 text-white px-3 py-2 shadow-lg flex items-center gap-2.5 text-left">
+                                <BookOpen className="w-3.5 h-3.5 text-blue-300 shrink-0" />
+                                <div className="min-w-0 flex-1">
+                                    <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-blue-300">
+                                        Related Reading · Ch. {activeChapterIdx + 1}
+                                    </div>
+                                    <div className="text-[11px] text-white/95 truncate">{activeCompanionReading.title}</div>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setTheaterMode(false);
+                                        setActiveTab('readings');
+                                        setPanelOpen(true);
+                                        openReadingPreview(activeCompanionReading);
+                                    }}
+                                    className="px-2.5 py-1 bg-white text-neutral-950 hover:bg-neutral-200 text-[10px] font-bold uppercase tracking-wider shrink-0"
+                                >
+                                    Preview
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        setDismissedCueChapters((prev) => new Set([...prev, activeChapterIdx]))
+                                    }
+                                    aria-label="Dismiss reading suggestion"
+                                    className="p-0.5 text-white/60 hover:text-white shrink-0"
+                                >
+                                    <X className="w-3.5 h-3.5" />
+                                </button>
                             </div>
                         </div>
                     )}
@@ -1198,38 +1328,80 @@ export function LearnVideoPlayer({
                                     </div>
                                 )}
 
-                                {/* TAB 3: CHAPTERS */}
+                                {/* TAB 3: CHAPTERS (WITH PAIRED COMPANION READINGS NESTED UNDER EACH CHAPTER) */}
                                 {activeTab === 'chapters' && (
-                                    <div className="flex-1 overflow-y-auto p-3 space-y-1.5 text-left">
+                                    <div className="flex-1 overflow-y-auto p-3 space-y-2 text-left">
                                         {chapters.length === 0 ? (
                                             <p className="text-xs text-neutral-500 py-4">
                                                 No chapter markers are listed for this video.
                                             </p>
                                         ) : (
-                                            chapters.map((ch, idx) => {
-                                                const isCurrent = activeChapter?.startSec === ch.startSec && activeChapter?.title === ch.title;
-                                                return (
-                                                    <button
-                                                        key={idx}
-                                                        type="button"
-                                                        onClick={() => seekToTime(ch.startSec)}
-                                                        className={`w-full text-left px-3 py-2.5 border transition flex items-start gap-2.5 ${
-                                                            isCurrent
-                                                                ? 'bg-[#030213] text-white border-[#030213]'
-                                                                : 'bg-neutral-50 hover:bg-neutral-100 text-neutral-900 border-neutral-200'
-                                                        }`}
-                                                    >
-                                                        <span
-                                                            className={`font-mono text-[11px] shrink-0 mt-0.5 ${
-                                                                isCurrent ? 'text-blue-300 font-bold' : 'text-neutral-500'
-                                                            }`}
-                                                        >
-                                                            {formatDuration(ch.startSec)}
-                                                        </span>
-                                                        <span className="text-xs leading-snug break-words">{ch.title}</span>
-                                                    </button>
-                                                );
-                                            })
+                                            <>
+                                                <p className="text-[11px] text-neutral-500 leading-relaxed pb-0.5">
+                                                    Watch each chapter and preview its paired reading right underneath before continuing.
+                                                </p>
+                                                {chapters.map((ch, idx) => {
+                                                    const isCurrent =
+                                                        activeChapter?.startSec === ch.startSec && activeChapter?.title === ch.title;
+                                                    const pairedReadings = readingsByChapterIdx.get(idx) || [];
+                                                    return (
+                                                        <div key={idx} className="space-y-1">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => seekToTime(ch.startSec)}
+                                                                className={`w-full text-left px-3 py-2.5 border transition flex items-start gap-2.5 ${
+                                                                    isCurrent
+                                                                        ? 'bg-[#030213] text-white border-[#030213]'
+                                                                        : 'bg-neutral-50 hover:bg-neutral-100 text-neutral-900 border-neutral-200'
+                                                                }`}
+                                                            >
+                                                                <span
+                                                                    className={`font-mono text-[11px] shrink-0 mt-0.5 ${
+                                                                        isCurrent ? 'text-blue-300 font-bold' : 'text-neutral-500'
+                                                                    }`}
+                                                                >
+                                                                    {formatDuration(ch.startSec)}
+                                                                </span>
+                                                                <span className="text-xs leading-snug break-words">{ch.title}</span>
+                                                            </button>
+
+                                                            {pairedReadings.length > 0 && (
+                                                                <div className="pl-3 ml-2.5 border-l-2 border-neutral-200 space-y-1">
+                                                                    {pairedReadings.map((r) => {
+                                                                        const done = completedReadingIds.has(r.id);
+                                                                        return (
+                                                                            <button
+                                                                                key={r.id}
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    setActiveTab('readings');
+                                                                                    openReadingPreview(r);
+                                                                                }}
+                                                                                className="w-full text-left px-2.5 py-1.5 bg-white border border-neutral-200 hover:border-neutral-950 transition flex items-start gap-2"
+                                                                            >
+                                                                                {done ? (
+                                                                                    <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0 mt-0.5" />
+                                                                                ) : (
+                                                                                    <BookOpen className="w-3 h-3 text-blue-600 shrink-0 mt-0.5" />
+                                                                                )}
+                                                                                <span className="min-w-0 flex-1">
+                                                                                    <span className="block text-[11px] font-medium text-neutral-900 leading-snug break-words">
+                                                                                        {r.title}
+                                                                                    </span>
+                                                                                    <span className="block text-[10px] text-neutral-500">
+                                                                                        Read · {r.estimated_minutes}m
+                                                                                        {done ? ' · Done' : ' · Preview'}
+                                                                                    </span>
+                                                                                </span>
+                                                                            </button>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </>
                                         )}
                                     </div>
                                 )}
@@ -1400,28 +1572,43 @@ export function LearnVideoPlayer({
                                                     </p>
                                                     {moduleReadings.map((r) => {
                                                         const done = completedReadingIds.has(r.id);
+                                                        const pairedCh = chapterForReadingId.get(r.id);
                                                         return (
                                                             <div
                                                                 key={r.id}
                                                                 className="p-2.5 bg-neutral-50 border border-neutral-200 hover:border-neutral-400 transition flex items-start justify-between gap-2"
                                                             >
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => openReadingPreview(r)}
-                                                                    className="min-w-0 flex-1 text-left space-y-0.5"
-                                                                >
-                                                                    <div className="text-xs font-medium text-neutral-950 hover:underline leading-snug break-words flex items-start gap-1.5">
-                                                                        {done ? (
-                                                                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
-                                                                        ) : (
-                                                                            <BookOpen className="w-3.5 h-3.5 text-neutral-400 shrink-0 mt-0.5" />
-                                                                        )}
-                                                                        <span>{r.title}</span>
-                                                                    </div>
-                                                                    <div className="text-[10px] text-neutral-500 pl-5">
-                                                                        {r.estimated_minutes} min · Preview here{done ? ' · Completed' : ''}
-                                                                    </div>
-                                                                </button>
+                                                                <div className="min-w-0 flex-1 space-y-1">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => openReadingPreview(r)}
+                                                                        className="w-full text-left space-y-0.5"
+                                                                    >
+                                                                        <div className="text-xs font-medium text-neutral-950 hover:underline leading-snug break-words flex items-start gap-1.5">
+                                                                            {done ? (
+                                                                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                                                                            ) : (
+                                                                                <BookOpen className="w-3.5 h-3.5 text-neutral-400 shrink-0 mt-0.5" />
+                                                                            )}
+                                                                            <span>{r.title}</span>
+                                                                        </div>
+                                                                        <div className="text-[10px] text-neutral-500 pl-5">
+                                                                            {r.estimated_minutes} min · Preview here{done ? ' · Completed' : ''}
+                                                                        </div>
+                                                                    </button>
+                                                                    {pairedCh && (
+                                                                        <div className="pl-5">
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => seekToTime(pairedCh.chapter.startSec)}
+                                                                                title={`Jump video to Chapter ${pairedCh.chapterIdx + 1}: ${pairedCh.chapter.title}`}
+                                                                                className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white border border-neutral-200 hover:border-neutral-950 text-[10px] font-mono text-neutral-600 hover:text-neutral-950 transition"
+                                                                            >
+                                                                                Best around {formatDuration(pairedCh.chapter.startSec)} · Ch. {pairedCh.chapterIdx + 1}
+                                                                            </button>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
                                                                 <Link
                                                                     to={`/lesson/${r.slug || r.id}?fromVideo=${encodeURIComponent(lessonSlug)}&t=${Math.floor(currentTime)}`}
                                                                     title="Open full page (preserves video position)"

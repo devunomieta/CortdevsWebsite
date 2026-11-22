@@ -7,6 +7,7 @@ import {
     requireLmsMember,
     sanitizeQuizForClient,
 } from '../../_lib/lmsGate.js';
+import { getBafosProjectLens } from '../../_lib/bafosPracticum.js';
 import { isR2Configured, resolveReadingHtmlImages, signLessonVideoUrl, signR2AssetUrl } from '../../_lib/lmsR2.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -96,27 +97,46 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 : Promise.resolve({ data: null }),
         ]);
 
-        // For video lessons, load the module's supporting readings so they appear in the video player's Readings tab
+        // Load all lessons in this module once (0 extra queries vs. previous readings-only fetch)
+        // to power BOTH the video player's Readings tab AND the Guided 4-Step Module Flow Stepper
         let moduleReadings: Array<{ id: string; slug: string; title: string; estimated_minutes: number; completed: boolean }> = [];
-        if (lesson.lesson_type === 'video' && lesson.module_id) {
-            const { data: readingRows } = await supabase
+        let moduleFlow: {
+            video: { id: string; slug: string; title: string; completed: boolean } | null;
+            readingsTotal: number;
+            readingsCompleted: number;
+            firstUnreadReadingSlug: string | null;
+            quizzes: Array<{ id: string; slug: string; title: string; completed: boolean }>;
+            projects: Array<{ id: string; slug: string; title: string; completed: boolean }>;
+            dialogueUnlocked: boolean;
+            nextGateSlug: string | null;
+            nextGateTitle: string | null;
+        } | null = null;
+
+        if (lesson.module_id) {
+            const { data: modLessonRows } = await supabase
                 .from('lms_lessons')
-                .select('id, slug, title, estimated_minutes, order_index')
+                .select('id, slug, title, lesson_type, estimated_minutes, order_index')
                 .eq('module_id', lesson.module_id)
-                .eq('lesson_type', 'reading')
                 .order('order_index', { ascending: true });
 
-            if (readingRows && readingRows.length > 0) {
-                const readingIds = readingRows.map((r: any) => r.id);
-                const { data: doneReadings } = await supabase
+            if (modLessonRows && modLessonRows.length > 0) {
+                const modLessonIds = modLessonRows.map((r: any) => r.id);
+                const { data: doneModRows } = await supabase
                     .from('lms_lesson_progress')
                     .select('lesson_id')
                     .eq('cohort_id', member.cohort.id)
                     .eq('user_id', member.enrollment.user_id)
                     .eq('status', 'completed')
-                    .in('lesson_id', readingIds);
+                    .in('lesson_id', modLessonIds);
 
-                const doneSet = new Set((doneReadings || []).map((d: any) => d.lesson_id));
+                const doneSet = new Set((doneModRows || []).map((d: any) => d.lesson_id));
+                const isAdmin = member.enrollment.role === 'admin';
+
+                const videoRow = modLessonRows.find((r: any) => r.lesson_type === 'video') || null;
+                const readingRows = modLessonRows.filter((r: any) => r.lesson_type === 'reading');
+                const quizRows = modLessonRows.filter((r: any) => r.lesson_type === 'quiz');
+                const projectRows = modLessonRows.filter((r: any) => r.lesson_type === 'project');
+
                 moduleReadings = readingRows.map((r: any) => ({
                     id: r.id,
                     slug: r.slug,
@@ -124,6 +144,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     estimated_minutes: r.estimated_minutes || 5,
                     completed: doneSet.has(r.id),
                 }));
+
+                const assessmentRows = [...quizRows, ...projectRows];
+                const gateRows = assessmentRows.length > 0 ? assessmentRows : modLessonRows;
+                const firstMissingGate = gateRows.find((r: any) => !doneSet.has(r.id)) || null;
+                const firstUnreadReading = readingRows.find((r: any) => !doneSet.has(r.id)) || readingRows[0] || null;
+
+                moduleFlow = {
+                    video: videoRow
+                        ? { id: videoRow.id, slug: videoRow.slug, title: videoRow.title, completed: doneSet.has(videoRow.id) }
+                        : null,
+                    readingsTotal: readingRows.length,
+                    readingsCompleted: readingRows.filter((r: any) => doneSet.has(r.id)).length,
+                    firstUnreadReadingSlug: firstUnreadReading ? firstUnreadReading.slug || firstUnreadReading.id : null,
+                    quizzes: quizRows.map((r: any) => ({
+                        id: r.id,
+                        slug: r.slug,
+                        title: r.title,
+                        completed: doneSet.has(r.id),
+                    })),
+                    projects: projectRows.map((r: any) => ({
+                        id: r.id,
+                        slug: r.slug,
+                        title: r.title,
+                        completed: doneSet.has(r.id),
+                    })),
+                    dialogueUnlocked: isAdmin || !firstMissingGate,
+                    nextGateSlug: firstMissingGate ? firstMissingGate.slug || firstMissingGate.id : null,
+                    nextGateTitle: firstMissingGate ? firstMissingGate.title : null,
+                };
             }
         }
 
@@ -202,6 +251,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 duration_seconds: lesson.duration_seconds,
                 chapters: lesson.chapters_json || [],
                 module_readings: moduleReadings,
+                module_flow: moduleFlow,
                 // reading
                 content_html: readingContentHtml,
                 word_count: lesson.word_count,
@@ -214,6 +264,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 // project
                 project_brief: lesson.project_brief,
                 project_assets: projectAssetsWithUrls,
+                bafos_project_lens:
+                    lesson.lesson_type === 'project'
+                        ? getBafosProjectLens(lesson.title, mod?.title || '', mod?.lms_courses?.title || '')
+                        : null,
             },
             progress: progress || {
                 status: 'in_progress',

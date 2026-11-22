@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router';
 import {
+    ArrowRight,
     Lock,
     MessageSquare,
     MessageSquareQuote,
@@ -11,11 +13,10 @@ import {
 import { learnApi } from '../lib/api';
 import type { DialogueScenarioData } from './ModuleDialogueModal';
 
-type CompanionTab = 'qa' | 'reflect' | 'dialogue';
+type CompanionTab = 'qa' | 'takeaways' | 'dialogue';
 
 export interface PeerReflectionItem {
     lessonId?: string;
-    lessonTitle?: string;
     userId: string;
     isCurrentUser: boolean;
     authorName: string;
@@ -29,20 +30,27 @@ export interface PeerReflectionsPayload {
     unlocked: boolean;
     totalCount: number;
     items: PeerReflectionItem[];
-    moduleTotalCount?: number;
-    moduleItems?: PeerReflectionItem[];
     replies: any[];
+}
+
+export interface DialogueAccessInfo {
+    unlocked: boolean;
+    reason: string | null;
+    gateLessonSlug: string | null;
+    gateLessonTitle: string | null;
 }
 
 export function LessonCompanionPanel({
     moduleId,
     lessonId,
-    isReading,
+    lessonType,
     isAdmin,
     currentUserId,
     comments,
     setComments,
     dialoguePosts,
+    dialogueCount,
+    dialogueAccess,
     dialogueScenario,
     aiCoachConfigured,
     reflections,
@@ -51,18 +59,22 @@ export function LessonCompanionPanel({
 }: {
     moduleId: string;
     lessonId: string;
-    isReading: boolean;
+    lessonType: string;
     isAdmin: boolean;
     currentUserId?: string;
     comments: any[];
     setComments: React.Dispatch<React.SetStateAction<any[]>>;
     dialoguePosts: any[];
+    dialogueCount: number;
+    dialogueAccess: DialogueAccessInfo | null;
     dialogueScenario: DialogueScenarioData | null;
     aiCoachConfigured: boolean;
     reflections: PeerReflectionsPayload | null;
     onOpenDialogue: () => void;
     onError: (msg: string) => void;
 }) {
+    // Strictly show Key Takeaways tab ONLY on Readings & Projects (the materials where learners actually write takeaways)
+    const supportsKeyTakeaways = lessonType === 'reading' || lessonType === 'project';
     const [tab, setTab] = useState<CompanionTab>('qa');
 
     // Q&A composer & moderation state
@@ -76,19 +88,18 @@ export function LessonCompanionPanel({
     const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
     const [editingCommentBody, setEditingCommentBody] = useState('');
 
-    // Reflection peer reply & scope state ('lesson' vs 'module')
-    const [notesScope, setNotesScope] = useState<'lesson' | 'module'>(isReading ? 'lesson' : 'module');
+    // Per-material Key Takeaway peer reply state
     const [reflectReplyDraft, setReflectReplyDraft] = useState('');
     const [localReflectReplies, setLocalReflectReplies] = useState<any[]>([]);
     const [postingReflectReply, setPostingReflectReply] = useState(false);
 
-    const effectiveTab: CompanionTab = tab;
-    const effectiveNotesScope: 'lesson' | 'module' = isReading ? notesScope : 'module';
-    const moduleNotesCount = reflections?.moduleTotalCount ?? reflections?.totalCount ?? 0;
-    const moduleVisibleNotes = reflections?.moduleItems ?? reflections?.items ?? [];
+    const effectiveTab: CompanionTab = !supportsKeyTakeaways && tab === 'takeaways' ? 'qa' : tab;
 
     const topQuestions = comments.filter((c) => !c.parent_id);
     const topDialoguePosts = dialoguePosts.filter((p) => !p.parent_id);
+    const displayedDialogueCount = Math.max(dialogueCount || 0, topDialoguePosts.length);
+    const isDialogueUnlocked = Boolean(isAdmin || dialogueAccess?.unlocked);
+
     const allReflectReplies = [
         ...(reflections?.replies || []),
         ...localReflectReplies.filter((lr) => !(reflections?.replies || []).some((r) => r.id === lr.id)),
@@ -220,7 +231,7 @@ export function LessonCompanionPanel({
             setLocalReflectReplies((prev) => [...prev, res.comment]);
             setReflectReplyDraft('');
         } catch (err: any) {
-            onError(err?.message || 'Could not post reflection comment.');
+            onError(err?.message || 'Could not post comment.');
         } finally {
             setPostingReflectReply(false);
         }
@@ -228,7 +239,7 @@ export function LessonCompanionPanel({
 
     return (
         <div className="min-w-0 bg-white border border-neutral-200 overflow-hidden">
-            {/* Clean 2-or-3 Tab Companion Header (Zero Extra Page Clutter) */}
+            {/* Clean Companion Tabs: Q&A · Key Takeaways (Readings/Projects ONLY) · Dialogue (Gated until end of module) */}
             <div className="flex border-b border-neutral-200 bg-neutral-50">
                 <button
                     type="button"
@@ -243,18 +254,20 @@ export function LessonCompanionPanel({
                     <span>Q&amp;A{topQuestions.length ? ` (${topQuestions.length})` : ''}</span>
                 </button>
 
-                <button
-                    type="button"
-                    onClick={() => setTab('reflect')}
-                    className={`flex-1 py-2.5 px-2 text-[11px] font-bold uppercase tracking-wider border-b-2 inline-flex items-center justify-center gap-1 transition ${
-                        effectiveTab === 'reflect'
-                            ? 'border-[#030213] text-neutral-950 bg-white'
-                            : 'border-transparent text-neutral-500 hover:text-neutral-900'
-                    }`}
-                >
-                    <MessageSquareQuote className="w-3.5 h-3.5 shrink-0" />
-                    <span>Notes{moduleNotesCount ? ` (${moduleNotesCount})` : ''}</span>
-                </button>
+                {supportsKeyTakeaways && (
+                    <button
+                        type="button"
+                        onClick={() => setTab('takeaways')}
+                        className={`flex-1 py-2.5 px-2 text-[11px] font-bold uppercase tracking-wider border-b-2 inline-flex items-center justify-center gap-1 whitespace-nowrap transition ${
+                            effectiveTab === 'takeaways'
+                                ? 'border-[#030213] text-neutral-950 bg-white'
+                                : 'border-transparent text-neutral-500 hover:text-neutral-900'
+                        }`}
+                    >
+                        <MessageSquareQuote className="w-3.5 h-3.5 shrink-0" />
+                        <span>Key Takeaways{reflections?.totalCount ? ` (${reflections.totalCount})` : ''}</span>
+                    </button>
+                )}
 
                 <button
                     type="button"
@@ -265,8 +278,12 @@ export function LessonCompanionPanel({
                             : 'border-transparent text-neutral-500 hover:text-neutral-900'
                     }`}
                 >
-                    <Sparkles className="w-3.5 h-3.5 shrink-0" />
-                    <span>Dialogue{topDialoguePosts.length ? ` (${topDialoguePosts.length})` : ''}</span>
+                    {isDialogueUnlocked ? (
+                        <Sparkles className="w-3.5 h-3.5 shrink-0" />
+                    ) : (
+                        <Lock className="w-3 h-3 shrink-0" />
+                    )}
+                    <span>Dialogue{displayedDialogueCount ? ` (${displayedDialogueCount})` : ''}</span>
                 </button>
             </div>
 
@@ -529,140 +546,36 @@ export function LessonCompanionPanel({
                 </div>
             )}
 
-            {/* TAB 2: MODULE-SCOPED TEAM NOTES (POST-TO-REVEAL PER READING + ALL UNLOCKED NOTES IN THIS MODULE) */}
-            {effectiveTab === 'reflect' && (
+            {/* TAB 2: STRICTLY PER-MATERIAL KEY TAKEAWAYS (ONLY FOR THIS EXACT READING / PROJECT) */}
+            {effectiveTab === 'takeaways' && supportsKeyTakeaways && (
                 <div className="p-4 sm:p-5 space-y-4 text-left">
-                    <div className="space-y-2">
-                        <p className="text-[11px] text-neutral-500 leading-relaxed">
-                            Team Notes written strictly inside this module. Notes on unread lessons stay hidden until you share your own takeaway.
-                        </p>
+                    <p className="text-[11px] text-neutral-500 leading-relaxed">
+                        Key Takeaways submitted strictly on this {lessonType === 'project' ? 'project' : 'reading'}.
+                    </p>
 
-                        {isReading && (
-                            <div className="inline-flex border border-neutral-200 bg-neutral-50 p-0.5 text-[10px] font-bold uppercase tracking-wider">
-                                <button
-                                    type="button"
-                                    onClick={() => setNotesScope('lesson')}
-                                    className={`px-2.5 py-1 transition ${
-                                        effectiveNotesScope === 'lesson'
-                                            ? 'bg-[#030213] text-white'
-                                            : 'text-neutral-600 hover:text-neutral-950'
-                                    }`}
-                                >
-                                    This Reading ({reflections?.totalCount || 0})
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setNotesScope('module')}
-                                    className={`px-2.5 py-1 transition ${
-                                        effectiveNotesScope === 'module'
-                                            ? 'bg-[#030213] text-white'
-                                            : 'text-neutral-600 hover:text-neutral-950'
-                                    }`}
-                                >
-                                    This Module ({moduleNotesCount})
-                                </button>
+                    {!reflections?.unlocked ? (
+                        <div className="p-4 bg-neutral-50 border border-dashed border-neutral-300 space-y-2">
+                            <div className="flex items-center gap-2 text-xs font-semibold text-neutral-900">
+                                <Lock className="w-4 h-4 text-neutral-600 shrink-0" />
+                                <span>Post-to-Reveal Key Takeaways</span>
                             </div>
-                        )}
-                    </div>
-
-                    {effectiveNotesScope === 'lesson' ? (
-                        !reflections?.unlocked ? (
-                            <div className="p-4 bg-neutral-50 border border-dashed border-neutral-300 space-y-2">
-                                <div className="flex items-center gap-2 text-xs font-semibold text-neutral-900">
-                                    <Lock className="w-4 h-4 text-neutral-600 shrink-0" />
-                                    <span>Post-to-Reveal Team Notes</span>
-                                </div>
-                                <p className="text-xs text-neutral-600 leading-relaxed">
-                                    {reflections && reflections.totalCount > 0
-                                        ? `Submit your Key Takeaway below this reading to unlock ${reflections.totalCount} teammate ${
-                                              reflections.totalCount === 1 ? 'note' : 'notes'
-                                          }.`
-                                        : 'Submit your Key Takeaway below this reading to share your note with teammates in this module.'}
-                                </p>
-                            </div>
-                        ) : (
-                            <>
-                                <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
-                                    {reflections.items.length === 0 ? (
-                                        <p className="text-xs text-neutral-500">No Team Notes posted on this reading yet.</p>
-                                    ) : (
-                                        reflections.items.map((item, idx) => (
-                                            <div key={idx} className="p-3 bg-neutral-50 border border-neutral-200 space-y-1.5">
-                                                <div className="flex flex-wrap items-center justify-between gap-1.5 text-[11px]">
-                                                    <span className="font-semibold text-neutral-950 flex items-center gap-1.5">
-                                                        {item.authorName}
-                                                        {item.isCurrentUser && (
-                                                            <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 bg-neutral-200 text-neutral-700">
-                                                                You
-                                                            </span>
-                                                        )}
-                                                        {item.studyGroup && (
-                                                            <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 bg-white border border-neutral-300 text-neutral-600">
-                                                                {item.studyGroup}
-                                                            </span>
-                                                        )}
-                                                    </span>
-                                                </div>
-                                                <p className="text-xs text-neutral-800 leading-relaxed">“{item.takeaway}”</p>
-                                            </div>
-                                        ))
-                                    )}
-                                </div>
-
-                                {allReflectReplies.length > 0 && (
-                                    <div className="space-y-2 pt-2 border-t border-neutral-200">
-                                        <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-neutral-500">
-                                            Peer Discussion ({allReflectReplies.length})
-                                        </div>
-                                        {allReflectReplies.map((r) => (
-                                            <div key={r.id} className="p-2.5 bg-white border border-neutral-200 text-xs space-y-0.5">
-                                                <div className="font-semibold text-neutral-900 text-[11px]">{r.author_name}</div>
-                                                <p className="text-neutral-700 whitespace-pre-wrap">{r.body}</p>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-
-                                <form onSubmit={handlePostReflectionReply} className="flex gap-2 pt-2 border-t border-neutral-200">
-                                    <input
-                                        type="text"
-                                        value={reflectReplyDraft}
-                                        onChange={(e) => setReflectReplyDraft(e.target.value)}
-                                        placeholder="Respond to a teammate's note..."
-                                        className="flex-1 min-w-0 bg-white border border-neutral-300 px-3 py-2 text-xs text-neutral-950 focus:outline-none focus:border-neutral-950"
-                                    />
-                                    <button
-                                        type="submit"
-                                        disabled={postingReflectReply || reflectReplyDraft.trim().length < 3}
-                                        className="px-3 py-2 bg-[#030213] hover:bg-neutral-800 disabled:opacity-40 text-white shrink-0"
-                                    >
-                                        <Send className="w-3.5 h-3.5" />
-                                    </button>
-                                </form>
-                            </>
-                        )
+                            <p className="text-xs text-neutral-600 leading-relaxed">
+                                {reflections && reflections.totalCount > 0
+                                    ? `Submit your own takeaway on this ${lessonType === 'project' ? 'project' : 'reading'} first to unlock ${reflections.totalCount} teammate ${
+                                          reflections.totalCount === 1 ? 'takeaway' : 'takeaways'
+                                      }.`
+                                    : `Submit your own takeaway on this ${lessonType === 'project' ? 'project' : 'reading'} to share it with teammates once they finish it too.`}
+                            </p>
+                        </div>
                     ) : (
-                        <div className="space-y-2.5 max-h-[430px] overflow-y-auto pr-1">
-                            {moduleVisibleNotes.length === 0 ? (
-                                <div className="p-4 bg-neutral-50 border border-dashed border-neutral-300 space-y-1.5">
-                                    <div className="flex items-center gap-2 text-xs font-semibold text-neutral-900">
-                                        <Lock className="w-4 h-4 text-neutral-600 shrink-0" />
-                                        <span>Module Team Notes</span>
-                                    </div>
-                                    <p className="text-xs text-neutral-600 leading-relaxed">
-                                        {moduleNotesCount > 0
-                                            ? `There ${moduleNotesCount === 1 ? 'is 1 teammate note' : `are ${moduleNotesCount} teammate notes`} in this module. Complete a reading’s Key Takeaway in this module to unlock your cohort’s notes on it.`
-                                            : 'No Team Notes have been posted in this module yet. Takeaways from readings and projects in this module appear here.'}
+                        <>
+                            <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
+                                {reflections.items.length === 0 ? (
+                                    <p className="text-xs text-neutral-500">
+                                        No Key Takeaways submitted on this {lessonType === 'project' ? 'project' : 'reading'} yet.
                                     </p>
-                                </div>
-                            ) : (
-                                <>
-                                    {moduleNotesCount > moduleVisibleNotes.length && (
-                                        <div className="px-3 py-2 bg-neutral-50 border border-neutral-200 text-[11px] text-neutral-600">
-                                            Showing {moduleVisibleNotes.length} of {moduleNotesCount} notes in this module (complete the remaining readings to unlock the rest).
-                                        </div>
-                                    )}
-                                    {moduleVisibleNotes.map((item, idx) => (
+                                ) : (
+                                    reflections.items.map((item, idx) => (
                                         <div key={idx} className="p-3 bg-neutral-50 border border-neutral-200 space-y-1.5">
                                             <div className="flex flex-wrap items-center justify-between gap-1.5 text-[11px]">
                                                 <span className="font-semibold text-neutral-950 flex items-center gap-1.5">
@@ -678,33 +591,82 @@ export function LessonCompanionPanel({
                                                         </span>
                                                     )}
                                                 </span>
-                                                <span className="text-[10px] text-neutral-400">
-                                                    {item.completedAt ? new Date(item.completedAt).toLocaleDateString() : ''}
-                                                </span>
                                             </div>
-                                            {item.lessonTitle && (
-                                                <div className="text-[10px] font-medium text-neutral-500 break-words">
-                                                    {item.lessonTitle}
-                                                </div>
-                                            )}
                                             <p className="text-xs text-neutral-800 leading-relaxed">“{item.takeaway}”</p>
                                         </div>
+                                    ))
+                                )}
+                            </div>
+
+                            {allReflectReplies.length > 0 && (
+                                <div className="space-y-2 pt-2 border-t border-neutral-200">
+                                    <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-neutral-500">
+                                        Peer Discussion ({allReflectReplies.length})
+                                    </div>
+                                    {allReflectReplies.map((r) => (
+                                        <div key={r.id} className="p-2.5 bg-white border border-neutral-200 text-xs space-y-0.5">
+                                            <div className="font-semibold text-neutral-900 text-[11px]">{r.author_name}</div>
+                                            <p className="text-neutral-700 whitespace-pre-wrap">{r.body}</p>
+                                        </div>
                                     ))}
-                                </>
+                                </div>
                             )}
-                        </div>
+
+                            <form onSubmit={handlePostReflectionReply} className="flex gap-2 pt-2 border-t border-neutral-200">
+                                <input
+                                    type="text"
+                                    value={reflectReplyDraft}
+                                    onChange={(e) => setReflectReplyDraft(e.target.value)}
+                                    placeholder="Reply to a teammate's takeaway..."
+                                    className="flex-1 min-w-0 bg-white border border-neutral-300 px-3 py-2 text-xs text-neutral-950 focus:outline-none focus:border-neutral-950"
+                                />
+                                <button
+                                    type="submit"
+                                    disabled={postingReflectReply || reflectReplyDraft.trim().length < 3}
+                                    className="px-3 py-2 bg-[#030213] hover:bg-neutral-800 disabled:opacity-40 text-white shrink-0"
+                                >
+                                    <Send className="w-3.5 h-3.5" />
+                                </button>
+                            </form>
+                        </>
                     )}
                 </div>
             )}
 
-            {/* TAB 3: MODULE DIALOGUE LAUNCHPAD */}
+            {/* TAB 3: END-OF-MODULE BAFOS DIALOGUE & AI COACH (LOCKED UNTIL QUIZ/PROJECT COMPLETE) */}
             {effectiveTab === 'dialogue' && (
                 <div className="p-4 sm:p-5 space-y-4 text-left">
-                    {dialogueScenario ? (
+                    {!isDialogueUnlocked ? (
+                        <div className="p-4 bg-neutral-50 border border-dashed border-neutral-300 space-y-3">
+                            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-neutral-900">
+                                <Lock className="w-4 h-4 text-neutral-700 shrink-0" />
+                                <span>Unlocks at End of Module</span>
+                            </div>
+                            <p className="text-xs text-neutral-600 leading-relaxed">
+                                {dialogueAccess?.reason ||
+                                    'Complete this module’s quiz/project first so you can apply what you just mastered directly to BAFOS in Dialogue & AI Coach.'}
+                            </p>
+                            {dialogueScenario && (
+                                <div className="p-2.5 bg-white border border-neutral-200 text-[11px] text-neutral-600">
+                                    <span className="font-semibold text-neutral-900">Up Next for BAFOS:</span>{' '}
+                                    {dialogueScenario.title}
+                                </div>
+                            )}
+                            {dialogueAccess?.gateLessonSlug && (
+                                <Link
+                                    to={`/lesson/${dialogueAccess.gateLessonSlug}`}
+                                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#030213] hover:bg-neutral-800 text-white text-[11px] font-bold uppercase tracking-[0.14em]"
+                                >
+                                    <span>Go to: {dialogueAccess.gateLessonTitle || 'Module Assessment'}</span>
+                                    <ArrowRight className="w-3.5 h-3.5 shrink-0" />
+                                </Link>
+                            )}
+                        </div>
+                    ) : dialogueScenario ? (
                         <>
                             <div className="space-y-1.5">
-                                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-neutral-500">
-                                    Enterprise PM Scenario · Optional
+                                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-700">
+                                    BAFOS Application · Unlocked
                                 </div>
                                 <h3 className="text-sm font-semibold text-neutral-950 leading-snug">
                                     {dialogueScenario.title}
@@ -719,7 +681,7 @@ export function LessonCompanionPanel({
                                     <span className="inline-flex items-center gap-1.5 font-semibold">
                                         <Users className="w-3.5 h-3.5" /> Cohort Responses
                                     </span>
-                                    <span className="font-mono font-bold text-neutral-950">{topDialoguePosts.length}</span>
+                                    <span className="font-mono font-bold text-neutral-950">{displayedDialogueCount}</span>
                                 </div>
                                 <div className="text-neutral-500 leading-relaxed">
                                     <strong className="text-neutral-800">Sunday Standup:</strong>{' '}
@@ -733,7 +695,7 @@ export function LessonCompanionPanel({
                                 className="w-full py-2.5 px-4 bg-[#030213] hover:bg-neutral-800 text-white text-xs font-bold uppercase tracking-[0.16em] inline-flex items-center justify-center gap-2 transition"
                             >
                                 <Sparkles className="w-3.5 h-3.5" />
-                                Start Module Dialogue
+                                Start BAFOS Dialogue &amp; AI Coach
                             </button>
 
                             <p className="text-[10px] text-neutral-400 text-center">

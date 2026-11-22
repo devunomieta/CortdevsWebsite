@@ -17,6 +17,7 @@ import {
     Lock,
     MessageSquareQuote,
     PlayCircle,
+    Sparkles,
     UploadCloud,
 } from 'lucide-react';
 import { formatDuration, learnApi } from '../lib/api';
@@ -24,7 +25,11 @@ import { useLearnAuth } from '../context/LearnAuthContext';
 import { CoursePartnerStrip } from '../components/BrandLogos';
 import { LearnVideoPlayer, type VideoNote } from '../components/LearnVideoPlayer';
 import { ReadingViewer } from '../components/ReadingViewer';
-import { LessonCompanionPanel, type PeerReflectionsPayload } from '../components/LessonCompanionPanel';
+import {
+    LessonCompanionPanel,
+    type DialogueAccessInfo,
+    type PeerReflectionsPayload,
+} from '../components/LessonCompanionPanel';
 import { ModuleDialogueModal, type DialogueScenarioData } from '../components/ModuleDialogueModal';
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10 MB cap to protect Supabase Free 1 GB storage
@@ -76,11 +81,13 @@ export function LessonPlayer() {
     const [reflection, setReflection] = useState('');
     const [submittingProject, setSubmittingProject] = useState(false);
 
-    // Completion, Companion (Q&A, Reflect, Dialogue) state
+    // Completion, Companion (Q&A, Key Takeaways, BAFOS Dialogue) state
     const [completing, setCompleting] = useState(false);
     const [actionMsg, setActionMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const [comments, setComments] = useState<any[]>([]);
     const [dialoguePosts, setDialoguePosts] = useState<any[]>([]);
+    const [dialogueCount, setDialogueCount] = useState(0);
+    const [dialogueAccess, setDialogueAccess] = useState<DialogueAccessInfo | null>(null);
     const [dialogueScenario, setDialogueScenario] = useState<DialogueScenarioData | null>(null);
     const [aiCoachConfigured, setAiCoachConfigured] = useState(false);
     const [peerReflections, setPeerReflections] = useState<PeerReflectionsPayload | null>(null);
@@ -89,16 +96,21 @@ export function LessonPlayer() {
 
     const openDialogueParam = searchParams.get('openDialogue') === '1';
 
-    const fetchCompanionData = useCallback((modId: string, lesId?: string) => {
+    const fetchCompanionData = useCallback((modId: string, lesId?: string, autoOpenIfUnlocked = false) => {
         const qs = new URLSearchParams({ moduleId: modId });
         if (lesId) qs.set('lessonId', lesId);
         learnApi(`lms/discussions?${qs.toString()}`)
             .then((d) => {
                 setComments(d.comments || []);
                 setDialoguePosts(d.dialoguePosts || []);
+                setDialogueCount(Number(d.dialogueCount || 0));
+                setDialogueAccess(d.dialogueAccess || null);
                 setDialogueScenario(d.dialogueScenario || null);
                 setAiCoachConfigured(Boolean(d.aiCoachConfigured));
                 setPeerReflections(d.reflections || null);
+                if (autoOpenIfUnlocked && d.dialogueAccess?.unlocked) {
+                    setDialogueModalOpen(true);
+                }
             })
             .catch(() => {});
     }, []);
@@ -139,10 +151,7 @@ export function LessonPlayer() {
             }
 
             if (res.lesson?.module_id) {
-                fetchCompanionData(res.lesson.module_id, res.lesson.id);
-                if (openDialogueParam) {
-                    setDialogueModalOpen(true);
-                }
+                fetchCompanionData(res.lesson.module_id, res.lesson.id, openDialogueParam);
             }
         } catch (err: any) {
             if (err.status === 403 && err.payload) {
@@ -408,6 +417,9 @@ export function LessonPlayer() {
                     progress: { ...prev.progress, status: 'completed' },
                 }));
                 await refreshProfile();
+                if (data.lesson.module_id) {
+                    fetchCompanionData(data.lesson.module_id, data.lesson.id);
+                }
             }
         } catch (err: any) {
             setActionMsg({ type: 'error', text: err?.message || 'Quiz submission failed.' });
@@ -466,6 +478,9 @@ export function LessonPlayer() {
             }));
             setProjectFile(null);
             await refreshProfile();
+            if (data.lesson.module_id) {
+                fetchCompanionData(data.lesson.module_id, data.lesson.id);
+            }
             setActionMsg({
                 type: 'success',
                 text: 'Deliverable submitted! Your next module is immediately unlocked while your team lead & peer buddy review asynchronously.',
@@ -589,6 +604,135 @@ export function LessonPlayer() {
                     )}
                 </div>
             </div>
+
+            {/* Guided 4-Step Module Flow Stepper (shows exact sequence: Watch & Read -> Quizzes -> Project -> BAFOS Dialogue) */}
+            {lesson.module_flow && (() => {
+                const mf = lesson.module_flow;
+                const studyDone = Boolean(
+                    (!mf.video || mf.video.completed) && mf.readingsCompleted >= mf.readingsTotal,
+                );
+                const quizzesTotal = mf.quizzes?.length || 0;
+                const quizzesDone = (mf.quizzes || []).filter((q: any) => q.completed).length;
+                const projectsTotal = mf.projects?.length || 0;
+                const projectsDone = (mf.projects || []).filter((p: any) => p.completed).length;
+                const firstPendingQuiz = (mf.quizzes || []).find((q: any) => !q.completed) || mf.quizzes?.[0];
+                const firstPendingProject = (mf.projects || []).find((p: any) => !p.completed) || mf.projects?.[0];
+                const dialogueReady = Boolean(isAdmin || dialogueAccess?.unlocked || mf.dialogueUnlocked);
+
+                return (
+                    <div className="bg-neutral-50 border border-neutral-200 px-3.5 py-2.5 flex flex-wrap items-center gap-2 text-[11px]">
+                        <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-neutral-500 mr-1">
+                            Module Flow:
+                        </span>
+
+                        {/* Step 1: Watch & Read Together */}
+                        <button
+                            type="button"
+                            onClick={() => {
+                                const targetSlug =
+                                    lesson.lesson_type === 'video' && mf.firstUnreadReadingSlug
+                                        ? mf.firstUnreadReadingSlug
+                                        : mf.video?.slug || mf.firstUnreadReadingSlug;
+                                if (targetSlug) navigate(`/lesson/${targetSlug}`);
+                            }}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 border font-medium transition ${
+                                lesson.lesson_type === 'video' || lesson.lesson_type === 'reading'
+                                    ? 'bg-[#030213] text-white border-[#030213]'
+                                    : studyDone
+                                      ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
+                                      : 'bg-white text-neutral-800 border-neutral-300 hover:border-neutral-950'
+                            }`}
+                        >
+                            {studyDone && <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" />}
+                            <span>
+                                1. Watch &amp; Read ({mf.readingsCompleted}/{mf.readingsTotal})
+                            </span>
+                        </button>
+
+                        {quizzesTotal > 0 && (
+                            <>
+                                <span className="text-neutral-300">→</span>
+                                <button
+                                    type="button"
+                                    disabled={!studyDone && !isAdmin}
+                                    onClick={() => firstPendingQuiz && navigate(`/lesson/${firstPendingQuiz.slug || firstPendingQuiz.id}`)}
+                                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 border font-medium transition disabled:opacity-45 disabled:cursor-not-allowed ${
+                                        lesson.lesson_type === 'quiz'
+                                            ? 'bg-[#030213] text-white border-[#030213]'
+                                            : quizzesDone >= quizzesTotal
+                                              ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
+                                              : 'bg-white text-neutral-800 border-neutral-300 hover:border-neutral-950'
+                                    }`}
+                                >
+                                    {quizzesDone >= quizzesTotal ? (
+                                        <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" />
+                                    ) : !studyDone && !isAdmin ? (
+                                        <Lock className="w-3 h-3 shrink-0" />
+                                    ) : null}
+                                    <span>
+                                        2. Quizzes ({quizzesDone}/{quizzesTotal})
+                                    </span>
+                                </button>
+                            </>
+                        )}
+
+                        {projectsTotal > 0 && (
+                            <>
+                                <span className="text-neutral-300">→</span>
+                                <button
+                                    type="button"
+                                    disabled={(!studyDone || quizzesDone < quizzesTotal) && !isAdmin}
+                                    onClick={() =>
+                                        firstPendingProject && navigate(`/lesson/${firstPendingProject.slug || firstPendingProject.id}`)
+                                    }
+                                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 border font-medium transition disabled:opacity-45 disabled:cursor-not-allowed ${
+                                        lesson.lesson_type === 'project'
+                                            ? 'bg-[#030213] text-white border-[#030213]'
+                                            : projectsDone >= projectsTotal
+                                              ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
+                                              : 'bg-white text-neutral-800 border-neutral-300 hover:border-neutral-950'
+                                    }`}
+                                >
+                                    {projectsDone >= projectsTotal ? (
+                                        <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" />
+                                    ) : (!studyDone || quizzesDone < quizzesTotal) && !isAdmin ? (
+                                        <Lock className="w-3 h-3 shrink-0" />
+                                    ) : null}
+                                    <span>
+                                        {quizzesTotal > 0 ? '3' : '2'}. Project ({projectsDone}/{projectsTotal})
+                                    </span>
+                                </button>
+                            </>
+                        )}
+
+                        <span className="text-neutral-300">→</span>
+                        <button
+                            type="button"
+                            disabled={!dialogueReady}
+                            onClick={() => setDialogueModalOpen(true)}
+                            title={
+                                dialogueReady
+                                    ? 'Apply this module directly to BAFOS in Dialogue & AI Coach'
+                                    : 'Unlocks after completing this module’s quiz/project'
+                            }
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 border font-medium transition disabled:opacity-45 disabled:cursor-not-allowed ${
+                                dialogueReady
+                                    ? 'bg-white text-neutral-950 border-neutral-950 hover:bg-[#030213] hover:text-white'
+                                    : 'bg-white text-neutral-500 border-neutral-200'
+                            }`}
+                        >
+                            {dialogueReady ? (
+                                <Sparkles className="w-3 h-3 shrink-0" />
+                            ) : (
+                                <Lock className="w-3 h-3 shrink-0" />
+                            )}
+                            <span>
+                                {1 + (quizzesTotal > 0 ? 1 : 0) + (projectsTotal > 0 ? 1 : 0) + 1}. BAFOS Dialogue &amp; AI Coach
+                            </span>
+                        </button>
+                    </div>
+                );
+            })()}
 
             {lesson.lesson_type === 'reading' && fromVideo && (
                 <div className="bg-[#030213] text-white px-4 py-2.5 flex flex-wrap items-center justify-between gap-3">
@@ -797,7 +941,7 @@ export function LessonPlayer() {
                                     What Did You Learn? (Required to unlock next lesson)
                                 </label>
                                 <p className="text-xs text-neutral-500">
-                                    Write a short sentence on one thing that stood out (at least 20 characters). Your teammates in this module can see it in Module Team Notes once they share theirs.
+                                    Write a short sentence on one thing that stood out (at least 20 characters). Teammates who finish this exact reading can compare Key Takeaways with you.
                                 </p>
                                 <textarea
                                     rows={3}
@@ -900,7 +1044,7 @@ export function LessonPlayer() {
                                                 >
                                                     <MessageSquareQuote className="w-3.5 h-3.5" />
                                                     <span>
-                                                        Teammate Reflections on This Reading ({peerReflections.items.length})
+                                                        Key Takeaways from Teammates on This Reading ({peerReflections.items.length})
                                                     </span>
                                                     {showInlineReflections ? (
                                                         <ChevronUp className="w-3.5 h-3.5" />
@@ -968,17 +1112,28 @@ export function LessonPlayer() {
                                         {quizResult.passed ? 'Passed!' : 'Not quite yet — try again!'} Score: {quizResult.scorePct}% (
                                         {quizResult.correctCount}/{quizResult.totalQuestions} correct)
                                     </div>
-                                    {quizResult.passed && (quizResult.nextLesson || navigation.next) && (
-                                        <button
-                                            onClick={() => {
-                                                const nextTarget = quizResult.nextLesson || navigation.next;
-                                                navigate(`/lesson/${nextTarget.slug || nextTarget.id}`);
-                                            }}
-                                            className="mt-2.5 px-4 py-2 bg-[#030213] hover:bg-neutral-800 text-white text-xs font-bold uppercase tracking-[0.14em]"
-                                        >
-                                            Continue to Next Lesson →
-                                        </button>
-                                    )}
+                                    <div className="flex flex-wrap items-center gap-2 mt-2.5">
+                                        {quizResult.passed && (quizResult.nextLesson || navigation.next) && (
+                                            <button
+                                                onClick={() => {
+                                                    const nextTarget = quizResult.nextLesson || navigation.next;
+                                                    navigate(`/lesson/${nextTarget.slug || nextTarget.id}`);
+                                                }}
+                                                className="px-4 py-2 bg-[#030213] hover:bg-neutral-800 text-white text-xs font-bold uppercase tracking-[0.14em]"
+                                            >
+                                                Continue to Next Lesson →
+                                            </button>
+                                        )}
+                                        {quizResult.passed && (isAdmin || dialogueAccess?.unlocked) && dialogueScenario && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setDialogueModalOpen(true)}
+                                                className="inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-neutral-900 hover:bg-neutral-100 text-neutral-950 text-xs font-bold uppercase tracking-[0.14em]"
+                                            >
+                                                <Sparkles className="w-3.5 h-3.5" /> Apply to BAFOS (Dialogue &amp; AI Coach)
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
                             )}
 
@@ -1057,6 +1212,35 @@ export function LessonPlayer() {
                                     <p className="text-sm text-neutral-700 whitespace-pre-line leading-relaxed bg-neutral-50 p-4 border border-neutral-200">
                                         {lesson.project_brief}
                                     </p>
+                                )}
+
+                                {/* Recommended BAFOS Practical Application Lens */}
+                                {lesson.bafos_project_lens && (
+                                    <div className="p-4 bg-[#030213] text-white space-y-2.5 text-left">
+                                        <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-blue-300">
+                                            <Sparkles className="w-3.5 h-3.5" />
+                                            <span>{lesson.bafos_project_lens.headline}</span>
+                                        </div>
+                                        <p className="text-xs text-neutral-200 leading-relaxed">
+                                            {lesson.bafos_project_lens.focusPrompt}
+                                        </p>
+                                        <p className="text-xs text-neutral-300 leading-relaxed border-l-2 border-blue-400 pl-3">
+                                            <strong className="text-white">Suggested BAFOS Deliverable:</strong>{' '}
+                                            {lesson.bafos_project_lens.suggestedDeliverable}
+                                        </p>
+                                        {Array.isArray(lesson.bafos_project_lens.bafosToolsInScope) && (
+                                            <div className="flex flex-wrap gap-1.5 pt-1">
+                                                {lesson.bafos_project_lens.bafosToolsInScope.map((tool: string, tIdx: number) => (
+                                                    <span
+                                                        key={tIdx}
+                                                        className="px-2 py-0.5 text-[10px] font-semibold bg-white/10 border border-white/15 text-neutral-100"
+                                                    >
+                                                        {tool}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
                                 )}
 
                                 {lesson.project_assets?.length > 0 && (
@@ -1203,16 +1387,18 @@ export function LessonPlayer() {
                     )}
                 </div>
 
-                {/* Right Sidebar: Distraction-Free 3-Tab Module Companion (Q&A · Reflect · Dialogue) */}
+                {/* Right Sidebar: Distraction-Free Module Companion (Q&A · Key Takeaways on Readings/Projects · Gated BAFOS Dialogue) */}
                 <LessonCompanionPanel
                     moduleId={lesson.module_id}
                     lessonId={lesson.id}
-                    isReading={lesson.lesson_type === 'reading'}
+                    lessonType={lesson.lesson_type}
                     isAdmin={isAdmin}
                     currentUserId={user?.id}
                     comments={comments}
                     setComments={setComments}
                     dialoguePosts={dialoguePosts}
+                    dialogueCount={dialogueCount}
+                    dialogueAccess={dialogueAccess}
                     dialogueScenario={dialogueScenario}
                     aiCoachConfigured={aiCoachConfigured}
                     reflections={peerReflections}

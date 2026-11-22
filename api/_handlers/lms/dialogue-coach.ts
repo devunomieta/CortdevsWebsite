@@ -1,7 +1,13 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabase } from '../../_lib/supabase.js';
-import { isValidUuid, logLmsEvent, requireLmsMember, sanitizePlainText } from '../../_lib/lmsGate.js';
-import { getModuleDialogueScenario } from '../../_lib/moduleDialogues.js';
+import {
+    checkModuleDialogueUnlocked,
+    isValidUuid,
+    logLmsEvent,
+    requireLmsMember,
+    sanitizePlainText,
+} from '../../_lib/lmsGate.js';
+import { BAFOS_CONTEXT, getModuleDialogueScenario } from '../../_lib/bafosPracticum.js';
 
 const MAX_TURNS = 4; // 4 user turns -> final turn produces a crisp 3-bullet PM Coach Debrief
 const GEMINI_MODEL = 'gemini-2.5-flash';
@@ -30,6 +36,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { moduleId, history, userMessage } = req.body || {};
     if (!isValidUuid(moduleId)) {
         return res.status(400).json({ error: 'Valid moduleId is required.' });
+    }
+
+    // Strict end-of-module gating (also protects Gemini free-tier quota!)
+    const dialogueAccess = await checkModuleDialogueUnlocked({
+        cohortId: member.cohort.id,
+        userId: member.enrollment.user_id,
+        moduleId,
+        isAdmin: member.enrollment.role === 'admin',
+    });
+    if (!dialogueAccess.unlocked) {
+        return res.status(403).json({
+            aiConfigured: true,
+            error: dialogueAccess.reason || 'Complete this module’s quiz/project first to unlock AI Coach.',
+            dialogueAccess,
+        });
     }
 
     const cleanMsg = sanitizePlainText(userMessage, 1500);
@@ -65,20 +86,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const isFinalDebrief = currentTurn >= MAX_TURNS;
 
     const systemInstruction = isFinalDebrief
-        ? `You are a sharp, supportive Enterprise AI Product Management Coach wrapping up a roleplay scenario for the module "${mod.title}" (${courseTitle}).
+        ? `You are a sharp, practical Enterprise AI Product Management Coach wrapping up a BAFOS product roleplay for the module "${mod.title}" (${courseTitle}).
+Live product being built by the team: ${BAFOS_CONTEXT}
 Scenario context: ${scenario.scenarioPrompt}
 The learner (${member.enrollment.full_name}) just finished their final response in a ${MAX_TURNS}-turn stakeholder dialogue with ${scenario.roleplayPersona} (${scenario.personaRole}).
-Now step OUT of character and give a concise, practical PM Coach Debrief in plain text with exactly 3 short bullet sections:
-• What you nailed: (1–2 specific strengths from their answers)
-• Blind spot to consider: (1 realistic enterprise nuance or trade-off they could sharpen)
-• Bring to Sunday Standup: (1 sharp question or takeaway they can share with their cohort)
-Keep the entire debrief under 140 words. Be specific, direct, and encouraging—never generic fluff.`
-        : `You are roleplaying as ${scenario.roleplayPersona}, ${scenario.personaRole}, in a realistic Enterprise AI Product Management dialogue for the module "${mod.title}" (${courseTitle}).
+Now step OUT of character and give a concise, actionable PM Coach Debrief in plain text with exactly 3 short bullet sections:
+• What you nailed for BAFOS: (1–2 specific strengths from their answers)
+• Blind spot to consider: (1 realistic product, developer-trust, or enterprise nuance for BAFOS)
+• Bring to Sunday Standup: (1 sharp question or product call they can share with their cohort)
+Keep the entire debrief under 145 words. Be concrete and grounded in BAFOS (GitHub PRs/commits, CI/CD, tool health) — never generic fluff.`
+        : `You are roleplaying as ${scenario.roleplayPersona}, ${scenario.personaRole}, in a realistic product meeting about BAFOS for the module "${mod.title}" (${courseTitle}).
+Live product context: ${BAFOS_CONTEXT}
 Scenario context: ${scenario.scenarioPrompt}
 Rules:
-1. Stay completely in character as ${scenario.roleplayPersona}. Speak naturally like a real senior stakeholder in a 1:1 meeting.
-2. Acknowledge one concrete point the learner just made, then push back gently or ask ONE focused follow-up question that tests real-world PM judgment (trade-offs, metrics, user trust, or alignment).
-3. Keep your reply concise: 2 to 4 sentences max (under 85 words). Never lecture or give a bullet list of textbook answers.
+1. Stay completely in character as ${scenario.roleplayPersona}. Speak naturally like a real senior teammate or enterprise buyer in a 1:1 meeting about BAFOS.
+2. Acknowledge one concrete point the learner just made, then push back gently or ask ONE focused follow-up question that tests real-world AI PM judgment on BAFOS (e.g. GitHub/tool signal vs. noise, developer trust, scope trade-offs, metrics, or security).
+3. Keep your reply concise: 2 to 4 sentences max (under 85 words). Never lecture or output textbook bullet lists.
 4. This is turn ${currentTurn} of ${MAX_TURNS}.`;
 
     const contents = [

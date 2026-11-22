@@ -1,7 +1,13 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabase } from '../../_lib/supabase.js';
-import { isValidUuid, requireLmsAdmin, requireLmsMember, sanitizePlainText } from '../../_lib/lmsGate.js';
-import { getModuleDialogueScenario } from '../../_lib/moduleDialogues.js';
+import {
+    checkModuleDialogueUnlocked,
+    isValidUuid,
+    requireLmsAdmin,
+    requireLmsMember,
+    sanitizePlainText,
+} from '../../_lib/lmsGate.js';
+import { getModuleDialogueScenario } from '../../_lib/bafosPracticum.js';
 
 const AUTHOR_EDIT_WINDOW_MS = 15 * 60 * 1000; // 15-minute grace window for learners to fix typos/delete
 const ALLOWED_POST_TYPES = new Set(['question', 'dialogue', 'reflection_reply']);
@@ -10,7 +16,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const member = await requireLmsMember(req, res);
     if (!member) return;
 
-    // GET: Fetch module Q&A + Dialogue posts + Post-to-Reveal Peer Reflections (or ALL cohort Q&A for Admins)
+    const isAdmin = member.enrollment.role === 'admin';
+
+    // GET: Fetch module Q&A + gated BAFOS Module Dialogue + strictly per-material Key Takeaways (or ALL cohort Q&A for Admins)
     if (req.method === 'GET') {
         const moduleId = String(req.query?.moduleId || '').trim();
         const lessonId = String(req.query?.lessonId || '').trim();
@@ -23,7 +31,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             .order('created_at', { ascending: true });
 
         if (scope === 'all') {
-            if (member.enrollment.role !== 'admin') {
+            if (!isAdmin) {
                 return res.status(403).json({ error: 'Admin access required.' });
             }
         } else {
@@ -34,7 +42,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const [
             { data: rows, error },
             modMetaRes,
-            modLessonsRes,
+            lessonNotesRes,
+            dialogueAccess,
         ] = await Promise.all([
             query,
             scope !== 'all' && isValidUuid(moduleId)
@@ -44,44 +53,38 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                       .eq('id', moduleId)
                       .maybeSingle()
                 : Promise.resolve({ data: null }),
-            scope !== 'all' && isValidUuid(moduleId)
+            // Strictly per-material Key Takeaways ONLY for THIS exact lesson_id (never mixes other materials!)
+            scope !== 'all' && isValidUuid(lessonId)
                 ? supabase
-                      .from('lms_lessons')
-                      .select('id, title, order_index')
-                      .eq('module_id', moduleId)
-                      .order('order_index', { ascending: true })
+                      .from('lms_lesson_progress')
+                      .select('lesson_id, user_id, key_takeaway, completed_at')
+                      .eq('cohort_id', member.cohort.id)
+                      .eq('lesson_id', lessonId)
+                      .not('key_takeaway', 'is', null)
+                      .order('completed_at', { ascending: false })
+                      .limit(40)
                 : Promise.resolve({ data: [] }),
+            scope !== 'all' && isValidUuid(moduleId)
+                ? checkModuleDialogueUnlocked({
+                      cohortId: member.cohort.id,
+                      userId: member.enrollment.user_id,
+                      moduleId,
+                      isAdmin,
+                  })
+                : Promise.resolve({ unlocked: true, reason: null, gateLessonSlug: null, gateLessonTitle: null }),
         ]);
 
         if (error) return res.status(500).json({ error: error.message });
 
-        // Fetch Team Notes strictly scoped to THIS module's lessons (never leaks notes from other courses/modules)
-        const modLessonsList = (modLessonsRes?.data || []) as Array<{ id: string; title: string; order_index: number }>;
-        const lessonTitleById = new Map<string, string>();
-        for (const ml of modLessonsList) lessonTitleById.set(ml.id, ml.title);
-        const modLessonIds = modLessonsList.map((ml) => ml.id);
-
-        let modulePeerRows: any[] = [];
-        if (scope !== 'all' && modLessonIds.length > 0) {
-            const { data: progNotes } = await supabase
-                .from('lms_lesson_progress')
-                .select('lesson_id, user_id, key_takeaway, completed_at')
-                .eq('cohort_id', member.cohort.id)
-                .in('lesson_id', modLessonIds)
-                .not('key_takeaway', 'is', null)
-                .order('completed_at', { ascending: false })
-                .limit(60);
-
-            modulePeerRows = (progNotes || []).filter(
-                (r: any) => typeof r.key_takeaway === 'string' && r.key_takeaway.trim().length > 0,
-            );
-        }
+        const thisLessonRows = (lessonNotesRes?.data || []).filter(
+            (r: any) => typeof r.key_takeaway === 'string' && r.key_takeaway.trim().length > 0,
+        );
 
         const userIds = [
             ...new Set([
                 ...(rows || []).map((r: any) => r.user_id),
                 ...(rows || []).map((r: any) => r.answered_by).filter(Boolean),
-                ...modulePeerRows.map((p: any) => p.user_id),
+                ...thisLessonRows.map((p: any) => p.user_id),
             ]),
         ];
 
@@ -119,7 +122,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
 
         if (scope === 'all') {
-            // Admin Session Q&A tab focuses cleanly on Session Q&A questions & replies (not Dialogue posts)
             const qaRows = enriched.filter((r: any) => r.post_type === 'question');
             const repliesByParent = new Map<string, any[]>();
             for (const row of qaRows) {
@@ -140,36 +142,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(200).json({ comments: topLevel });
         }
 
-        const isAdmin = member.enrollment.role === 'admin';
-        const viewerUnlockedLessonIds = new Set<string>(
-            modulePeerRows
-                .filter((p: any) => p.user_id === member.enrollment.user_id)
-                .map((p: any) => p.lesson_id),
-        );
+        const viewerHasOwnTakeaway = thisLessonRows.some((p: any) => p.user_id === member.enrollment.user_id);
+        const reflectionsUnlocked = isAdmin || viewerHasOwnTakeaway;
 
-        const thisLessonRows = isValidUuid(lessonId)
-            ? modulePeerRows.filter((p: any) => p.lesson_id === lessonId)
+        const peerReflections = reflectionsUnlocked
+            ? thisLessonRows.map((p: any) => ({
+                  lessonId: p.lesson_id,
+                  userId: p.user_id,
+                  isCurrentUser: p.user_id === member.enrollment.user_id,
+                  authorName: authorMap.get(p.user_id)?.full_name || 'Teammate',
+                  authorRole: authorMap.get(p.user_id)?.role || 'learner',
+                  studyGroup: authorMap.get(p.user_id)?.study_group_name || null,
+                  takeaway: p.key_takeaway,
+                  completedAt: p.completed_at,
+              }))
             : [];
-        const reflectionsUnlocked = isAdmin || (isValidUuid(lessonId) && viewerUnlockedLessonIds.has(lessonId));
-
-        const formatNoteItem = (p: any) => ({
-            lessonId: p.lesson_id,
-            lessonTitle: lessonTitleById.get(p.lesson_id) || 'Lesson',
-            userId: p.user_id,
-            isCurrentUser: p.user_id === member.enrollment.user_id,
-            authorName: authorMap.get(p.user_id)?.full_name || 'Teammate',
-            authorRole: authorMap.get(p.user_id)?.role || 'learner',
-            studyGroup: authorMap.get(p.user_id)?.study_group_name || null,
-            takeaway: p.key_takeaway,
-            completedAt: p.completed_at,
-        });
-
-        const peerReflections = reflectionsUnlocked ? thisLessonRows.map(formatNoteItem) : [];
-
-        // Module-scoped Team Notes: only notes from THIS module's lessons that the viewer has already contributed to (or all for Admins)
-        const moduleVisibleNotes = modulePeerRows
-            .filter((p: any) => isAdmin || viewerUnlockedLessonIds.has(p.lesson_id))
-            .map(formatNoteItem);
 
         const modMeta = modMetaRes?.data as any;
         const dialogueScenario = modMeta
@@ -177,28 +164,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             : getModuleDialogueScenario('', '');
 
         const questions = enriched.filter((r: any) => r.post_type === 'question');
-        const dialoguePosts = enriched.filter((r: any) => r.post_type === 'dialogue');
-        const reflectionReplies = enriched.filter(
-            (r: any) => r.post_type === 'reflection_reply' && (!lessonId || r.lesson_id === lessonId),
-        );
+        // Only reveal dialogue posts if module dialogue is unlocked (prevents spoilers before quiz/project)
+        const dialoguePosts = dialogueAccess.unlocked ? enriched.filter((r: any) => r.post_type === 'dialogue') : [];
+        const dialogueCount = enriched.filter((r: any) => r.post_type === 'dialogue' && !r.parent_id).length;
+        const reflectionReplies = isValidUuid(lessonId)
+            ? enriched.filter((r: any) => r.post_type === 'reflection_reply' && r.lesson_id === lessonId)
+            : [];
 
         return res.status(200).json({
-            comments: questions, // backward compatible with existing Q&A UI
+            comments: questions,
             dialoguePosts,
+            dialogueCount,
+            dialogueAccess,
             dialogueScenario,
             aiCoachConfigured: Boolean(process.env.GEMINI_API_KEY?.trim()),
             reflections: {
                 unlocked: reflectionsUnlocked,
                 totalCount: thisLessonRows.length,
                 items: peerReflections,
-                moduleTotalCount: modulePeerRows.length,
-                moduleItems: moduleVisibleNotes,
                 replies: reflectionReplies,
             },
         });
     }
 
-    // POST: Create a Q&A question/reply, Module Dialogue response/reply, or Reflection peer note
+    // POST: Create a Q&A question/reply, gated BAFOS Module Dialogue response/reply, or per-material Key Takeaway reply
     if (req.method === 'POST') {
         const { moduleId, lessonId, body, parentId, postType = 'question' } = req.body || {};
         const cleanBody = sanitizePlainText(body, 2000);
@@ -214,6 +203,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(400).json({ error: 'Invalid lessonId.' });
         }
 
+        // Enforce end-of-module gating for BAFOS Module Dialogue posts
+        if (safePostType === 'dialogue') {
+            const access = await checkModuleDialogueUnlocked({
+                cohortId: member.cohort.id,
+                userId: member.enrollment.user_id,
+                moduleId,
+                isAdmin,
+            });
+            if (!access.unlocked) {
+                return res.status(403).json({
+                    error: access.reason || 'Complete this module’s quiz/project first to unlock Module Dialogue.',
+                    dialogueAccess: access,
+                });
+            }
+        }
+
         const insertPayload: Record<string, any> = {
             cohort_id: member.cohort.id,
             module_id: moduleId,
@@ -223,7 +228,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             status: 'open',
         };
 
-        // Include extended columns when posting non-default types or lesson-linked notes
         if (safePostType !== 'question' || lessonId) {
             insertPayload.post_type = safePostType;
             if (lessonId) insertPayload.lesson_id = lessonId;
@@ -321,7 +325,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             if (!existing) return res.status(404).json({ error: 'Post not found.' });
 
-            const isAdmin = member.enrollment.role === 'admin';
             const isOwner = existing.user_id === member.enrollment.user_id;
             const ageMs = Date.now() - new Date(existing.created_at).getTime();
 
@@ -395,7 +398,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         if (!existing) return res.status(404).json({ error: 'Post not found.' });
 
-        const isAdmin = member.enrollment.role === 'admin';
         const isOwner = existing.user_id === member.enrollment.user_id;
         const ageMs = Date.now() - new Date(existing.created_at).getTime();
 
